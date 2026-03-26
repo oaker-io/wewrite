@@ -1,0 +1,26 @@
+{
+  "skill_name": "media-agent",
+  "evals": [
+    {
+      "id": 0,
+      "name": "topic-writing",
+      "prompt": "用 demo 的配置，写一篇关于 AI Agent 正在取代传统 SaaS 的公众号文章",
+      "expected_output": "一篇 1500-2500 字的公众号文章 Markdown，包含 H1 标题、H2 结构、去 AI 痕迹、符合 demo 客户的 style.yaml 风格",
+      "files": []
+    },
+    {
+      "id": 1,
+      "name": "markdown-convert",
+      "prompt": "把 clients/demo/ 下的 style.yaml 看一下，然后帮我用 professional-clean 主题把这段 markdown 转成微信公众号格式的 HTML 并预览：\n\n# AI时代的效率革命\n\n## 为什么传统工具不够用了\n\n说实话，2026年还在用老一套工具的人，效率已经被甩开一个身位了。\n\n不是危言耸听。上周我帮一个朋友梳理他的工作流，发现他每天花 3 小时在重复性的文档整理上。\n\n## AI 工具的正确打开方式\n\n关键不是「用 AI」，而是「让 AI 做它擅长的事」。\n\n比如数据清洗、格式转换、初稿生成——这些重复性高、规则明确的任务，AI 做得比人快 10 倍。\n\n## 写在最后\n\n工具在进化，人也得跟上。",
+      "expected_output": "一个微信兼容的内联样式 HTML 文件，正确提取 H1 为标题，H2 有主题样式，可在浏览器中预览",
+      "files": []
+    },
+    {
+      "id": 2,
+      "name": "client-onboard",
+      "prompt": "帮我新建一个叫 techbro 的客户，做科技自媒体，面向程序员群体，风格偏吐槽幽默，参考少数派和 V2EX 的调性",
+      "expected_output": "在 clients/techbro/ 下创建 style.yaml（含 topics/tone/voice/blacklist 等）和空的 history.yaml",
+      "files": []
+    }
+  ]
+}

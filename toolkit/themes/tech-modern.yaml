@@ -1,0 +1,196 @@
+name: "tech-modern"
+description: "科技感蓝紫渐变风格，适合技术和产品类内容"
+colors:
+  primary: "#7c3aed"
+  secondary: "#3b82f6"
+  text: "#333333"
+  text_light: "#666666"
+  background: "#ffffff"
+  code_bg: "#282c34"
+  code_color: "#abb2bf"
+  quote_border: "#7c3aed"
+  quote_bg: "#f8f5ff"
+  border_radius: "8px"
+base_css: |
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 32px 0 16px 0;
+    padding: 8px 0 8px 14px;
+    border-left: 5px solid #7c3aed;
+    line-height: 1.4;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 28px 0 14px 0;
+    padding-bottom: 10px;
+    border-bottom: 2px solid transparent;
+    background-image: linear-gradient(90deg, #7c3aed 0%, #3b82f6 50%, transparent 50%);
+    background-size: 100% 2px;
+    background-position: 0 100%;
+    background-repeat: no-repeat;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333333;
+    margin: 24px 0 12px 0;
+    padding-left: 12px;
+    border-left: 3px solid #7c3aed;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+    margin: 20px 0 10px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    margin: 12px 0;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #7c3aed;
+  }
+
+  em {
+    font-style: italic;
+    color: #333333;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #f5f5f5;
+    color: #e83e8c;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: #282c34;
+    color: #abb2bf;
+    padding: 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #abb2bf;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 4px solid #7c3aed;
+    background: #f8f5ff;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    color: #333333;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #333333;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 12px 0;
+    list-style-type: disc;
+    color: #7c3aed;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 12px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    margin: 6px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
+    color: #ffffff;
+  }
+
+  th {
+    color: #ffffff;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid #7c3aed;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    color: #333333;
+  }
+
+  tr {
+    background: #ffffff;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 8px;
+  }
+
+  a {
+    color: #7c3aed;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  hr {
+    border: none;
+    height: 2px;
+    background: linear-gradient(90deg, #7c3aed, #3b82f6, transparent);
+    margin: 24px 0;
+  }

@@ -1,0 +1,186 @@
+name: "minimal"
+description: "极简黑白灰风格，无色彩干扰，内容至上"
+colors:
+  primary: "#333333"
+  secondary: "#666666"
+  text: "#333333"
+  text_light: "#666666"
+  background: "#ffffff"
+  code_bg: "#f5f5f5"
+  code_color: "#d73a49"
+  quote_border: "#cccccc"
+  quote_bg: "#f9f9f9"
+  border_radius: "4px"
+base_css: |
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 32px 0 16px 0;
+    text-align: center;
+    line-height: 1.4;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 28px 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #e0e0e0;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333333;
+    margin: 24px 0 12px 0;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+    margin: 20px 0 10px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    margin: 12px 0;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  em {
+    font-style: italic;
+    color: #333333;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #f5f5f5;
+    color: #d73a49;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: #f5f5f5;
+    color: #333333;
+    padding: 16px;
+    border-radius: 4px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+    border: 1px solid #e0e0e0;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #333333;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 3px solid #cccccc;
+    background: #f9f9f9;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border-radius: 0 4px 4px 0;
+    color: #666666;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #666666;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 12px 0;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 12px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.8;
+    color: #333333;
+    margin: 6px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: rgba(0,0,0,0.03);
+  }
+
+  th {
+    background: rgba(0,0,0,0.03);
+    color: #333333;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid #e0e0e0;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid #e0e0e0;
+    color: #333333;
+  }
+
+  tr {
+    background: #ffffff;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 4px;
+  }
+
+  a {
+    color: #333333;
+    text-decoration: underline;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e0e0e0;
+    margin: 24px 0;
+  }

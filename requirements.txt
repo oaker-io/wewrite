@@ -1,0 +1,7 @@
+markdown>=3.5
+beautifulsoup4>=4.12
+cssutils>=2.9
+requests>=2.31
+pyyaml>=6.0
+Pygments>=2.15
+Pillow>=10.0

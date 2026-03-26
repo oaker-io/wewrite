@@ -1,0 +1,27 @@
+# Credentials
+config.yaml
+
+# Generated output (keep directory structure)
+output/**/
+!output/.gitkeep
+
+# macOS
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+
+# IDE
+.vscode/
+.idea/
+
+# Client data (demo is tracked as template)
+clients/*/corpus/
+clients/*/lessons/
+clients/*/playbook.md
+!clients/demo/

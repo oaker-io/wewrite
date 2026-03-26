@@ -1,0 +1,28 @@
+# media-agent 配置
+# 复制为 config.yaml 并填入你的信息
+
+# 微信公众号 API（发布草稿 + 数据统计必需）
+wechat:
+  appid: "wx_your_appid"
+  secret: "your_appsecret"
+  author: ""  # 默认署名（可选）
+
+# AI 图片生成
+image:
+  # 可选 provider: doubao | openai
+  provider: "doubao"
+  api_key: "your_api_key"
+
+  # doubao-seedream（默认）
+  # 获取 API key: https://console.volcengine.com/ark
+  # model: "doubao-seedream-5-0-260128"
+  # base_url: "https://ark.cn-beijing.volces.com/api/v3"
+
+  # OpenAI DALL-E 3
+  # provider: "openai"
+  # api_key: "sk-..."
+  # model: "dall-e-3"
+  # base_url: "https://api.openai.com/v1"
+
+# 默认排版主题
+theme: "professional-clean"
