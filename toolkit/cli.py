@@ -82,7 +82,8 @@ def cmd_publish(args):
     result = converter.convert_file(args.input)
 
     print(f"Title: {result.title}")
-    print(f"Digest: {result.digest}")
+    final_digest = args.digest if hasattr(args, 'digest') and args.digest else result.digest
+    print(f"Digest: {final_digest}")
     print(f"Images found: {len(result.images)}")
 
     # Get access token
@@ -121,7 +122,7 @@ def cmd_publish(args):
 
     # Create draft
     title = args.title or result.title or Path(args.input).stem
-    digest = args.digest if hasattr(args, 'digest') and args.digest else result.digest
+    digest = final_digest
     draft = create_draft(
         access_token=token,
         title=title,
