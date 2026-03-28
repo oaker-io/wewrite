@@ -144,8 +144,21 @@ def main():
             sources_fail.append(name)
 
     all_items = deduplicate(all_items)
-    # Normalize hot values for sorting (different scales across sources)
-    all_items.sort(key=lambda x: int(x.get("hot", 0) or 0), reverse=True)
+
+    # Normalize hot values across platforms (different scales: toutiao ~10M, weibo ~1M, baidu ~100K)
+    # Strategy: within each source, rank-based score 0-100, so cross-platform sorting is fair
+    by_source: dict[str, list[dict]] = {}
+    for item in all_items:
+        by_source.setdefault(item["source"], []).append(item)
+
+    for source, items in by_source.items():
+        items.sort(key=lambda x: int(x.get("hot", 0) or 0), reverse=True)
+        n = len(items)
+        for rank, item in enumerate(items):
+            # Top item = 100, linear decay to ~1 for last item
+            item["hot_normalized"] = round(100 * (n - rank) / n, 1) if n > 0 else 0
+
+    all_items.sort(key=lambda x: x.get("hot_normalized", 0), reverse=True)
     all_items = all_items[:args.limit]
 
     tz = timezone(timedelta(hours=8))
