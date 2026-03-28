@@ -19,6 +19,7 @@ Usage as module:
 
 import abc
 import argparse
+import base64
 import json
 import sys
 from pathlib import Path
@@ -211,11 +212,52 @@ class OpenAIProvider(ImageProvider):
         return img_resp.content
 
 
+class GeminiProvider(ImageProvider):
+    """Google Gemini Imagen provider."""
+
+    provider_key = "gemini"
+
+    def __init__(self, api_key: str, model: str = "gemini-3.1-flash-image-preview",
+                 base_url: str = "https://generativelanguage.googleapis.com/v1beta"):
+        self._api_key = api_key
+        self._model = model
+        self._base_url = base_url
+
+    def generate(self, prompt: str, size: str) -> bytes:
+        body = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "generationConfig": {"responseModalities": ["TEXT", "IMAGE"]},
+        }
+        session = requests.Session()
+        session.trust_env = False
+        resp = session.post(
+            f"{self._base_url}/models/{self._model}:generateContent?key={self._api_key}",
+            headers={"Content-Type": "application/json"},
+            json=body,
+            timeout=120,
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            error = data.get("error", {})
+            msg = error.get("message", json.dumps(data, ensure_ascii=False))
+            raise ValueError(f"Gemini API error ({resp.status_code}): {msg}")
+        candidates = data.get("candidates", [])
+        if not candidates:
+            raise ValueError(f"No candidates in Gemini response")
+        parts = candidates[0].get("content", {}).get("parts", [])
+        for part in parts:
+            inline_data = part.get("inlineData")
+            if inline_data and inline_data.get("mimeType", "").startswith("image/"):
+                return base64.b64decode(inline_data["data"])
+        raise ValueError(f"No image found in Gemini response parts")
+
+
 # --- Provider registry ---
 
 PROVIDERS = {
     "doubao": DoubaoProvider,
     "openai": OpenAIProvider,
+    "gemini": GeminiProvider,
 }
 
 

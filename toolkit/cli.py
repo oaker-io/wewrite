@@ -121,7 +121,7 @@ def cmd_publish(args):
 
     # Create draft
     title = args.title or result.title or Path(args.input).stem
-    digest = result.digest
+    digest = args.digest if hasattr(args, 'digest') and args.digest else result.digest
     draft = create_draft(
         access_token=token,
         title=title,
@@ -165,6 +165,7 @@ def main():
     p_publish.add_argument("--cover", help="Cover image file path")
     p_publish.add_argument("--title", help="Override article title")
     p_publish.add_argument("--author", default=None, help="Article author")
+    p_publish.add_argument("--digest", default=None, help="Article digest/summary")
 
     # themes
     sub.add_parser("themes", help="List available themes")
