@@ -237,9 +237,11 @@ WebSearch: "{选题关键词} 数据 报告 2025 2026"
 
 Converter 自动处理：CJK 加空格、加粗标点外移、列表转 section、外链转脚注、暗黑模式、容器语法。
 
+**重要**：必须用 `--digest` 传入 Step 5 生成的摘要，否则 cli.py 会截取文章开头作为摘要，导致分享卡片显示不佳。
+
 ```bash
 # 发布
-python3 {skill_dir}/toolkit/cli.py publish {markdown} --cover {cover} --theme {theme} --title "{title}"
+python3 {skill_dir}/toolkit/cli.py publish {markdown} --cover {cover} --theme {theme} --title "{title}" --digest "{Step 5 生成的摘要}"
 
 # 降级：本地预览
 python3 {skill_dir}/toolkit/cli.py preview {markdown} --theme {theme} --no-open -o {output}.html
