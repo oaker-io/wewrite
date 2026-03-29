@@ -1,0 +1,198 @@
+name: "github"
+description: "GitHub风格：白底蓝色链接，等宽代码块，简洁清晰，适合技术文档和开发者内容"
+colors:
+  primary: "#0969da"
+  secondary: "#0550ae"
+  text: "#1f2328"
+  text_light: "#656d76"
+  background: "#ffffff"
+  code_bg: "#f6f8fa"
+  code_color: "#0550ae"
+  quote_border: "#d0d7de"
+  quote_bg: "#f6f8fa"
+  border_radius: "6px"
+darkmode:
+  background: "#0d1117"
+  text: "#e6edf3"
+  text_light: "#8b949e"
+  primary: "#58a6ff"
+  code_bg: "#161b22"
+  code_color: "#79c0ff"
+  quote_bg: "#161b22"
+  quote_border: "#30363d"
+base_css: |
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1f2328;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 26px;
+    font-weight: 600;
+    color: #1f2328;
+    margin: 32px 0 16px 0;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #d1d9e0;
+    line-height: 1.4;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 600;
+    color: #1f2328;
+    margin: 28px 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #d1d9e0;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #1f2328;
+    margin: 24px 0 12px 0;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #1f2328;
+    margin: 20px 0 10px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1f2328;
+    margin: 12px 0;
+  }
+
+  strong {
+    font-weight: 600;
+    color: #1f2328;
+  }
+
+  em {
+    font-style: italic;
+    color: #1f2328;
+  }
+
+  code {
+    font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 13.6px;
+    background: rgba(175,184,193,0.2);
+    color: #1f2328;
+    padding: 3px 6px;
+    border-radius: 6px;
+  }
+
+  pre {
+    background: #f6f8fa;
+    color: #1f2328;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.5;
+    border: 1px solid #d1d9e0;
+  }
+
+  pre code {
+    font-family: ui-monospace, "SFMono-Regular", "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 13.6px;
+    background: none;
+    color: #1f2328;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 4px solid #d0d7de;
+    background: transparent;
+    margin: 16px 0;
+    padding: 4px 16px;
+    border-radius: 0;
+    color: #656d76;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #656d76;
+  }
+
+  ul {
+    padding-left: 28px;
+    margin: 12px 0;
+  }
+
+  ol {
+    padding-left: 28px;
+    margin: 12px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1f2328;
+    margin: 4px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: #f6f8fa;
+  }
+
+  th {
+    background: #f6f8fa;
+    color: #1f2328;
+    font-weight: 600;
+    padding: 8px 14px;
+    text-align: left;
+    border: 1px solid #d1d9e0;
+  }
+
+  td {
+    padding: 8px 14px;
+    border: 1px solid #d1d9e0;
+    color: #1f2328;
+  }
+
+  tr {
+    background: #ffffff;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 6px;
+  }
+
+  a {
+    color: #0969da;
+    text-decoration: none;
+    font-weight: 400;
+  }
+
+  hr {
+    border: none;
+    height: 2px;
+    background: #d1d9e0;
+    margin: 24px 0;
+  }

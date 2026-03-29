@@ -1,0 +1,207 @@
+name: "bauhaus"
+description: "包豪斯设计风格：纯白底黑色为主，红蓝黄色块点缀，几何感强烈"
+colors:
+  primary: "#e63226"
+  secondary: "#004592"
+  text: "#1a1a1a"
+  text_light: "#555555"
+  background: "#ffffff"
+  code_bg: "#f0f0f0"
+  code_color: "#004592"
+  quote_border: "#e63226"
+  quote_bg: "#fff5f5"
+  border_radius: "0px"
+darkmode:
+  background: "#111111"
+  text: "#e8e8e8"
+  text_light: "#a0a0a0"
+  primary: "#f04438"
+  code_bg: "#222222"
+  code_color: "#5b9bd5"
+  quote_bg: "#1e1212"
+  quote_border: "#f04438"
+base_css: |
+  body {
+    font-family: "Helvetica Neue", Helvetica, Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1a1a1a;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 30px;
+    font-weight: 900;
+    color: #1a1a1a;
+    margin: 36px 0 18px 0;
+    padding: 12px 16px;
+    background: #e63226;
+    color: #ffffff;
+    line-height: 1.3;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #004592;
+    margin: 32px 0 14px 0;
+    padding: 8px 0;
+    border-bottom: 4px solid #1a1a1a;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 24px 0 12px 0;
+    padding-left: 12px;
+    border-left: 6px solid #f5b700;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 20px 0 10px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1a1a1a;
+    margin: 12px 0;
+  }
+
+  strong {
+    font-weight: 800;
+    color: #e63226;
+  }
+
+  em {
+    font-style: italic;
+    color: #555555;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #f0f0f0;
+    color: #004592;
+    padding: 2px 6px;
+    border-radius: 0px;
+    border: 1px solid #ddd;
+  }
+
+  pre {
+    background: #1a1a1a;
+    color: #f0f0f0;
+    padding: 16px;
+    border-radius: 0px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+    border-left: 6px solid #e63226;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #f0f0f0;
+    padding: 0;
+    border-radius: 0;
+    border: none;
+  }
+
+  blockquote {
+    border-left: 6px solid #e63226;
+    background: #fff5f5;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border-radius: 0;
+    color: #1a1a1a;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #1a1a1a;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 12px 0;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 12px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.75;
+    color: #1a1a1a;
+    margin: 6px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: #004592;
+  }
+
+  th {
+    background: #004592;
+    color: #ffffff;
+    font-weight: 700;
+    padding: 10px 14px;
+    text-align: left;
+    border: 2px solid #1a1a1a;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 2px solid #1a1a1a;
+    color: #1a1a1a;
+  }
+
+  tr {
+    background: #ffffff;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 0px;
+    border: 2px solid #1a1a1a;
+  }
+
+  a {
+    color: #004592;
+    text-decoration: none;
+    font-weight: 700;
+    border-bottom: 2px solid #f5b700;
+  }
+
+  hr {
+    border: none;
+    height: 4px;
+    background: #1a1a1a;
+    margin: 28px 0;
+  }

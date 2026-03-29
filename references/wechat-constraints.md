@@ -409,7 +409,24 @@ background: linear-gradient(135deg, #7c3aed 0%, #3b82f6 100%);
 
 ---
 
-## 8. 参考资源
+## 8. WeWrite 自动修复
+
+以下微信平台限制已由 converter 自动处理，**无需手动干预**：
+
+| 限制 | 自动修复 |
+|------|---------|
+| 外链被屏蔽 | 自动转为上标编号脚注 + 文末参考链接列表 |
+| 中英文混排无间距 | CJK-Latin 边界自动插入空格 |
+| 加粗文本后中文标点渲染异常 | 标点自动移到 `</strong>` 标签外 |
+| 原生 `<ul>/<ol>` 列表渲染不稳定 | 自动转为 `<section>` + 样式化 bullet/number |
+| 暗黑模式颜色反转错误 | 自动注入 `data-darkmode-color/bgcolor` 属性 |
+| `<style>` 标签被剥离 | 所有 CSS 以内联 `style` 属性注入 |
+
+这些修复在 `converter.py` 的 `convert()` 方法中自动执行，覆盖所有 16 个主题。
+
+---
+
+## 9. 参考资源
 
 ### 官方文档
 - [微信公众平台 - 帮助中心](https://kf.qq.com/product/weixinmp.html)

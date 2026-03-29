@@ -1,31 +1,31 @@
-name: "warm-editorial"
-description: "暖色编辑风格，适合生活方式和文化类内容"
+name: "focus-red"
+description: "聚焦红风格：白底中国红标题和引用边框，醒目有力，适合新闻评论和观点输出"
 colors:
-  primary: "#d97706"
-  secondary: "#ea580c"
-  text: "#333333"
-  text_light: "#666666"
+  primary: "#dc2626"
+  secondary: "#ef4444"
+  text: "#1a1a1a"
+  text_light: "#555555"
   background: "#ffffff"
-  code_bg: "#fef3c7"
-  code_color: "#92400e"
-  quote_border: "#d97706"
-  quote_bg: "#fffbeb"
-  border_radius: "8px"
-  darkmode:
-    background: "#1e1e1e"
-    text: "#d4c8b8"
-    text_light: "#a09080"
-    primary: "#f0a830"
-    code_bg: "#2a2520"
-    code_color: "#d4b896"
-    quote_bg: "#2a2418"
-    quote_border: "#d97706"
+  code_bg: "#fef2f2"
+  code_color: "#b91c1c"
+  quote_border: "#dc2626"
+  quote_bg: "#fef2f2"
+  border_radius: "6px"
+darkmode:
+  background: "#1a0f0f"
+  text: "#e8d8d8"
+  text_light: "#a08888"
+  primary: "#f87171"
+  code_bg: "#2a1515"
+  code_color: "#fca5a5"
+  quote_bg: "#221010"
+  quote_border: "#f87171"
 base_css: |
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
+    color: #1a1a1a;
     background: #ffffff;
     max-width: 720px;
     margin: 0 auto;
@@ -35,28 +35,28 @@ base_css: |
 
   h1 {
     font-size: 26px;
-    font-weight: 700;
-    color: #1a1a1a;
+    font-weight: 800;
+    color: #dc2626;
     margin: 32px 0 16px 0;
     padding-bottom: 12px;
-    border-bottom: 2px solid #d97706;
+    border-bottom: 3px solid #dc2626;
     line-height: 1.4;
   }
 
   h2 {
     font-size: 22px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #dc2626;
     margin: 28px 0 14px 0;
     padding: 8px 0 8px 12px;
-    border-left: 4px solid #d97706;
+    border-left: 4px solid #dc2626;
     line-height: 1.4;
   }
 
   h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #92400e;
+    color: #1a1a1a;
     margin: 24px 0 12px 0;
     line-height: 1.4;
   }
@@ -64,7 +64,7 @@ base_css: |
   h4 {
     font-size: 16px;
     font-weight: 600;
-    color: #92400e;
+    color: #1a1a1a;
     margin: 20px 0 10px 0;
     line-height: 1.4;
   }
@@ -72,55 +72,55 @@ base_css: |
   p {
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
+    color: #1a1a1a;
     margin: 12px 0;
   }
 
   strong {
     font-weight: 700;
-    color: #92400e;
+    color: #dc2626;
   }
 
   em {
     font-style: italic;
-    color: #333333;
+    color: #555555;
   }
 
   code {
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 14px;
-    background: #fef3c7;
-    color: #92400e;
+    background: #fef2f2;
+    color: #b91c1c;
     padding: 2px 6px;
     border-radius: 4px;
   }
 
   pre {
-    background: #fef3c7;
-    color: #92400e;
+    background: #fef2f2;
+    color: #1a1a1a;
     padding: 16px;
-    border-radius: 8px;
+    border-radius: 6px;
     overflow-x: auto;
     margin: 16px 0;
     line-height: 1.6;
-    border: 1px solid #fde68a;
+    border: 1px solid #fecaca;
   }
 
   pre code {
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 14px;
     background: none;
-    color: #92400e;
+    color: #1a1a1a;
     padding: 0;
     border-radius: 0;
   }
 
   blockquote {
-    border-left: 4px solid #d97706;
-    background: #fffbeb;
+    border-left: 4px solid #dc2626;
+    background: #fef2f2;
     margin: 16px 0;
     padding: 12px 16px;
-    border-radius: 0 8px 8px 0;
+    border-radius: 0 6px 6px 0;
     color: #333333;
   }
 
@@ -142,7 +142,7 @@ base_css: |
   li {
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
+    color: #1a1a1a;
     margin: 6px 0;
   }
 
@@ -154,22 +154,22 @@ base_css: |
   }
 
   thead {
-    background: #d97706;
+    background: #dc2626;
   }
 
   th {
-    background: #d97706;
+    background: #dc2626;
     color: #ffffff;
-    font-weight: 600;
+    font-weight: 700;
     padding: 10px 14px;
     text-align: left;
-    border: 1px solid #d97706;
+    border: 1px solid #dc2626;
   }
 
   td {
     padding: 10px 14px;
-    border: 1px solid #fde68a;
-    color: #333333;
+    border: 1px solid #e5e7eb;
+    color: #1a1a1a;
   }
 
   tr {
@@ -181,17 +181,17 @@ base_css: |
     height: auto;
     display: block;
     margin: 24px auto;
-    border-radius: 8px;
+    border-radius: 6px;
   }
 
   a {
-    color: #d97706;
+    color: #dc2626;
     text-decoration: none;
     font-weight: 500;
   }
 
   hr {
     border: none;
-    border-top: 1px solid #fde68a;
+    border-top: 2px solid #fecaca;
     margin: 24px 0;
   }

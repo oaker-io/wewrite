@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Build a client-specific writing playbook from historical articles.
+Build a writing playbook from historical articles.
 
-Reads all .md files in clients/{client}/corpus/, analyzes writing patterns
+Reads all .md files in corpus/, analyzes writing patterns
 in batches via LLM, and outputs a structured playbook.md.
 
 Usage:
-    python3 build_playbook.py --client demo
-    python3 build_playbook.py --client demo --batch-size 10
+    python3 build_playbook.py
+    python3 build_playbook.py --batch-size 10
 
 Requires: ANTHROPIC_API_KEY or ARK API key in environment/config.
 This script outputs analysis prompts to stdout for the Agent (LLM) to process.
@@ -22,9 +22,9 @@ from pathlib import Path
 SKILL_DIR = Path(__file__).parent.parent
 
 
-def load_corpus(client: str) -> list[dict]:
+def load_corpus() -> list[dict]:
     """Load all markdown files from corpus directory."""
-    corpus_dir = SKILL_DIR / "clients" / client / "corpus"
+    corpus_dir = SKILL_DIR / "corpus"
     if not corpus_dir.exists():
         print(f"Error: corpus directory not found: {corpus_dir}", file=sys.stderr)
         sys.exit(1)
@@ -108,13 +108,12 @@ def output_analysis_prompt(articles: list[dict], stats: dict, batch_idx: int, to
 
 def main():
     parser = argparse.ArgumentParser(description="Build writing playbook from corpus")
-    parser.add_argument("--client", required=True, help="Client name")
     parser.add_argument("--batch-size", type=int, default=10, help="Articles per batch")
     parser.add_argument("--stats-only", action="store_true", help="Only show corpus stats")
     args = parser.parse_args()
 
     # Load corpus
-    articles = load_corpus(args.client)
+    articles = load_corpus()
     if not articles:
         print("Error: no articles found in corpus/", file=sys.stderr)
         sys.exit(1)
@@ -123,7 +122,7 @@ def main():
     stats = compute_corpus_stats(articles)
 
     print("=" * 60)
-    print(f"CORPUS ANALYSIS — {args.client}")
+    print("CORPUS ANALYSIS")
     print("=" * 60)
     print(json.dumps(stats, ensure_ascii=False, indent=2))
 

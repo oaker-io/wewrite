@@ -1,0 +1,204 @@
+name: "ink"
+description: "水墨中国风：宣纸底墨色文字，中文衬线字体，留白疏朗，适合文化和人文内容"
+colors:
+  primary: "#4a4a4a"
+  secondary: "#6b6b6b"
+  text: "#1a1a1a"
+  text_light: "#666666"
+  background: "#f8f5f0"
+  code_bg: "#f0ebe3"
+  code_color: "#555555"
+  quote_border: "#999999"
+  quote_bg: "#f4f0e8"
+  border_radius: "2px"
+darkmode:
+  background: "#1a1816"
+  text: "#d8d2c8"
+  text_light: "#9a9488"
+  primary: "#b0a898"
+  code_bg: "#252220"
+  code_color: "#c0b8a8"
+  quote_bg: "#222018"
+  quote_border: "#706858"
+base_css: |
+  body {
+    font-family: "Songti SC", "SimSun", "Noto Serif SC", Georgia, serif;
+    font-size: 16px;
+    line-height: 2;
+    color: #1a1a1a;
+    background: #f8f5f0;
+    max-width: 680px;
+    margin: 0 auto;
+    padding: 28px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 48px 0 24px 0;
+    text-align: center;
+    line-height: 1.4;
+    letter-spacing: 0.1em;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 40px 0 16px 0;
+    text-align: center;
+    padding-bottom: 12px;
+    line-height: 1.4;
+    letter-spacing: 0.05em;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 600;
+    color: #333333;
+    margin: 32px 0 14px 0;
+    line-height: 1.4;
+    letter-spacing: 0.03em;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: #333333;
+    margin: 24px 0 12px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 2;
+    color: #1a1a1a;
+    margin: 16px 0;
+    text-indent: 2em;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #1a1a1a;
+  }
+
+  em {
+    font-style: italic;
+    color: #666666;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #f0ebe3;
+    color: #555555;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  pre {
+    background: #f0ebe3;
+    color: #1a1a1a;
+    padding: 16px;
+    border-radius: 2px;
+    overflow-x: auto;
+    margin: 20px 0;
+    line-height: 1.6;
+    border: 1px solid #ddd5c8;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #1a1a1a;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 3px solid #999999;
+    background: #f4f0e8;
+    margin: 20px 0;
+    padding: 14px 18px;
+    border-radius: 0 2px 2px 0;
+    color: #555555;
+    font-style: italic;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #555555;
+    text-indent: 0;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 16px 0;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 16px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 2;
+    color: #1a1a1a;
+    margin: 8px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: #4a4a4a;
+  }
+
+  th {
+    background: #4a4a4a;
+    color: #f8f5f0;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid #4a4a4a;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid #ddd5c8;
+    color: #1a1a1a;
+  }
+
+  tr {
+    background: #f8f5f0;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 32px auto;
+    border-radius: 2px;
+  }
+
+  a {
+    color: #555555;
+    text-decoration: underline;
+  }
+
+  hr {
+    border: none;
+    text-align: center;
+    margin: 36px 0;
+    height: 20px;
+    background: transparent;
+    border-bottom: 1px solid #ccc5b8;
+  }

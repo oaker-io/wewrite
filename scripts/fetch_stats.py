@@ -7,8 +7,8 @@ Uses WeChat Data Analytics API to pull article performance:
   - /datacube/getarticletotal (cumulative)
 
 Usage:
-    python3 fetch_stats.py --client demo
-    python3 fetch_stats.py --client demo --days 7
+    python3 fetch_stats.py
+    python3 fetch_stats.py --days 7
 
 Requires: wechat appid/secret in config.yaml (skill root or toolkit dir)
 """
@@ -89,11 +89,11 @@ def fetch_article_total(token: str, date: str) -> list[dict]:
     return data["list"]
 
 
-def update_history(client: str, stats_list: list[dict]):
+def update_history(stats_list: list[dict]):
     """Match stats to history.yaml entries and update."""
-    history_path = SKILL_DIR / "clients" / client / "history.yaml"
+    history_path = SKILL_DIR / "history.yaml"
     if not history_path.exists():
-        print(f"No history.yaml found for client: {client}")
+        print("No history.yaml found.")
         return
 
     with open(history_path, "r", encoding="utf-8") as f:
@@ -138,7 +138,6 @@ def update_history(client: str, stats_list: list[dict]):
 
 def main():
     parser = argparse.ArgumentParser(description="Fetch WeChat article stats")
-    parser.add_argument("--client", required=True, help="Client name")
     parser.add_argument("--days", type=int, default=3, help="Days to look back")
     args = parser.parse_args()
 
@@ -152,7 +151,7 @@ def main():
         sys.exit(1)
 
     token = _get_access_token(appid, secret)
-    print(f"Fetching stats for client '{args.client}', last {args.days} days...")
+    print(f"Fetching stats for last {args.days} days...")
 
     all_stats = []
     for i in range(args.days):
@@ -163,7 +162,7 @@ def main():
             all_stats.extend(stats)
 
     if all_stats:
-        update_history(args.client, all_stats)
+        update_history(all_stats)
     else:
         print("No stats data found for the specified period.")
 

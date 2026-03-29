@@ -1,9 +1,23 @@
 # Credentials
 config.yaml
 
-# Generated output (keep directory structure)
-output/**/
+# User data (generated at runtime, not tracked)
+style.yaml
+history.yaml
+playbook.md
+corpus/
+lessons/
+
+# Optimized writing parameters (user runs loop to generate their own)
+writing-config.yaml
+optimization-results.tsv
+
+# Generated output
+output/
 !output/.gitkeep
+
+# Legacy client directories
+clients/
 
 # macOS
 .DS_Store
@@ -19,9 +33,3 @@ build/
 # IDE
 .vscode/
 .idea/
-
-# Client data (demo is tracked as template)
-clients/*/corpus/
-clients/*/lessons/
-clients/*/playbook.md
-!clients/demo/

@@ -11,6 +11,15 @@ colors:
   quote_border: "#cccccc"
   quote_bg: "#f9f9f9"
   border_radius: "4px"
+  darkmode:
+    background: "#1a1a1a"
+    text: "#c0c0c0"
+    text_light: "#888888"
+    primary: "#e0e0e0"
+    code_bg: "#252525"
+    code_color: "#c0c0c0"
+    quote_bg: "#222222"
+    quote_border: "#555555"
 base_css: |
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;

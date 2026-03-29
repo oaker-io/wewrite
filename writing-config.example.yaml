@@ -1,0 +1,79 @@
+# WeWrite 写作参数（可优化）
+# 复制为 writing-config.yaml，然后用 optimize loop 迭代调优
+# 或手动调整后观察朱雀检测结果
+#
+# 这个文件是起点，不是最优解。
+# 运行: python3 scripts/optimize_loop.py --topic "你的主题" --iterations 10
+# 每次迭代会修改 writing-config.yaml 中的参数，保留得分更好的版本。
+
+# 写作人设——影响整体语感和视角
+persona: "科技媒体资深编辑，写了八年公众号，对AI行业有深度认知"
+
+# 句子变化度 (0-1)——越高句长方差越大
+sentence_variance: 0.7
+
+# 破句/不完整句比率——每1000字出现几次
+broken_sentence_rate: 0.04
+
+# 成语/俗语密度——每段平均出现几次
+idiom_density: 0.15
+
+# 口语填充词风格
+# literary: 坦白讲、怎么说呢
+# casual: 说白了、懂的都懂
+# mixed: 混合
+# minimal: 尽量少用
+filler_style: "mixed"
+
+# 段落节奏
+# structured: 匀称（AI默认）
+# chaotic: 剧烈长短交替
+# wave: 长→短→长波浪
+paragraph_rhythm: "chaotic"
+
+# 自我纠正频率——"不对，准确说是..."
+self_correction_rate: 0.02
+
+# 跑题频率
+# never / every_500_chars / every_800_chars / every_1200_chars
+tangent_frequency: "every_800_chars"
+
+# 真实数据引用密度
+# low: 每H2段1条
+# medium: 每H2段2条
+# high: 每H2段3条+
+real_data_density: "high"
+
+# 词汇温度偏向
+# cold: 偏专业书面
+# warm: 偏日常口语
+# hot: 偏网络用语
+# balanced: 均匀混搭
+word_temperature_bias: "warm"
+
+# 情绪弧线
+# flat: 全程平稳（AI默认，避免）
+# gradual: 缓慢升温
+# restrained_to_burst: 克制→爆发（推荐）
+# volatile: 剧烈波动
+emotional_arc: "restrained_to_burst"
+
+# 开头策略
+# scene: 场景描写
+# data: 数据冲击
+# question: 反问
+# anecdote: 个人经历
+# cold_open: 冷开场（直接切入）
+opening_style: "scene"
+
+# 收尾策略
+# summary: 总结回顾（AI默认，避免）
+# open_question: 留一个没答案的问题
+# image: 用一个画面收束
+# abrupt: 戛然而止
+closing_style: "open_question"
+
+# 结构线性度 (0-1)
+# 0 = 完全非线性（跳跃、倒叙、插叙）
+# 1 = 完全线性（观点→论据→总结）
+structure_linearity: 0.3

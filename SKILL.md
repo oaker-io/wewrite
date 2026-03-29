@@ -3,357 +3,305 @@ name: wewrite
 description: |
   微信公众号内容全流程助手：热点抓取 → 选题 → 框架 → 写作 → SEO/去AI痕迹 → 视觉AI → 排版推送草稿箱。
   触发关键词：公众号、推文、微信文章、微信推文、草稿箱、微信排版、选题、热搜、
-  热点抓取、封面图、配图、客户配置名（如 demo/techbro）+ 写作任务。
-  也覆盖：markdown 转微信格式、学习用户改稿风格、文章数据复盘、新建客户配置。
+  热点抓取、封面图、配图、写公众号、写一篇、主题画廊、排版主题、容器语法。
+  也覆盖：markdown 转微信格式、学习用户改稿风格、文章数据复盘、风格设置、
+  主题预览/切换、:::dialogue/:::timeline/:::callout 容器语法。
   不应被通用的"写文章"、blog、邮件、PPT、抖音/短视频、网站 SEO 触发——
   需要有公众号/微信等明确上下文。
+allowed-tools:
+  - Bash
+  - Read
+  - Write
+  - Edit
+  - Glob
+  - Grep
+  - WebSearch
+  - WebFetch
 ---
 
 # WeWrite — 公众号文章全流程
 
-## 快速理解
+## 行为声明
 
-你是一个公众号内容编辑 Agent。用户给你一个客户名，你完成从热点抓取到草稿箱推送的全部工作。
+**角色**：用户的公众号内容编辑 Agent。
 
-**默认全自动**——不要中途停下来问用户选哪个选题、选哪个框架。自动选最优的，一口气跑完全流程。只在出错时才停下来。
+**模式**：
+- **默认全自动**——一口气跑完 Step 1-8，不中途停下。只在出错时停。
+- **交互模式**——用户说"交互模式"/"我要自己选"时，在选题/框架/配图处暂停。
 
-**交互模式**——如果用户说"交互模式"、"我要自己选"、"让我看看选题"，才在选题/框架/配图处暂停等确认。
+**降级原则**：每一步都有降级方案。Step 1 检测到的降级标记（`skip_publish`、`skip_image_gen`）在后续 Step 自动生效，不重复报错。
 
-每一步都有降级方案，不要因为某一步失败就停下来。
+**完成协议**：
+- **DONE** — 全流程完成，文章已保存/推送
+- **DONE_WITH_CONCERNS** — 完成但部分步骤降级，列出降级项
+- **BLOCKED** — 关键步骤无法继续（如 Python 依赖缺失且用户拒绝安装）
+- **NEEDS_CONTEXT** — 需要用户提供信息才能继续（如首次设置需要公众号名称）
 
-## 执行流程
+**路径约定**：本文档中 `{skill_dir}` 指本 SKILL.md 所在的目录（即 WeWrite 的根目录）。
 
-### Step 1: 确定客户
+**Onboard 例外**：Onboard 是交互式的（需要问用户问题），不受"全自动"约束。Onboard 完成后回到全自动管道。
 
-从用户消息中提取客户名称，读取配置：
-
-```
-读取: {skill_dir}/clients/{client}/style.yaml
-```
-
-如果客户目录不存在，告诉用户：
-- 参考 `{skill_dir}/references/style-template.md` 创建配置
-- 或复制 `clients/demo/style.yaml` 作为模板
-
-从 style.yaml 中提取：`topics`、`tone`、`voice`、`blacklist`、`theme`、`cover_style`、`author`、`content_style`。
-
-如果用户直接给了选题（如"写一篇关于 AI Agent 的公众号文章"），跳过 Step 2-3，直接进入 Step 3.5。
+**辅助功能**（按需加载，不在主管道内）：
+- 用户说"重新设置风格" → `读取: {skill_dir}/references/onboard.md`
+- 用户说"学习我的修改" → `读取: {skill_dir}/references/learn-edits.md`
+- 用户说"看看文章数据" → `读取: {skill_dir}/references/effect-review.md`
 
 ---
 
-### Step 2: 热点抓取
+## 主管道（Step 1-8）
+
+### Step 1: 环境 + 配置
+
+**1a. 环境检查**（静默通过或引导修复）：
+
+```bash
+python3 -c "import markdown, bs4, cssutils, requests, yaml, pygments, PIL" 2>&1
+```
+
+| 检查项 | 通过 | 不通过 |
+|--------|------|--------|
+| `config.yaml` 存在 | 静默 | 引导创建，或设 `skip_publish = true` |
+| Python 依赖 | 静默 | 提供 `pip install -r requirements.txt` |
+| `wechat.appid` + `secret` | 静默 | 设 `skip_publish = true` |
+| `image.api_key` | 静默 | 设 `skip_image_gen = true` |
+
+**1b. 加载风格**：
+
+```
+检查: {skill_dir}/style.yaml
+```
+
+- 存在 → 提取 `name`、`topics`、`tone`、`voice`、`blacklist`、`theme`、`cover_style`、`author`、`content_style`
+- 不存在 → `读取: {skill_dir}/references/onboard.md`，完成后回到 Step 1
+
+如果用户直接给了选题 → 跳到 Step 3（仍需框架选择和素材采集，不可跳过）。
+
+---
+
+### Step 2: 选题
+
+**2a. 热点抓取**：
 
 ```bash
 python3 {skill_dir}/scripts/fetch_hotspots.py --limit 30
 ```
 
-脚本返回 JSON 到 stdout，包含多平台热点（微博、头条、百度）。
+**降级**：脚本报错 → WebSearch "今日热点 {topics第一个垂类}"
 
-为每条热点标注所属领域和可创作性评分（1-10）。
-
-**降级**：如果脚本报错或返回空列表，用 WebSearch 搜索 "今日热点 {topics中的第一个垂类}"。
-
----
-
-### Step 2.5: 历史读取 + SEO 数据
+**2b. 历史去重 + SEO**：
 
 ```
-读取: {skill_dir}/clients/{client}/history.yaml
+读取: {skill_dir}/history.yaml（不存在则跳过）
 ```
-
-提取已发布文章的 topic_keywords 列表，用于 Step 3 去重。
-
-如果 history.yaml 中有带 stats 的文章，提取表现最好的文章特征（框架类型、标题风格），作为偏好参考。
-
-然后对热点中的关键词做 SEO 评分：
 
 ```bash
-python3 {skill_dir}/scripts/seo_keywords.py --json {从热点标题中提取的3-5个关键词}
+python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 ```
 
-脚本返回每个关键词的 SEO 评分（0-10）和相关关键词，用于 Step 3 的 SEO 友好度评估。
+**降级**：SEO 脚本报错 → LLM 判断
 
----
-
-### Step 3: 选题生成
+**2c. 生成 10 个选题**：
 
 ```
 读取: {skill_dir}/references/topic-selection.md
 ```
 
-按评估规则生成 10 个选题，每个含标题、评分、点击率潜力、SEO 友好度、推荐框架。
+每个选题含标题、评分、点击率潜力、SEO 友好度、推荐框架。近 7 天已写的关键词降分。
 
-**去重**：对比 history.yaml 中的 topic_keywords，如果某个选题的核心关键词在最近 7 天内已写过，降低其评分或标注"近期已覆盖"。
-
-**SEO 数据化**：用 Step 2.5 的 seo_keywords.py 输出替代纯 LLM 猜测。SEO 友好度直接引用脚本返回的 seo_score。
-
-- **自动模式（默认）**：直接选综合评分最高的，继续。
-- **交互模式**：输出 10 个选题，等用户选择。
+- 自动模式 → 选最高分
+- 交互模式 → 展示 10 个，等用户选
 
 ---
 
-### Step 3.5: 框架选择
+### Step 3: 框架 + 素材
+
+**3a. 框架选择**：
 
 ```
 读取: {skill_dir}/references/frameworks.md
 ```
 
-为选定的选题生成 5 套框架（痛点型/故事型/清单型/对比型/热点解读型），每套含开头策略、段落大纲、金句预埋、结尾引导、推荐指数。
+5 套框架（痛点/故事/清单/对比/热点解读），自动选推荐指数最高的。
 
-- **自动模式（默认）**：直接选推荐指数最高的框架，继续。
-- **交互模式**：输出 5 套框架，等用户选择。
+**3b. 素材采集（关键——决定能否通过 AI 检测）**：
+
+纯 LLM 生成的内容无论技巧多好，底层 token 分布仍是 AI 的。通过检测的文章都建立在真实外部信息源之上。
+
+```
+WebSearch: "{选题关键词} site:36kr.com OR site:mp.weixin.qq.com OR site:zhihu.com"
+WebSearch: "{选题关键词} 数据 报告 2025 2026"
+```
+
+采集 5-8 条真实素材（具名来源 + 具体数据/引述/案例）。**禁止编造**。
+
+**降级**：WebSearch 无结果或不可用 → 用 LLM 训练数据中可验证的公开信息。但需告知用户："素材采集未能使用 WebSearch，文章的 AI 检测通过率会降低。建议在编辑锚点处多加入你自己的内容。"
 
 ---
 
-### Step 4: 文章写作
+### Step 4: 写作
 
 ```
 读取: {skill_dir}/references/writing-guide.md
-读取: {skill_dir}/clients/{client}/playbook.md（如果存在）
+读取: {skill_dir}/playbook.md（如果存在，逐条执行，优先于 writing-guide）
+读取: {skill_dir}/history.yaml（最近 3 篇的 dimensions 字段）
 ```
 
-按选定框架 + writing-guide.md 规范写文章：
-- H1 标题（20-28 字，converter 自动提取为微信标题）
-- 字数 1500-2500
-- 按框架大纲组织结构，在金句落点放精炼总结句
-- 不插配图占位符（Step 6 自动分析插入）
-- 风格遵循 style.yaml 的 tone、voice、content_style
-- 避开 blacklist
+**4a. 维度随机化**：从 writing-guide.md 第 7 层维度池随机激活 2-3 个维度，对比历史去重。
 
-**Playbook 优先**：如果 playbook.md 存在，其中的规则优先于 writing-guide.md 的通用规则。比如 playbook 说"从不用问句结尾"而 writing-guide 建议用反问句，以 playbook 为准。playbook 是客户的个性，writing-guide 是通用底线。
+**4b. 加载写作人格**：
 
-保存到 `{skill_dir}/output/{client}/{date}-{slug}.md`
+```
+读取: {skill_dir}/personas/{style.yaml 的 writing_persona 字段}.yaml
+如果 style.yaml 没有 writing_persona 字段 → 默认 midnight-friend
+```
+
+人格文件定义了：语气浓度、数据呈现方式、情绪弧线、段落节奏、不确定性表达模板等。作为 Step 4c 的硬性约束执行。
+
+**优先级**：playbook.md > persona > writing-guide.md。writing-guide 是底线（禁用词等），persona 在此基础上特化风格参数，playbook 是用户个性化的最终覆盖。
+
+**4c. 写文章**：
+- H1 标题（20-28 字） + H2 结构，1500-2500 字
+- 真实素材锚定：Step 3b 的素材分散嵌入各 H2 段落
+- **写作人格**：按 4b 加载的人格参数写作（数据呈现方式、个人声音浓度、不确定性表达等）
+- 7 层去 AI 痕迹规则在初稿阶段全部生效
+- 2-3 个编辑锚点：`<!-- ✏️ 编辑建议：在这里加一句你自己的经历/看法 -->`
+- 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`
+
+保存到 `{skill_dir}/output/{date}-{slug}.md`
 
 ---
 
-### Step 5: SEO 优化 + 去AI痕迹
+### Step 5: SEO + 验证
 
 ```
 读取: {skill_dir}/references/seo-rules.md
-读取: {skill_dir}/references/writing-guide.md（去AI痕迹部分）
 ```
 
-对初稿执行：
-1. 生成 3 个备选标题（20-28 字），标注策略
-2. 优化关键词密度
-3. 去AI痕迹
-4. 生成摘要（≤ 54 个中文字）
-5. 推荐 5 个精准标签
-6. 完读率优化
+**5a. SEO**：3 个备选标题 + 摘要（≤54 字）+ 5 标签 + 关键词密度优化
 
-覆盖保存终稿。自动模式下选评分最高的标题作为最终标题。
+**5b. 去 AI 逐层验证**（writing-guide.md 自检清单，每项必须通过）：
+
+| # | 检查项 | 标准 |
+|---|--------|------|
+| 0 | 真实信息锚定 | 每个 H2 至少 1 条真实素材，零编造 |
+| 1 | 禁用词 | 命中数 = 0 |
+| 2 | 词汇温度 | 冷/温/热/野 ≥ 3 种 |
+| 3 | 破句 | ≥ 3 处 |
+| 4 | 信息密度 | 高密度段后跟低密度段 |
+| 5 | 连贯性打破 | ≥ 1 处跑题再拉回 |
+| 6 | 情绪弧线 | ≥ 1 高点 + ≥ 1 犹豫 |
+| 7 | 维度贯穿 | 激活维度全文可见 |
+| 8 | 段落节奏 | 无连续 2 个相近长度段落 |
+
+不通过 → 定向重写该段落。3 次仍不过 → 标注跳过。
 
 ---
 
-### Step 6: 视觉AI
+### Step 6: 视觉 AI
+
+**如果 `skip_image_gen = true`** → 只执行 6a。
 
 ```
 读取: {skill_dir}/references/visual-prompts.md
 ```
 
-#### 6a. 分析文章 + 生成提示词
+**6a.** 分析文章结构，生成封面 3 组创意 + 内文 3-6 张配图提示词。
 
-读取终稿，分析结构：
-- 提取 H2 标题和各论点段落
-- 逐个论点判断是否需要配图（数据/场景/转折处优先，纯观点段可不配）
-- 确定配图位置和画面描述
-- 约束：总数 3-6 张，间隔≥300字，不在开头和 CTA 处配图
+**6b.** 调用 image_gen.py 生成图片，替换 Markdown 占位符。
 
-生成封面 3 组创意（直觉冲击/氛围渲染/信息图表）+ 内文配图提示词。
-
-- **自动模式（默认）**：直接用创意 A 作为封面，全部配图直接生成，不停顿。
-- **交互模式**：输出方案，等用户确认或调整。
-
-将占位符 `![配图：场景描述](placeholder)` 插入 Markdown。
-
-#### 6b. 自动生图
-
-```bash
-# 封面（2.35:1 微信封面比例）
-python3 {skill_dir}/toolkit/image_gen.py \
-  --prompt "{封面提示词}" \
-  --output {skill_dir}/output/{client}/{date}-cover.png \
-  --size cover
-
-# 内文配图（16:9 横版）
-python3 {skill_dir}/toolkit/image_gen.py \
-  --prompt "{配图提示词}" \
-  --output {skill_dir}/output/{client}/{date}-img{序号}.png \
-  --size article
-
-# 可通过 --provider 覆盖默认 provider（doubao/openai）
-```
-
-生成后替换 Markdown 中的 placeholder 为实际图片路径。
-
-**降级**：如果 image_gen.py 报错，输出提示词供用户自行生成，继续后续步骤。
+**降级**：生图失败 → 输出提示词，继续。
 
 ---
 
-### Step 7: 排版 + 推送草稿
+### Step 7: 预检 + 排版 + 发布
 
-```bash
-python3 {skill_dir}/toolkit/cli.py publish {markdown_path} \
-  --cover {cover_path} \
-  --theme {style.yaml 的 theme} \
-  --title "{最终标题}"
+**7a. Metadata 预检**（发布前必须通过）：
+
+| 检查项 | 标准 | 不通过时 |
+|--------|------|---------|
+| H1 标题 | 存在且 5-64 字节 | 自动修正或提示用户 |
+| 摘要 | 存在且 ≤ 120 UTF-8 字节 | converter 自动生成 |
+| 封面图 | 推送模式下需要 | 无封面则警告，仍可推送（微信会显示默认封面） |
+| 正文字数 | ≥ 200 字 | 警告"内容过短，微信可能不收录" |
+| 图片数量 | ≤ 10 张 | 超出则移除末尾多余图片 |
+
+预检全部通过后才进入排版。
+
+**7b. 排版 + 发布**：
+
+**如果 `skip_publish = true`** → 直接走 preview。
+
+```
+读取: {skill_dir}/references/wechat-constraints.md
 ```
 
-如果有 cover 就加 `--cover`，没有就不加。
+Converter 自动处理：CJK 加空格、加粗标点外移、列表转 section、外链转脚注、暗黑模式、容器语法。
 
-**降级**：如果 publish 失败，改用 preview：
 ```bash
-python3 {skill_dir}/toolkit/cli.py preview {markdown_path} \
-  --theme {theme} --no-open -o {output_dir}/{slug}.html
+# 发布
+python3 {skill_dir}/toolkit/cli.py publish {markdown} --cover {cover} --theme {theme} --title "{title}"
+
+# 降级：本地预览
+python3 {skill_dir}/toolkit/cli.py preview {markdown} --theme {theme} --no-open -o {output}.html
 ```
-告知用户本地 HTML 路径。
 
 ---
 
-### Step 7.5: 写入历史
+### Step 8: 收尾
 
-发布成功后，向 `{skill_dir}/clients/{client}/history.yaml` 追加一条记录：
+**8a. 写入历史**（推送成功或降级都要写，文件不存在则创建）：
 
 ```yaml
-- date: "{今天日期}"
-  title: "{最终标题}"
+# → {skill_dir}/history.yaml
+- date: "{日期}"
+  title: "{标题}"
   topic_source: "热点抓取"  # 或 "用户指定"
-  topic_keywords: ["{关键词1}", "{关键词2}"]
-  framework: "{使用的框架类型}"
+  topic_keywords: ["{词1}", "{词2}"]
+  framework: "{框架}"
   word_count: {字数}
-  media_id: "{media_id}"
-  stats: null  # 由 fetch_stats.py 后续回填
+  media_id: "{id}"  # 降级时 null
+  writing_persona: "{人格名}"
+  dimensions:
+    - "{维度}: {选项}"
+  stats: null
 ```
 
-这条记录会被下次运行的 Step 2.5 读取，用于选题去重和偏好分析。
+**8b. 回复用户**：
 
----
+- 最终标题 + 2 备选 + 摘要 + 5 标签 + media_id
+- 编辑建议："文章有 2-3 个编辑锚点，建议花 3-5 分钟加入你自己的话，效果更好。"
+- 飞轮提示："编辑完成后说**'学习我的修改'**，下次初稿会更接近你的风格。"
 
-### Step 8: 回复用户
+**8c. 后续操作**：
 
-**成功**：
-- 最终标题 + 2 个备选标题
-- 摘要
-- 5 个推荐标签
-- media_id
-- 提醒：请到公众号后台草稿箱检查并发布
-
-**部分成功**：
-- 列出每步状态（成功/跳过/失败）
-- 附上本地文件路径
-- 说明哪些需要用户手动完成
-
-**用户可以继续要求**：
-- "帮我润色/缩写/扩写/换语气" → 编辑文章
-- "封面换暖色调" → 修改提示词，重新生图
-- "第 3 张配图不要了" → 调整 Markdown
-- "用框架 B 重写" → 回到 Step 4
-- "换一个选题" → 回到 Step 3 展示选题列表
-- "看看文章数据" / "效果怎么样" → 执行效果复盘（见下方）
-
----
-
-## 效果复盘
-
-当用户问"文章数据怎么样"、"效果复盘"、"看看表现"时：
-
-```bash
-python3 {skill_dir}/scripts/fetch_stats.py --client {client} --days 7
-```
-
-脚本会：
-1. 调微信数据分析 API 拉取最近 7 天的文章阅读数据
-2. 匹配 history.yaml 中的文章记录
-3. 回填 stats 字段（阅读量、分享量、点赞量、阅读率）
-
-回填后，分析数据并给出建议：
-- 哪篇文章表现最好？为什么？（标题策略？选题热度？框架类型？）
-- 哪篇表现不好？可能的原因？
-- 对后续选题/标题/框架的调整建议
-
-这些分析会影响下次运行时 Step 2.5 的偏好参考。
-
----
-
-## 客户 Onboard
-
-当用户说"新建客户"、"导入历史文章"、"建 playbook"时：
-
-### 1. 创建客户目录
-
-```
-{skill_dir}/clients/{client}/
-├── style.yaml    # 复制 demo 模板，让用户填写
-├── corpus/       # 用户放入历史推文 .md 文件
-├── history.yaml  # 空初始化
-└── lessons/      # 空目录
-```
-
-### 2. 生成 Playbook
-
-用户将历史推文放入 `corpus/` 后：
-
-```bash
-python3 {skill_dir}/scripts/build_playbook.py --client {client}
-```
-
-脚本输出语料统计 + 分析指令。按指令逐批阅读文章，提取风格特征，生成 `playbook.md`。
-
-建议至少 20 篇历史文章，50+ 篇效果更好。
-
----
-
-## 学习人工修改
-
-当用户说"我改了，学习一下"、"学习我的修改"时：
-
-### 1. 获取 draft 和 final
-
-- draft：`output/{client}/` 下最新的 .md 文件
-- final：用户提供修改后的版本（粘贴或指定文件路径）
-
-### 2. 运行 diff 分析
-
-```bash
-python3 {skill_dir}/scripts/learn_edits.py --client {client} --draft {draft_path} --final {final_path}
-```
-
-### 3. 分析并记录
-
-读取脚本输出的 diff 数据，对每个有意义的修改分类：
-
-- **用词替换**：AI 用了"讲真"，人工改成"坦白说"
-- **段落删除**：人工觉得某段多余
-- **段落新增**：人工补充了 AI 没写的内容
-- **结构调整**：H2 顺序或分段方式的变化
-- **标题修改**：标题风格偏好
-- **语气调整**：整体语气的偏移方向
-
-将分类结果写入 `lessons/` 下的 diff YAML 文件的 edits 和 patterns 字段。
-
-### 4. 自动触发 Playbook 更新
-
-每积累 5 次 lessons，脚本会提示更新 playbook：
-
-```bash
-python3 {skill_dir}/scripts/learn_edits.py --client {client} --summarize
-```
-
-读取所有 lessons，找出反复出现的 pattern（≥2 次），将其固化到 `playbook.md` 的对应章节。
+| 用户说 | 动作 |
+|--------|------|
+| 润色/缩写/扩写/换语气 | 编辑文章 |
+| 封面换暖色调 | 重新生图 |
+| 用框架 B 重写 | 回到 Step 4 |
+| 换一个选题 | 回到 Step 2c |
+| 看看有什么主题 | `python3 {skill_dir}/toolkit/cli.py gallery` |
+| 换成 XX 主题 | 重新渲染 |
+| 看看文章数据 | `读取: {skill_dir}/references/effect-review.md` |
+| 学习我的修改 | `读取: {skill_dir}/references/learn-edits.md` |
+| 做一个小绿书/图片帖 | `python3 {skill_dir}/toolkit/cli.py image-post img1.jpg img2.jpg -t "标题"` |
 
 ---
 
 ## 错误处理
 
-不要因为任何一步失败就停止整个流程。
-
 | 步骤 | 降级 |
 |------|------|
-| 热点抓取失败 | WebSearch 替代 |
+| 环境检查 | 逐项引导，设降级标记 |
+| 热点抓取 | WebSearch 替代 |
 | 选题为空 | 请用户手动给选题 |
-| SEO 关键词查询失败 | 回退到 LLM 判断 |
-| 封面生成失败 | 输出提示词，用户自行生成 |
-| 推送失败 | 生成本地 HTML，手动操作 |
-| 历史写入失败 | 警告但不阻断流程 |
-| 效果数据拉取失败 | 告知用户可能需要等 24h（微信数据有延迟） |
-| Playbook 不存在 | 正常——用 writing-guide.md 通用规则 |
+| SEO 脚本 | LLM 判断 |
+| 素材采集（WebSearch） | LLM 训练数据中可验证的公开信息 |
+| 维度随机化 | history 空时跳过去重 |
+| Persona 文件不存在 | 回退到 midnight-friend（默认） |
+| 去 AI 验证 | 3 次重写不过则跳过该项 |
+| 生图失败 | 输出提示词 |
+| 推送失败 | 本地 HTML |
+| 历史写入 | 警告不阻断 |
+| 效果数据 | 告知等 24h |
+| Playbook 不存在 | 用 writing-guide.md |

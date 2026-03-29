@@ -3,24 +3,95 @@
   "evals": [
     {
       "id": 0,
-      "name": "topic-writing",
-      "prompt": "用 demo 的配置，写一篇关于 AI Agent 正在取代传统 SaaS 的公众号文章",
-      "expected_output": "一篇 1500-2500 字的公众号文章 Markdown，包含 H1 标题、H2 结构、去 AI 痕迹、符合 demo 客户的 style.yaml 风格",
-      "files": []
+      "name": "first-time-onboard",
+      "prompt": "我想用 WeWrite 写公众号文章。我的公众号叫「AI前哨站」，主要写 AI 和科技方向，风格偏轻松有趣，像跟朋友聊天。不用配微信 API，先不配，直接用默认的就行。",
+      "expected_output": "完成 Onboard 流程：通过对话收集信息生成 style.yaml，检测到无 config.yaml 时设置降级标记而非报错停止",
+      "files": [],
+      "assertions": [
+        {
+          "name": "creates_style_yaml",
+          "type": "file_exists",
+          "description": "应在 skill 目录下生成 style.yaml"
+        },
+        {
+          "name": "style_has_required_fields",
+          "type": "content_check",
+          "description": "style.yaml 包含 name、topics、tone 字段"
+        },
+        {
+          "name": "no_client_directory",
+          "type": "negative_check",
+          "description": "不应创建 clients/ 子目录（旧模式已移除）"
+        },
+        {
+          "name": "graceful_no_config",
+          "type": "behavior_check",
+          "description": "检测到无 config.yaml 时应设置降级标记并继续，而非报错停止"
+        }
+      ]
     },
     {
       "id": 1,
-      "name": "markdown-convert",
-      "prompt": "把 clients/demo/ 下的 style.yaml 看一下，然后帮我用 professional-clean 主题把这段 markdown 转成微信公众号格式的 HTML 并预览：\n\n# AI时代的效率革命\n\n## 为什么传统工具不够用了\n\n说实话，2026年还在用老一套工具的人，效率已经被甩开一个身位了。\n\n不是危言耸听。上周我帮一个朋友梳理他的工作流，发现他每天花 3 小时在重复性的文档整理上。\n\n## AI 工具的正确打开方式\n\n关键不是「用 AI」，而是「让 AI 做它擅长的事」。\n\n比如数据清洗、格式转换、初稿生成——这些重复性高、规则明确的任务，AI 做得比人快 10 倍。\n\n## 写在最后\n\n工具在进化，人也得跟上。",
-      "expected_output": "一个微信兼容的内联样式 HTML 文件，正确提取 H1 为标题，H2 有主题样式，可在浏览器中预览",
-      "files": []
+      "name": "topic-writing-anti-ai",
+      "prompt": "写一篇公众号文章，选题：为什么 AI Agent 正在杀死传统 SaaS。不要用交互模式，全自动跑完。不用推送，生成本地预览就行。",
+      "expected_output": "一篇 1500-2500 字的公众号 Markdown 文章，通过 7 层去 AI 痕迹验证，包含维度随机化记录，保存到 output/ 目录",
+      "files": [],
+      "assertions": [
+        {
+          "name": "article_word_count",
+          "type": "range_check",
+          "description": "文章字数在 1500-2500 之间"
+        },
+        {
+          "name": "no_banned_words",
+          "type": "content_check",
+          "description": "文章不包含禁用词：首先、其次、总之、综上所述、值得注意的是、不可否认、众所周知、至关重要、不言而喻"
+        },
+        {
+          "name": "has_broken_sentences",
+          "type": "content_check",
+          "description": "文章包含至少 3 处破句/不完整句（如破折号中断、自我纠正、省略）"
+        },
+        {
+          "name": "has_specific_details",
+          "type": "content_check",
+          "description": "文章包含具体时间/地点/人物/非整数数字等细节，而非泛化表达"
+        },
+        {
+          "name": "dimensions_recorded",
+          "type": "behavior_check",
+          "description": "输出中展示了本次激活的随机维度（如叙事视角、类比域等）"
+        },
+        {
+          "name": "saved_to_output",
+          "type": "file_exists",
+          "description": "文章 Markdown 文件保存到 output/ 目录"
+        }
+      ]
     },
     {
       "id": 2,
-      "name": "client-onboard",
-      "prompt": "帮我新建一个叫 techbro 的客户，做科技自媒体，面向程序员群体，风格偏吐槽幽默，参考少数派和 V2EX 的调性",
-      "expected_output": "在 clients/techbro/ 下创建 style.yaml（含 topics/tone/voice/blacklist 等）和空的 history.yaml",
-      "files": []
+      "name": "markdown-to-wechat",
+      "prompt": "帮我把下面这段 markdown 转成微信公众号格式，用 professional-clean 主题预览一下：\n\n# 为什么你应该停止追求完美代码\n\n## 完美是个陷阱\n\n说实话，我写了十年代码，最大的领悟不是什么设计模式，而是——完美的代码根本不存在。\n\n你以为 Google 的代码库很优雅？去看看 Chromium 的源码，保证刷新你的三观。\n\n## 够用就是最好的\n\n我之前一个同事，重构一个模块重构了三周。结果呢？性能提升了 2%，但错过了整个 sprint 的交付。\n\n老板的原话是：「我要的是能跑的，不是能裱起来的。」\n\n## 最后说两句\n\n写代码跟做饭一样——你妈做的菜不一定摆盘好看，但你就是爱吃。",
+      "expected_output": "生成微信兼容的内联样式 HTML 文件，H1 提取为独立标题，H2 有主题样式，可在浏览器预览",
+      "files": [],
+      "assertions": [
+        {
+          "name": "html_generated",
+          "type": "file_exists",
+          "description": "生成了 HTML 预览文件"
+        },
+        {
+          "name": "inline_styles_only",
+          "type": "content_check",
+          "description": "HTML 使用内联 style 属性，不包含 <style> 标签（微信限制）"
+        },
+        {
+          "name": "h1_extracted",
+          "type": "content_check",
+          "description": "H1 标题被提取为独立标题字段，不在正文 HTML 中"
+        }
+      ]
     }
   ]
 }

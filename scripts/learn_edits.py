@@ -3,13 +3,13 @@
 Learn from human edits by diffing AI draft vs published final.
 
 Compares the original AI-generated article with the human-edited version,
-categorizes the changes, and saves lessons to clients/{client}/lessons/.
+categorizes the changes, and saves lessons to lessons/.
 
 When 5+ lessons accumulate, outputs a prompt for the Agent to update playbook.md.
 
 Usage:
-    python3 learn_edits.py --client demo --draft path/to/draft.md --final path/to/final.md
-    python3 learn_edits.py --client demo --summarize   # summarize all lessons
+    python3 learn_edits.py --draft path/to/draft.md --final path/to/final.md
+    python3 learn_edits.py --summarize   # summarize all lessons
 
 The script does structural analysis; the Agent (LLM) interprets the diffs
 and writes the lesson YAML + playbook updates.
@@ -111,9 +111,9 @@ def compute_diff(draft: str, final: str) -> dict:
     }
 
 
-def save_diff_for_analysis(client: str, diff_result: dict, draft_path: str, final_path: str):
+def save_diff_for_analysis(diff_result: dict, draft_path: str, final_path: str):
     """Save diff data for Agent to analyze and write lessons."""
-    lessons_dir = SKILL_DIR / "clients" / client / "lessons"
+    lessons_dir = SKILL_DIR / "lessons"
     lessons_dir.mkdir(parents=True, exist_ok=True)
 
     date_str = datetime.now().strftime("%Y-%m-%d")
@@ -148,17 +148,17 @@ def save_diff_for_analysis(client: str, diff_result: dict, draft_path: str, fina
     return diff_file
 
 
-def count_lessons(client: str) -> int:
+def count_lessons() -> int:
     """Count existing lesson files."""
-    lessons_dir = SKILL_DIR / "clients" / client / "lessons"
+    lessons_dir = SKILL_DIR / "lessons"
     if not lessons_dir.exists():
         return 0
     return len(list(lessons_dir.glob("*-diff*.yaml")))
 
 
-def summarize_lessons(client: str):
+def summarize_lessons():
     """Load all lessons and output for Agent to update playbook."""
-    lessons_dir = SKILL_DIR / "clients" / client / "lessons"
+    lessons_dir = SKILL_DIR / "lessons"
     if not lessons_dir.exists():
         print("No lessons directory found.")
         return
@@ -181,14 +181,13 @@ def summarize_lessons(client: str):
 
 def main():
     parser = argparse.ArgumentParser(description="Learn from human edits")
-    parser.add_argument("--client", required=True, help="Client name")
     parser.add_argument("--draft", help="Path to AI draft")
     parser.add_argument("--final", help="Path to human-edited final")
     parser.add_argument("--summarize", action="store_true", help="Summarize all lessons")
     args = parser.parse_args()
 
     if args.summarize:
-        summarize_lessons(args.client)
+        summarize_lessons()
         return
 
     if not args.draft or not args.final:
@@ -232,20 +231,20 @@ def main():
             print(f"  + {line[:80]}")
 
     # Save for Agent analysis
-    diff_file = save_diff_for_analysis(args.client, diff_result, args.draft, args.final)
+    diff_file = save_diff_for_analysis(diff_result, args.draft, args.final)
     print(f"\nDiff saved to: {diff_file}")
 
     # Check if playbook update should be triggered
-    lesson_count = count_lessons(args.client)
-    print(f"Total lessons for {args.client}: {lesson_count}")
+    lesson_count = count_lessons()
+    print(f"Total lessons: {lesson_count}")
 
     if lesson_count >= 5 and lesson_count % 5 == 0:
         print(f"\n{'='*60}")
         print("PLAYBOOK UPDATE TRIGGERED")
         print(f"{'='*60}")
         print(f"{lesson_count} lessons accumulated. Agent should:")
-        print(f"1. Read all lessons: python3 learn_edits.py --client {args.client} --summarize")
-        print(f"2. Read current playbook: clients/{args.client}/playbook.md")
+        print(f"1. Read all lessons: python3 learn_edits.py --summarize")
+        print(f"2. Read current playbook: playbook.md")
         print(f"3. Update playbook with recurring patterns from lessons")
 
     # Output instructions for Agent
@@ -262,12 +261,12 @@ Read the draft and final versions, then analyze the edits:
    - type: "用词替换" / "段落删除" / "段落新增" / "结构调整" / "标题修改" / "语气调整"
    - before: (original text)
    - after: (edited text)
-   - pattern: (what this tells us about the client's preference)
+   - pattern: (what this tells us about the user's preference)
 
 4. Update {diff_file} with the edits and patterns lists.
 
 5. If this is a recurring pattern (seen in previous lessons too),
-   consider updating clients/{args.client}/playbook.md.
+   consider updating playbook.md.
 """)
 
 

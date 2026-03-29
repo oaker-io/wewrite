@@ -1,0 +1,206 @@
+name: "newspaper"
+description: "经典报纸风格：米黄底深棕文字，衬线字体质感，适合深度报道和评论"
+colors:
+  primary: "#8b4513"
+  secondary: "#a0522d"
+  text: "#2c2416"
+  text_light: "#5c4a3a"
+  background: "#f5f0e8"
+  code_bg: "#ede7db"
+  code_color: "#8b4513"
+  quote_border: "#8b4513"
+  quote_bg: "#f0eade"
+  border_radius: "2px"
+darkmode:
+  background: "#1e1a14"
+  text: "#ddd5c8"
+  text_light: "#a09580"
+  primary: "#c8915a"
+  code_bg: "#2a2418"
+  code_color: "#d4a574"
+  quote_bg: "#28221a"
+  quote_border: "#c8915a"
+base_css: |
+  body {
+    font-family: Georgia, "Songti SC", "SimSun", "Noto Serif SC", serif;
+    font-size: 16px;
+    line-height: 1.9;
+    color: #2c2416;
+    background: #f5f0e8;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #2c2416;
+    margin: 36px 0 16px 0;
+    text-align: center;
+    padding-bottom: 12px;
+    border-bottom: 3px double #8b4513;
+    line-height: 1.3;
+    letter-spacing: 0.03em;
+  }
+
+  h2 {
+    font-size: 22px;
+    font-weight: 700;
+    color: #2c2416;
+    margin: 30px 0 14px 0;
+    padding-bottom: 8px;
+    border-bottom: 1px solid #8b4513;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #5c4a3a;
+    margin: 24px 0 12px 0;
+    line-height: 1.4;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-size: 16px;
+  }
+
+  h4 {
+    font-size: 16px;
+    font-weight: 700;
+    color: #5c4a3a;
+    margin: 20px 0 10px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 16px;
+    line-height: 1.9;
+    color: #2c2416;
+    margin: 14px 0;
+    text-align: justify;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #2c2416;
+  }
+
+  em {
+    font-style: italic;
+    color: #5c4a3a;
+  }
+
+  code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: #ede7db;
+    color: #8b4513;
+    padding: 2px 6px;
+    border-radius: 2px;
+  }
+
+  pre {
+    background: #ede7db;
+    color: #2c2416;
+    padding: 16px;
+    border-radius: 2px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+    border: 1px solid #d4cbb8;
+  }
+
+  pre code {
+    font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+    font-size: 14px;
+    background: none;
+    color: #2c2416;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 3px solid #8b4513;
+    background: #f0eade;
+    margin: 16px 0;
+    padding: 12px 16px;
+    border-radius: 0 2px 2px 0;
+    color: #5c4a3a;
+    font-style: italic;
+  }
+
+  blockquote p {
+    margin: 8px 0;
+    color: #5c4a3a;
+  }
+
+  ul {
+    padding-left: 24px;
+    margin: 14px 0;
+  }
+
+  ol {
+    padding-left: 24px;
+    margin: 14px 0;
+  }
+
+  li {
+    font-size: 16px;
+    line-height: 1.9;
+    color: #2c2416;
+    margin: 6px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: #8b4513;
+  }
+
+  th {
+    background: #8b4513;
+    color: #f5f0e8;
+    font-weight: 700;
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid #8b4513;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid #d4cbb8;
+    color: #2c2416;
+  }
+
+  tr {
+    background: #f5f0e8;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 2px;
+    border: 1px solid #d4cbb8;
+  }
+
+  a {
+    color: #8b4513;
+    text-decoration: underline;
+    font-weight: 500;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #d4cbb8;
+    margin: 28px auto;
+    width: 60%;
+  }

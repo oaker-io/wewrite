@@ -1,4 +1,6 @@
-# 客户配置 — Demo 科技媒体
+# WeWrite 风格配置
+# 复制为 style.yaml 并修改为你的公众号信息
+# 或让 WeWrite 在首次使用时通过对话自动生成
 
 name: "Demo科技"
 industry: "科技/互联网"
@@ -19,6 +21,11 @@ word_count: "1500-2500"
 # 内容风格（干货/故事/情绪/热点/测评）
 # 影响选题偏好和框架推荐
 content_style: "干货"
+
+# 写作人格（决定文章语感和 AI 检测通过率）
+# 可选：midnight-friend / industry-observer / sharp-journalist / warm-editor / cold-analyst
+# 详见 personas/ 目录
+writing_persona: "midnight-friend"
 
 # 禁忌
 blacklist:

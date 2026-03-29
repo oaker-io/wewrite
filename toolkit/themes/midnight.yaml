@@ -1,32 +1,32 @@
-name: "warm-editorial"
-description: "暖色编辑风格，适合生活方式和文化类内容"
+name: "midnight"
+description: "午夜深色主题：深蓝黑底白色文字，蓝色高亮，适合技术和深夜阅读内容"
 colors:
-  primary: "#d97706"
-  secondary: "#ea580c"
-  text: "#333333"
-  text_light: "#666666"
-  background: "#ffffff"
-  code_bg: "#fef3c7"
-  code_color: "#92400e"
-  quote_border: "#d97706"
-  quote_bg: "#fffbeb"
+  primary: "#60a5fa"
+  secondary: "#93c5fd"
+  text: "#e2e8f0"
+  text_light: "#94a3b8"
+  background: "#0f172a"
+  code_bg: "#1e293b"
+  code_color: "#7dd3fc"
+  quote_border: "#60a5fa"
+  quote_bg: "#172040"
   border_radius: "8px"
-  darkmode:
-    background: "#1e1e1e"
-    text: "#d4c8b8"
-    text_light: "#a09080"
-    primary: "#f0a830"
-    code_bg: "#2a2520"
-    code_color: "#d4b896"
-    quote_bg: "#2a2418"
-    quote_border: "#d97706"
+darkmode:
+  background: "#0f172a"
+  text: "#e2e8f0"
+  text_light: "#94a3b8"
+  primary: "#60a5fa"
+  code_bg: "#1e293b"
+  code_color: "#7dd3fc"
+  quote_bg: "#172040"
+  quote_border: "#60a5fa"
 base_css: |
   body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
-    background: #ffffff;
+    color: #e2e8f0;
+    background: #0f172a;
     max-width: 720px;
     margin: 0 auto;
     padding: 20px;
@@ -36,27 +36,27 @@ base_css: |
   h1 {
     font-size: 26px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #f1f5f9;
     margin: 32px 0 16px 0;
     padding-bottom: 12px;
-    border-bottom: 2px solid #d97706;
+    border-bottom: 2px solid #60a5fa;
     line-height: 1.4;
   }
 
   h2 {
     font-size: 22px;
     font-weight: 700;
-    color: #1a1a1a;
+    color: #60a5fa;
     margin: 28px 0 14px 0;
     padding: 8px 0 8px 12px;
-    border-left: 4px solid #d97706;
+    border-left: 4px solid #60a5fa;
     line-height: 1.4;
   }
 
   h3 {
     font-size: 18px;
     font-weight: 600;
-    color: #92400e;
+    color: #93c5fd;
     margin: 24px 0 12px 0;
     line-height: 1.4;
   }
@@ -64,7 +64,7 @@ base_css: |
   h4 {
     font-size: 16px;
     font-weight: 600;
-    color: #92400e;
+    color: #cbd5e1;
     margin: 20px 0 10px 0;
     line-height: 1.4;
   }
@@ -72,61 +72,61 @@ base_css: |
   p {
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
+    color: #e2e8f0;
     margin: 12px 0;
   }
 
   strong {
     font-weight: 700;
-    color: #92400e;
+    color: #60a5fa;
   }
 
   em {
     font-style: italic;
-    color: #333333;
+    color: #94a3b8;
   }
 
   code {
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 14px;
-    background: #fef3c7;
-    color: #92400e;
+    background: #1e293b;
+    color: #7dd3fc;
     padding: 2px 6px;
     border-radius: 4px;
   }
 
   pre {
-    background: #fef3c7;
-    color: #92400e;
+    background: #1e293b;
+    color: #e2e8f0;
     padding: 16px;
     border-radius: 8px;
     overflow-x: auto;
     margin: 16px 0;
     line-height: 1.6;
-    border: 1px solid #fde68a;
+    border: 1px solid #334155;
   }
 
   pre code {
     font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
     font-size: 14px;
     background: none;
-    color: #92400e;
+    color: #e2e8f0;
     padding: 0;
     border-radius: 0;
   }
 
   blockquote {
-    border-left: 4px solid #d97706;
-    background: #fffbeb;
+    border-left: 4px solid #60a5fa;
+    background: #172040;
     margin: 16px 0;
     padding: 12px 16px;
     border-radius: 0 8px 8px 0;
-    color: #333333;
+    color: #cbd5e1;
   }
 
   blockquote p {
     margin: 8px 0;
-    color: #333333;
+    color: #cbd5e1;
   }
 
   ul {
@@ -142,7 +142,7 @@ base_css: |
   li {
     font-size: 16px;
     line-height: 1.8;
-    color: #333333;
+    color: #e2e8f0;
     margin: 6px 0;
   }
 
@@ -154,26 +154,26 @@ base_css: |
   }
 
   thead {
-    background: #d97706;
+    background: #1e3a5f;
   }
 
   th {
-    background: #d97706;
-    color: #ffffff;
+    background: #1e3a5f;
+    color: #f1f5f9;
     font-weight: 600;
     padding: 10px 14px;
     text-align: left;
-    border: 1px solid #d97706;
+    border: 1px solid #334155;
   }
 
   td {
     padding: 10px 14px;
-    border: 1px solid #fde68a;
-    color: #333333;
+    border: 1px solid #334155;
+    color: #e2e8f0;
   }
 
   tr {
-    background: #ffffff;
+    background: #0f172a;
   }
 
   img {
@@ -185,13 +185,13 @@ base_css: |
   }
 
   a {
-    color: #d97706;
+    color: #60a5fa;
     text-decoration: none;
     font-weight: 500;
   }
 
   hr {
     border: none;
-    border-top: 1px solid #fde68a;
+    border-top: 1px solid #334155;
     margin: 24px 0;
   }
