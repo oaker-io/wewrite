@@ -132,7 +132,9 @@ pip install -r requirements.txt
 
 **Claude Code**：`cp -r wewrite ~/.claude/skills/wewrite`
 
-**OpenClaw**：`cp -r wewrite /path/to/openclaw/skills/wewrite`
+**OpenClaw**：`ln -s /path/to/wewrite/dist/openclaw ~/.openclaw/skills/wewrite`
+
+> `dist/openclaw/` 是自动构建的 OpenClaw 兼容版（工具名、路径变量已转换），push to main 时 CI 自动更新。
 
 ### 配置（可选）
 
@@ -166,14 +168,17 @@ wewrite/
 ├── writing-config.example.yaml # 写作参数模板（可用 optimize loop 调优）
 ├── requirements.txt
 │
-├── scripts/                  # 数据采集 + 优化
+├── dist/openclaw/            # OpenClaw 兼容版（CI 自动构建）
+│
+├── scripts/                  # 数据采集 + 优化 + 构建
 │   ├── fetch_hotspots.py       # 多平台热点抓取
 │   ├── seo_keywords.py         # SEO 关键词分析
 │   ├── fetch_stats.py          # 微信文章数据回填
 │   ├── build_playbook.py       # 从历史文章生成 Playbook
 │   ├── learn_edits.py          # 学习人工修改
 │   ├── humanness_score.py      # 文章"人味"打分器（客观 checklist + LLM 判官）
-│   └── optimize_loop.py        # autoresearch 风格迭代优化框架
+│   ├── optimize_loop.py        # autoresearch 风格迭代优化框架
+│   └── build_openclaw.py       # SKILL.md → OpenClaw 格式转换
 │
 ├── toolkit/                  # Markdown → 微信工具链
 │   ├── cli.py                  # CLI（preview / publish / gallery / themes / image-post）
