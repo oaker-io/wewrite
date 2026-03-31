@@ -215,33 +215,36 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 ```
 读取: {skill_dir}/references/writing-guide.md
 读取: {skill_dir}/playbook.md（如果存在，按 confidence 分级执行）
-读取: {skill_dir}/writing-config.yaml（如果存在，作为写作参数）
-读取: {skill_dir}/history.yaml（最近 3 篇的 dimensions 字段）
+读取: {skill_dir}/history.yaml（最近 3 篇的 dimensions + closing_type 字段）
 读取: {skill_dir}/references/exemplars/index.yaml（如果存在）
 ```
 
-**4.1 历史最佳参数参考**（有 history.yaml 且包含 composite_score 时执行）：
+**4.1 维度随机化**：
 
-读取 history.yaml 中有 `composite_score` 和 `writing_config_snapshot` 的文章，找到得分最低（最人类）的一篇。如果该篇得分比当前 writing-config.yaml 的默认参数对应的历史平均分更好，在写作时**参考**其参数组合（不是覆盖 writing-config.yaml，而是作为"上次这组参数效果好"的提示）。
+从以下维度池随机激活 2-3 个维度，让每篇文章的表达方式不同。如果 history.yaml 有最近 3 篇的 `dimensions` 字段，避免使用相同组合。
 
-具体：如果历史最佳文章的某个参数值与当前 writing-config 不同，在写作时倾向使用历史最佳值。如果没有历史数据，跳过此步。
+| 维度 | 选项 |
+|------|------|
+| 叙事视角 | 第一人称亲历 / 旁观者分析 / 对话体 / 自问自答 |
+| 时间线 | 正序 / 倒叙 / 插叙 |
+| 类比域 | 体育 / 做饭 / 军事 / 恋爱 / 游戏 / 电影 / 建筑 / 医学 |
+| 情绪基调 | 克制冷静 / 热血激动 / 讽刺吐槽 / 温暖治愈 / 焦虑警示 |
+| 节奏 | 短句密集 / 长叙述慢推 / 长短急切交替 / 慢开头快收尾 |
 
-**4.2 维度随机化**：从 writing-guide.md 规则 3.4 维度池随机激活 2-3 个维度，对比历史去重。
-
-**4.3 加载写作人格**：
+**4.2 加载写作人格**：
 
 ```
 读取: {skill_dir}/personas/{style.yaml 的 writing_persona 字段}.yaml
 如果 style.yaml 没有 writing_persona 字段 → 默认 midnight-friend
 ```
 
-人格文件定义了：语气浓度、数据呈现方式、情绪弧线、段落节奏、不确定性表达模板等。作为 4.4 的硬性约束执行。
+人格文件定义了：语气浓度、数据呈现方式、情绪弧线、段落节奏、不确定性表达模板等。作为写作的硬性约束执行。
 
-**优先级**：playbook.md（confidence ≥ 5 的规则）> persona > 范文风格 > writing-guide.md。writing-guide 是底线（禁用词等），范文提供风格示范（句长节奏、情绪表达方式），persona 在此基础上特化风格参数（语气浓度、数据呈现），playbook 中高置信度规则是用户个性化的最终覆盖。playbook 中 confidence < 5 的规则作为软性参考。
+**优先级**：playbook.md（confidence ≥ 5 的规则）> persona > 范文风格 > writing-guide.md。writing-guide 是底线（基础写作规范），范文提供风格示范（句长节奏、情绪表达方式），persona 在此基础上特化风格参数（语气浓度、数据呈现），playbook 中高置信度规则是用户个性化的最终覆盖。playbook 中 confidence < 5 的规则作为软性参考。
 
-**4.4 范文风格注入**（有 `references/exemplars/index.yaml` 时执行）：
+**4.3 范文风格注入**（有 `references/exemplars/index.yaml` 时执行）：
 
-从 index.yaml 筛选 category 匹配当前框架类型的范文，按 humanness_score 升序（越低越人类）取 top 3。读取对应 .md 文件的片段内容。
+从 index.yaml 筛选 category 匹配当前框架类型的范文，取 top 3。读取对应 .md 文件的片段内容。
 
 在写作 prompt 中注入：
 
@@ -285,26 +288,31 @@ Category 映射规则：
 
 建库命令：`python3 {skill_dir}/scripts/extract_exemplar.py article.md`
 
-**4.5 写文章**：
+**4.4 写文章**：
 - H1 标题（20-28 字） + H2 结构，1500-2500 字
-- 真实素材锚定：Step 3.2 的素材分散嵌入各 H2 段落
-- **写作人格**：按 4.3 加载的人格参数写作（数据呈现方式、个人声音浓度、不确定性表达等）
-- **收尾方式**：persona 的 `closing_tendency` 仅作为倾向参考。根据文章内容和情绪弧线自行判断最自然的收尾方式（参见 writing-guide.md 收尾多样性表）。如果 history.yaml 中最近 3 篇有 `closing_type` 字段，避免使用相同的收尾类型
-- 3 层反检测规则（统计/语言/内容）在初稿阶段全部生效
+- **素材 + 增强约束**：Step 3.2 的素材和增强材料分散嵌入各 H2 段落。增强策略的核心输出（角度/密度要点/细节/用户声音）必须贯穿全文，不只装饰性出现一次
+- **写作人格**：按 4.2 加载的人格参数写作（数据呈现方式、个人声音浓度、不确定性表达等）
+- **收尾方式**：persona 的 `closing_tendency` 仅作为倾向参考。根据文章内容和情绪弧线自行判断最自然的收尾方式。如果 history.yaml 中最近 3 篇有 `closing_type` 字段，避免使用相同的收尾类型
+- **写作规范**：writing-guide.md 中的基础规则（禁用词、句长方差、词汇混用等）在初稿阶段生效
 - 2-3 个编辑锚点：`<!-- ✏️ 编辑建议：在这里加一句你自己的经历/看法 -->`
 - 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`
 
 保存到 `{skill_dir}/output/{date}-{slug}.md`
 
-**4.6 快速自检**（写完后立即执行，减少 Step 5 重写概率）：
+**4.5 快速自检**（写完后立即执行，减少 Step 5 重写概率）：
 
-对初稿做 3 项最易不达标的快速扫描，**当场修复**，不留到 Step 5：
+对初稿做 5 项快速扫描，**当场修复**，不留到 Step 5：
 
-1. **禁用词扫描**：检查 writing-guide.md 2.1 的禁用词列表，命中的直接替换（最常见的问题，修复成本最低）
-2. **句长方差检查**：粗略扫描是否有连续 3 句以上长度接近的段落，有则拆句或加短句
-3. **负面情绪检查**：全文是否有 ≥ 2 处真实负面表达，不够则在编辑锚点附近补充
+**写作层面**：
+1. **禁用词扫描**：检查 writing-guide.md 2.1 的禁用词列表，命中的直接替换
+2. **句长方差**：是否有连续 3 句以上长度接近的段落，有则拆句或加短句
 
-这 3 项检查不需要调用脚本，LLM 自行完成即可。目标是让初稿在进入 Step 5 前已经消除最明显的问题。
+**内容层面**：
+3. **开头钩子**：前 3 句是否制造了悬念/冲突/好奇心？如果是平铺直叙的背景介绍，重写开头
+4. **增强贯穿**：增强策略的核心输出是否只出现在一段？如果是，在其他 H2 中补充
+5. **金句检查**：全文是否有至少 1 句可独立截图转发的句子？如果没有，在情绪高点处补一句
+
+LLM 自行完成，不需要调用脚本。
 
 ---
 
