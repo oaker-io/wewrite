@@ -55,20 +55,6 @@ allowed-tools:
      - 读取 `writing-config.yaml`（如存在），检查是否有 AI 特征参数（emotional_arc: flat、paragraph_rhythm: structured、closing_tendency: summary）
      - 读取 `history.yaml` 最近 5 篇，检查 persona 使用和 WebSearch 降级情况
   4. 综合输出自然语言报告 + 按优先级排序的改进建议
-- 用户说"优化写作参数"/"优化参数"/"跑优化" → 执行以下流程：
-  1. 读取 `{skill_dir}/writing-config.yaml`（不存在则从 `writing-config.example.yaml` 复制）
-  2. 用户可指定迭代次数（默认 3），如"优化参数跑 5 轮"
-  3. **迭代循环**（每轮）：
-     a. 用当前 writing-config.yaml 参数写一篇 500 字测试短文（主题：用户指定或"AI Agent 行业观察"）
-     b. 保存到 `{skill_dir}/output/optimize-test.md`
-     c. `python3 {skill_dir}/scripts/humanness_score.py {skill_dir}/output/optimize-test.md --json --tier3 {agent_tier3_score}`
-     d. Agent 做 Tier 3 分析（读测试短文，评估风格漂移/密度波浪/连贯性打破/整体人感，输出 0-1 分数传入 --tier3）
-     e. 解析 JSON 中 `param_scores`，找到得分最低的 1-2 个参数
-     f. 调整 writing-config.yaml 中对应参数（方向：让该维度更"人类"）
-     g. 记录本轮：迭代编号、composite_score、调整的参数、旧值→新值
-  4. 循环结束后，保留 composite_score 最低（最人类）的 writing-config.yaml
-  5. 输出优化报告：起始分 → 最终分，每轮调整，最终参数
-  6. 提示："参数已优化。下次写文章时自动使用新参数。"
 - 用户说"更新"/"更新 WeWrite"/"升级" → 在 `{skill_dir}` 执行 `git pull origin main`，完成后告知版本变化
 
 ---
@@ -175,11 +161,9 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 读取: {skill_dir}/references/frameworks.md
 ```
 
-5 套框架（痛点/故事/清单/对比/热点解读），自动选推荐指数最高的。
+7 套框架（痛点/故事/清单/对比/热点解读/纯观点/复盘），自动选推荐指数最高的。
 
-**3.2 素材采集（关键——决定能否通过 AI 检测）**：
-
-纯 LLM 生成的内容无论技巧多好，底层 token 分布仍是 AI 的。通过检测的文章都建立在真实外部信息源之上。
+**3.2 素材采集**：
 
 ```
 WebSearch: "{选题关键词} site:36kr.com OR site:mp.weixin.qq.com OR site:zhihu.com"
@@ -188,7 +172,26 @@ WebSearch: "{选题关键词} 数据 报告 2025 2026"
 
 采集 5-8 条真实素材（具名来源 + 具体数据/引述/案例）。**禁止编造**。
 
-**降级**：WebSearch 无结果或不可用 → 用 LLM 训练数据中可验证的公开信息。但需告知用户："素材采集未能使用 WebSearch，文章的 AI 检测通过率会降低。建议在编辑锚点处多加入你自己的内容。"
+**降级**：WebSearch 无结果或不可用 → 用 LLM 训练数据中可验证的公开信息。但需告知用户："素材采集未能使用 WebSearch，建议在编辑锚点处多加入你自己的内容。"
+
+**3.3 内容增强（关键——决定文章是否值得读）**：
+
+```
+读取: {skill_dir}/references/content-enhance.md
+```
+
+根据 3.1 选定的框架类型，执行对应的增强策略：
+
+| 框架 | 策略 | 核心动作 |
+|------|------|---------|
+| 热点解读 / 纯观点 | 角度发现 | WebSearch 已有文章 → 提取主流观点 → 生成 3 个差异化角度 → 选最尖锐的 |
+| 痛点 / 清单 | 密度强化 | 检查每个 H2 是否有可操作要点 → 补充工具名/步骤/参数 |
+| 故事 / 复盘 | 细节锚定 | WebSearch 真实细节 → 补充时间锚/数字锚/对话锚/感官锚 |
+| 对比 | 真实体感 | WebSearch 真实用户评价 → 场景化对比 → 补充踩坑信息 |
+
+增强策略的输出（角度/密度要点/细节/用户声音）并入框架大纲，一起传入 Step 4 写作。
+
+**降级**：WebSearch 不可用时，角度发现和真实体感策略用 LLM 自身知识替代（效果降低但不阻断）。密度强化和细节锚定不依赖搜索，始终执行。
 
 ---
 
@@ -434,7 +437,6 @@ python3 {skill_dir}/toolkit/cli.py preview {markdown} --theme {theme} --no-open 
 | 学习我的修改 | `读取: {skill_dir}/references/learn-edits.md` |
 | 做一个小绿书/图片帖 | `python3 {skill_dir}/toolkit/cli.py image-post img1.jpg img2.jpg -t "标题"` |
 | 诊断配置 / 检查反AI / 为什么AI检测没过 | `python3 {skill_dir}/scripts/diagnose.py --json` + LLM 交叉分析 |
-| 优化写作参数 / 优化参数 | 迭代循环：写测试短文 → 打分 → 调参（见辅助功能） |
 | 导入范文 / 建范文库 | `python3 {skill_dir}/scripts/extract_exemplar.py article.md` |
 | 查看范文库 | `python3 {skill_dir}/scripts/extract_exemplar.py --list` |
 

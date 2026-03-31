@@ -8,8 +8,8 @@
 
 ```
 "写一篇公众号文章"
-  → 抓热点 → 选题评分 → 素材采集 → 框架选择
-  → 写作（真实信息锚定 + 3层反检测 + 编辑锚点）
+  → 抓热点 → 选题评分 → 框架选择 → 素材采集 → 内容增强
+  → 写作（真实信息锚定 + 风格注入 + 编辑锚点）
   → SEO优化 → AI配图 → 微信排版 → 推送草稿箱
 ```
 
@@ -22,9 +22,10 @@
 | 热点抓取 | 微博 + 头条 + 百度实时热搜 | `scripts/fetch_hotspots.py` |
 | SEO 评分 | 百度 + 360 搜索量化评分 | `scripts/seo_keywords.py` |
 | 选题生成 | 10 选题 × 3 维度评分 + 历史去重 | `references/topic-selection.md` |
-| 素材采集 | WebSearch 真实数据/引述/案例 | SKILL.md Step 3b |
-| 框架生成 | 5 套写作骨架（痛点/故事/清单/对比/热点） | `references/frameworks.md` |
-| 文章写作 | 真实信息锚定 + 3 层反检测 + 编辑锚点 | `references/writing-guide.md` |
+| 素材采集 | WebSearch 真实数据/引述/案例 | SKILL.md Step 3.2 |
+| 框架生成 | 7 套写作骨架（痛点/故事/清单/对比/热点解读/纯观点/复盘） | `references/frameworks.md` |
+| 内容增强 | 按框架类型自动匹配：角度发现/密度强化/细节锚定/真实体感 | `references/content-enhance.md` |
+| 文章写作 | 真实信息锚定 + 风格注入 + 编辑锚点 | `references/writing-guide.md` |
 | SEO 优化 | 标题策略 / 摘要 / 关键词 / 标签 | `references/seo-rules.md` |
 | 视觉 AI | 封面 3 创意 + 内文 3-6 配图 | `toolkit/image_gen.py` |
 | 排版发布 | 16 主题 + 微信兼容修复 + 暗黑模式 | `toolkit/cli.py` |
@@ -50,22 +51,15 @@ writing_persona: "midnight-friend"
 
 每个人格定义了语气浓度、数据呈现方式、情绪弧线、不确定性表达模板等参数。详见 `personas/` 目录。
 
-## 关于 AI 检测
+## 内容质量
 
-WeWrite 生成的是**高质量初稿**。我们用朱雀 AI 实测了从无优化到完整 pipeline 的效果：
+WeWrite 的目标不是"骗过 AI 检测"，而是**写出值得读的文章**。核心机制：
 
-```
-100% AI（无优化）→ 52% AI（加 WebSearch 素材）→ 10% AI（midnight-friend 人格）
-```
-
-策略是让你的编辑成本最低：
-1. **范文风格库**：导入你已发布的文章，AI 写作时自动注入你的风格指纹（句长节奏、情绪表达、转折方式）。没有文章也没关系——内置通用种子段落兜底
-2. **写作人格**：选择个人声音浓度高的人格，开箱即用就能降低 AI 特征
-3. **素材采集**：自动 WebSearch 真实数据/引述/案例，锚定在文章中（不编造）
+1. **内容增强**：根据框架类型自动执行不同策略——热点文找反直觉角度、干货文强化信息密度、故事文锚定真实细节、对比文注入真实用户体感
+2. **素材采集**：自动 WebSearch 真实数据/引述/案例，锚定在文章中（不编造）
+3. **范文风格库**：导入你已发布的文章，写作时自动注入你的风格指纹（句长节奏、情绪表达、转折方式）
 4. **编辑锚点**：在 2-3 个关键位置标记"在这里加一句你自己的话"
 5. **学习飞轮**：每次你编辑后说"学习我的修改"，下次初稿更接近你的风格
-
-个人声音越强的人格，AI 检测通过率越高。专业/客观风格的人格（journalist、analyst）建议配合编辑锚点使用。
 
 ## 排版引擎
 
@@ -160,8 +154,6 @@ cp config.example.yaml config.yaml
 你：换成 sspai 主题               → 切换主题
 你：看看文章数据怎么样            → 效果复盘
 你：做一个小绿书                  → 图片帖（横滑轮播）
-你：检查一下反 AI 配置              → 诊断报告
-你：优化写作参数                    → 迭代调优 writing-config
 你：导入范文                        → 建立风格库
 你：查看范文库                      → 查看已导入的范文
 ```
@@ -173,7 +165,7 @@ wewrite/
 ├── SKILL.md                  # 主管道（Step 1-8）
 ├── config.example.yaml       # API 配置模板
 ├── style.example.yaml        # 风格配置模板
-├── writing-config.example.yaml # 写作参数模板（说"优化参数"自动调优）
+├── writing-config.example.yaml # 写作参数模板
 ├── requirements.txt
 │
 ├── dist/openclaw/            # OpenClaw 兼容版（CI 自动构建）
@@ -202,7 +194,8 @@ wewrite/
 │
 ├── references/               # Agent 按需加载
 │   ├── writing-guide.md        # 写作规范 + 3 层反检测（统计/语言/内容）+ 14 项自检
-│   ├── frameworks.md           # 5 种写作框架
+│   ├── frameworks.md           # 7 种写作框架（痛点/故事/清单/对比/热点解读/纯观点/复盘）
+│   ├── content-enhance.md     # 内容增强策略（角度发现/密度强化/细节锚定/真实体感）
 │   ├── topic-selection.md      # 选题评估规则
 │   ├── seo-rules.md            # 微信 SEO 规则
 │   ├── visual-prompts.md       # 视觉 AI 提示词规范
@@ -228,11 +221,11 @@ Step 1  环境检查 + 加载风格（不存在则 Onboard）
   ↓
 Step 2  热点抓取 → 历史去重 + SEO → 选题
   ↓
-Step 3  框架选择 → 素材采集（WebSearch 真实数据）
+Step 3  框架选择 → 素材采集（WebSearch 真实数据）→ 内容增强（按框架类型匹配策略）
   ↓
-Step 4  维度随机化 → 范文风格注入 → 写作（3层反检测 + 真实素材锚定 + 编辑锚点）→ 快速自检
+Step 4  维度随机化 → 范文风格注入 → 写作（内容增强约束 + 真实素材锚定 + 编辑锚点）→ 快速自检
   ↓
-Step 5  SEO 优化 → 去 AI 逐层验证（14 项自检 + humanness_score 打分）
+Step 5  SEO 优化 → 质量验证
   ↓
 Step 6  视觉 AI（封面 + 内文配图）
   ↓
@@ -242,26 +235,6 @@ Step 8  写入历史 → 回复用户（含编辑建议 + 飞轮提示）
 ```
 
 默认全自动。说"交互模式"可在选题/框架/配图处暂停确认。
-
-## 写作参数优化
-
-在对话中说「优化写作参数」或「优化参数」，Agent 会自动迭代调优你的 `writing-config.yaml`：
-
-1. 用当前参数写测试短文
-2. 用 `humanness_score.py` 打分（11 项检测，连续 0-1 分数）
-3. 找到最低分维度，调整对应参数
-4. 重复 N 轮（默认 3 轮）
-5. 保留得分最好的参数组合
-
-```bash
-# 独立打分（不需要 Agent）
-python3 scripts/humanness_score.py article.md --verbose
-
-# JSON 输出（含每项分数 + 参数映射）
-python3 scripts/humanness_score.py article.md --json
-```
-
-优化后的 `writing-config.yaml` 不入 git——每个用户跑出自己的最优参数。
 
 ## Toolkit 独立使用
 
@@ -289,8 +262,8 @@ python3 scripts/extract_exemplar.py article.md              # 导入范文
 python3 scripts/extract_exemplar.py *.md -s "你的公众号"     # 批量导入
 python3 scripts/extract_exemplar.py --list                   # 查看范文库
 
-# 诊断反 AI 配置
-python3 scripts/diagnose.py
+# 文章质量检查
+python3 scripts/humanness_score.py article.md --verbose
 ```
 
 ## License
