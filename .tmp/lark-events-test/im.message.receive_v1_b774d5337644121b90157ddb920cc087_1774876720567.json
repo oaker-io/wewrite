@@ -1,0 +1,31 @@
+{
+  "schema": "2.0",
+  "header": {
+    "event_id": "b774d5337644121b90157ddb920cc087",
+    "event_type": "im.message.receive_v1",
+    "app_id": "cli_a94089c1b038dbcb",
+    "tenant_key": "1bb39f46345e575d",
+    "create_time": "1774876720567",
+    "token": ""
+  },
+  "event": {
+    "message": {
+      "chat_id": "oc_b4d0fa77444c16d23200606d6cebca26",
+      "chat_type": "p2p",
+      "content": "{\"text\":\"收到了吗？\"}",
+      "create_time": "1774876720233",
+      "message_id": "om_x100b5393cdcd6ca4b214475ce412e77",
+      "message_type": "text",
+      "update_time": "1774876720233"
+    },
+    "sender": {
+      "sender_id": {
+        "open_id": "ou_2238151255a13ee063ef44793abead34",
+        "union_id": "on_4abb720a3a21ceb697a2fe1b17ad5ca3",
+        "user_id": null
+      },
+      "sender_type": "user",
+      "tenant_key": "1bb39f46345e575d"
+    }
+  }
+}

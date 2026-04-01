@@ -1,0 +1,31 @@
+{
+  "schema": "2.0",
+  "header": {
+    "event_id": "02823b5e8e2a396e9797f3ddd3a7f22d",
+    "event_type": "im.message.receive_v1",
+    "app_id": "cli_a94089c1b038dbcb",
+    "tenant_key": "1bb39f46345e575d",
+    "create_time": "1774876931697",
+    "token": ""
+  },
+  "event": {
+    "message": {
+      "chat_id": "oc_b4d0fa77444c16d23200606d6cebca26",
+      "chat_type": "p2p",
+      "content": "{\"text\":\"衡阳滚’\"}",
+      "create_time": "1774876931287",
+      "message_id": "om_x100b5393deff60acb25a44b7a950e00",
+      "message_type": "text",
+      "update_time": "1774876931287"
+    },
+    "sender": {
+      "sender_id": {
+        "open_id": "ou_2238151255a13ee063ef44793abead34",
+        "union_id": "on_4abb720a3a21ceb697a2fe1b17ad5ca3",
+        "user_id": null
+      },
+      "sender_type": "user",
+      "tenant_key": "1bb39f46345e575d"
+    }
+  }
+}
