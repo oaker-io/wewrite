@@ -271,14 +271,19 @@ PROVIDERS = {
 }
 
 def _build_provider(config: dict) -> ImageProvider:
-    """Build an ImageProvider from config.yaml's image section."""
+    """Build an ImageProvider from config.yaml's image section.
+
+    API key resolution order:
+      1. image.{provider}_api_key  (e.g. image.gemini_api_key)
+      2. image.api_key             (shared fallback)
+    """
     img_cfg = config.get("image", {})
     provider_name = img_cfg.get("provider", "doubao")
-    api_key = img_cfg.get("api_key")
+    api_key = img_cfg.get(f"{provider_name}_api_key") or img_cfg.get("api_key")
 
     if not api_key:
         raise ValueError(
-            f"image.api_key not set in config.yaml. "
+            f"image.api_key (or image.{provider_name}_api_key) not set in config.yaml. "
             f"Configure your {provider_name} API key to enable image generation."
         )
 

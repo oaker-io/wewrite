@@ -8,10 +8,14 @@ wechat:
   author: ""  # 默认署名（可选）
 
 # AI 图片生成
+# 可同时配置多个 provider 的 key，通过 provider 字段切换
+# key 查找顺序：{provider}_api_key → api_key
 image:
   # 可选 provider: doubao | openai | gemini
   provider: "doubao"
-  api_key: "your_api_key"
+  api_key: "your_doubao_key"             # 当前 provider 的 key（或作为通用 fallback）
+  # gemini_api_key: "AIza..."            # 可选：Gemini 专用 key，切换时无需改 api_key
+  # openai_api_key: "sk-..."             # 可选：OpenAI 专用 key
 
   # doubao-seedream（默认）
   # 获取 API key: https://console.volcengine.com/ark
@@ -19,14 +23,10 @@ image:
   # base_url: "https://ark.cn-beijing.volces.com/api/v3"
 
   # OpenAI DALL-E 3
-  # provider: "openai"
-  # api_key: "sk-..."
   # model: "dall-e-3"
   # base_url: "https://api.openai.com/v1"
 
   # Google Gemini Imagen
-  # provider: "gemini"
-  # api_key: "AIza..."
   # 获取 API key: https://aistudio.google.com/apikey
   # model: "gemini-3.1-flash-image-preview"
 
