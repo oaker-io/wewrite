@@ -46,6 +46,14 @@ def _load_config() -> dict:
     return {}
 
 
+# --- Default models (single source of truth) ---
+
+DEFAULT_MODELS = {
+    "doubao": "doubao-seedream-5-0-260128",
+    "openai": "dall-e-3",
+    "gemini": "gemini-3.1-flash-image-preview",
+}
+
 # --- Size presets ---
 
 # Cover: 2.35:1 微信封面比例
@@ -116,8 +124,9 @@ class DoubaoProvider(ImageProvider):
 
     provider_key = "doubao"
 
-    def __init__(self, api_key: str, model: str = "doubao-seedream-5-0-260128",
+    def __init__(self, api_key: str, model: str = None,
                  base_url: str = "https://ark.cn-beijing.volces.com/api/v3"):
+        model = model or DEFAULT_MODELS["doubao"]
         self._api_key = api_key
         self._model = model
         self._base_url = base_url
@@ -166,8 +175,9 @@ class OpenAIProvider(ImageProvider):
 
     provider_key = "openai"
 
-    def __init__(self, api_key: str, model: str = "dall-e-3",
+    def __init__(self, api_key: str, model: str = None,
                  base_url: str = "https://api.openai.com/v1"):
+        model = model or DEFAULT_MODELS["openai"]
         self._api_key = api_key
         self._model = model
         self._base_url = base_url
@@ -218,8 +228,9 @@ class GeminiProvider(ImageProvider):
 
     provider_key = "gemini"
 
-    def __init__(self, api_key: str, model: str = "gemini-3.1-flash-image-preview",
+    def __init__(self, api_key: str, model: str = None,
                  base_url: str = "https://generativelanguage.googleapis.com/v1beta"):
+        model = model or DEFAULT_MODELS["gemini"]
         self._api_key = api_key
         self._model = model
         self._base_url = base_url
@@ -353,12 +364,19 @@ def main():
         default=None,
         help="Override provider (doubao, openai, gemini). Default: from config.yaml",
     )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="Override model name. Default: from config.yaml or provider default",
+    )
     args = parser.parse_args()
 
     try:
         config = _load_config()
         if args.provider:
             config.setdefault("image", {})["provider"] = args.provider
+        if args.model:
+            config.setdefault("image", {})["model"] = args.model
         path = generate_image(args.prompt, args.output, size=args.size, config=config)
         print(f"Image saved: {path}")
     except Exception as e:

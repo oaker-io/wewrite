@@ -12,23 +12,27 @@ image:
   # 可选 provider: doubao | openai | gemini
   provider: "doubao"
   api_key: "your_api_key"
+  # model: 可选，不设则使用 provider 默认模型
+  # model: "doubao-seedream-5-0-260128"
+
+  # --- Provider 配置参考 ---
 
   # doubao-seedream（默认）
   # 获取 API key: https://console.volcengine.com/ark
-  # model: "doubao-seedream-5-0-260128"
+  # 默认模型: doubao-seedream-5-0-260128
   # base_url: "https://ark.cn-beijing.volces.com/api/v3"
 
   # OpenAI DALL-E 3
   # provider: "openai"
   # api_key: "sk-..."
-  # model: "dall-e-3"
+  # 默认模型: dall-e-3
   # base_url: "https://api.openai.com/v1"
 
   # Google Gemini Imagen
   # provider: "gemini"
   # api_key: "AIza..."
   # 获取 API key: https://aistudio.google.com/apikey
-  # model: "gemini-3.1-flash-image-preview"
+  # 默认模型: gemini-3.1-flash-image-preview
 
 # 默认排版主题
 theme: "professional-clean"
