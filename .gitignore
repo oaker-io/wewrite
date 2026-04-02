@@ -42,3 +42,4 @@ CLAUDE.md
 # IDE
 .vscode/
 .idea/
+.tmp/
