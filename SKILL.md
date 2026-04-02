@@ -126,12 +126,13 @@ cd {skill_dir} && git fetch origin main --quiet 2>/dev/null
 
 ```
 检查: {skill_dir}/style.yaml
-```
+并在 {skill_dir}/writing-config.yaml 中读取 `monetization_mode`（如果不存在默认视为 organic）
 
 - 存在 → 提取 `name`、`topics`、`tone`、`voice`、`blacklist`、`theme`、`cover_style`、`author`、`content_style`
 - 不存在 → `读取: {skill_dir}/references/onboard.md`，完成后回到 Step 1
 
 如果用户直接给了选题 → 跳到 Step 3（仍需框架选择和素材采集，不可跳过）。
+```
 
 ---
 
@@ -166,6 +167,8 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 
 ```
 读取: {skill_dir}/references/topic-selection.md
+
+注意：根据 Step 1.3 的 `monetization_mode` (cpc/organic) 解析对应的 IF/ELSE 逻辑。
 ```
 
 生成 **10 个选题**，其中：
@@ -185,6 +188,8 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 
 ```
 读取: {skill_dir}/references/frameworks.md
+
+注意：根据 Step 1.3 的 `monetization_mode` (cpc/organic) 解析对应的条件性排版逻辑。
 ```
 
 7 套框架（痛点/故事/清单/对比/热点解读/纯观点/复盘），自动选推荐指数最高的。
@@ -221,6 +226,8 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 读取: {skill_dir}/playbook.md（如果存在，按 confidence 分级执行）
 读取: {skill_dir}/history.yaml（最近 3 篇的 dimensions + closing_type 字段）
 读取: {skill_dir}/references/exemplars/index.yaml（如果存在）
+
+注意：在应用 writing-guide.md 时，必须遵循 Step 1.3 的 `monetization_mode` 里的特殊分支。
 ```
 
 **4.1 维度随机化**：
