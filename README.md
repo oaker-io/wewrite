@@ -1,6 +1,8 @@
 # WeWrite
 
-公众号文章全流程 AI Skill —— 从热点抓取到草稿箱推送，一句话搞定。
+公众号情感类文章全流程 AI Skill —— 从热点抓取到草稿箱推送，一句话搞定。
+
+专注情感/关系/自我成长方向的选题与写作。
 
 兼容 [Claude Code](https://docs.anthropic.com/en/docs/claude-code) 和 [OpenClaw](https://github.com/anthropics/openclaw) 的 skill 格式。安装后说「写一篇公众号文章」即可触发完整流程。
 
@@ -8,8 +10,8 @@
 
 ```
 "写一篇公众号文章"
-  → 抓热点 → 选题评分 → 框架选择 → 素材采集 → 内容增强
-  → 写作（真实信息锚定 + 风格注入 + 编辑锚点）
+  → 抓热点 → 选题评分（情感相关度加权）→ 框架选择 → 素材采集 → 内容增强
+  → 写作（真实信息锚定 + 情感共鸣 + 风格注入 + 编辑锚点）
   → SEO优化 → AI配图 → 微信排版 → 推送草稿箱
 ```
 
@@ -21,10 +23,10 @@
 |------|------|------|
 | 热点抓取 | 微博 + 头条 + 百度实时热搜 | `scripts/fetch_hotspots.py` |
 | SEO 评分 | 百度 + 360 搜索量化评分 | `scripts/seo_keywords.py` |
-| 选题生成 | 10 选题 × 3 维度评分 + 历史去重 | `references/topic-selection.md` |
+| 选题生成 | 10 选题 × 3 维度评分 + 情感相关度加权 + 历史去重 | `references/topic-selection.md` |
 | 素材采集 | WebSearch 真实数据/引述/案例 | SKILL.md Step 3.2 |
-| 框架生成 | 7 套写作骨架（痛点/故事/清单/对比/热点解读/纯观点/复盘） | `references/frameworks.md` |
-| 内容增强 | 按框架类型自动匹配：角度发现/密度强化/细节锚定/真实体感 | `references/content-enhance.md` |
+| 框架生成 | 8 套写作骨架（痛点/故事/清单/对比/热点解读/纯观点/复盘/情感共鸣） | `references/frameworks.md` |
+| 内容增强 | 按框架类型自动匹配：角度发现/密度强化/细节锚定/真实体感/情感共鸣 | `references/content-enhance.md` |
 | 文章写作 | 真实信息锚定 + 风格注入 + 编辑锚点 | `references/writing-guide.md` |
 | SEO 优化 | 标题策略 / 摘要 / 关键词 / 标签 | `references/seo-rules.md` |
 | 视觉 AI | 封面 3 创意 + 内文 3-6 配图 | `toolkit/image_gen.py` |
@@ -56,7 +58,7 @@ writing_persona: "midnight-friend"
 
 WeWrite 的目标不是"骗过 AI 检测"，而是**写出值得读的文章**。核心机制：
 
-1. **内容增强**：根据框架类型自动执行不同策略——热点文找反直觉角度、干货文强化信息密度、故事文锚定真实细节、对比文注入真实用户体感
+1. **内容增强**：根据框架类型自动执行不同策略——热点文找反直觉角度、干货文强化信息密度、故事文锚定真实细节、对比文注入真实用户体感、情感文触发读者情绪记忆
 2. **素材采集**：自动 WebSearch 真实数据/引述/案例，锚定在文章中（不编造）
 3. **范文风格库**：导入你已发布的文章，写作时自动注入你的风格指纹（句长节奏、情绪表达、转折方式）
 4. **编辑锚点**：在 2-3 个关键位置标记"在这里加一句你自己的话"
@@ -148,12 +150,12 @@ cp config.example.yaml config.yaml
 
 ```
 你：写一篇公众号文章
-你：写一篇关于 AI Agent 的公众号文章
-你：交互模式，写一篇关于效率工具的推文
+你：写一篇关于异地恋的公众号文章
+你：交互模式，写一篇关于讨好型人格的推文
 你：帮我润色一下刚才那篇
 你：学习我的修改                  → 飞轮学习
 你：看看有什么主题                → 主题画廊
-你：换成 sspai 主题               → 切换主题
+你：换成 warm-editorial 主题      → 切换主题
 你：看看文章数据怎么样            → 效果复盘
 你：做一个小绿书                  → 图片帖（横滑轮播）
 你：检查一下                        → 生成报告 + 质量自检
@@ -199,8 +201,8 @@ wewrite/
 │
 ├── references/               # Agent 按需加载
 │   ├── writing-guide.md        # 写作规范 + 质量检查规则
-│   ├── frameworks.md           # 7 种写作框架（痛点/故事/清单/对比/热点解读/纯观点/复盘）
-│   ├── content-enhance.md     # 内容增强策略（角度发现/密度强化/细节锚定/真实体感）
+│   ├── frameworks.md           # 8 种写作框架（痛点/故事/清单/对比/热点解读/纯观点/复盘/情感共鸣）
+│   ├── content-enhance.md     # 内容增强策略（角度发现/密度强化/细节锚定/真实体感/情感共鸣）
 │   ├── topic-selection.md      # 选题评估规则
 │   ├── seo-rules.md            # 微信 SEO 规则
 │   ├── visual-prompts.md       # 视觉 AI 提示词规范
@@ -260,7 +262,7 @@ python3 toolkit/cli.py image-post photo1.jpg photo2.jpg photo3.jpg -t "周末探
 python3 scripts/fetch_hotspots.py --limit 20
 
 # SEO 分析
-python3 scripts/seo_keywords.py --json "AI大模型" "科技股"
+python3 scripts/seo_keywords.py --json "恋爱脑" "讨好型人格"
 
 # 范文风格库
 python3 scripts/extract_exemplar.py article.md              # 导入范文

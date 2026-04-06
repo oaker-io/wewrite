@@ -31,4 +31,4 @@ image:
   # model: "gemini-3.1-flash-image-preview"
 
 # 默认排版主题
-theme: "professional-clean"
+theme: "warm-editorial"

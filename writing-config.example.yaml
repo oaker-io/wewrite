@@ -33,10 +33,11 @@ word_temperature_bias: "balanced"
 # 情绪弧线
 # flat: 全程平稳（AI默认，避免）
 # gradual: 缓慢升温
-# restrained_to_burst: 克制→爆发（推荐）
+# restrained_to_burst: 克制→爆发
 # volatile: 剧烈波动
+# gentle_build: 缓慢积蓄→共鸣高点→余韵收束（推荐，情感类）
 # → 对抗情感分布检测 [规则 1.4]
-emotional_arc: "restrained_to_burst"
+emotional_arc: "gentle_build"
 
 # 负面情绪最低占比 (0-1)
 # AI 中文文本负面情绪仅 11-12%，人类 25-34%
@@ -103,19 +104,19 @@ real_data_density: "high"
 idiom_density: 0.15
 
 # 开头策略
-# scene: 场景描写
+# scene: 场景描写（推荐，情感类）
 # data: 数据冲击
 # question: 反问
 # anecdote: 个人经历
 # cold_open: 冷开场（直接切入）
-opening_style: "scene"
+opening_style: "anecdote"
 
 # 收尾策略
 # summary: 总结回顾（AI默认，避免）
 # open_question: 留一个没答案的问题
-# image: 用一个画面收束
+# image: 用一个画面收束（推荐，情感类）
 # abrupt: 戛然而止
-closing_style: "open_question"
+closing_style: "image"
 
 # 写作人设——影响整体语感和视角
-persona: "科技媒体资深编辑，写了八年公众号，对AI行业有深度认知"
+persona: "情感专栏作者，写了五年深夜推送，擅长从生活细节中发现情感共鸣点"

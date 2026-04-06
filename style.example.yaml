@@ -2,48 +2,49 @@
 # 复制为 style.yaml 并修改为你的公众号信息
 # 或让 WeWrite 在首次使用时通过对话自动生成
 
-name: "Demo科技"
-industry: "科技/互联网"
-target_audience: "25-40岁互联网从业者、科技爱好者"
+name: "深夜情感站"
+industry: "情感/生活"
+target_audience: "20-35岁都市青年，经历或关注亲密关系、自我成长、情感困惑的读者"
 
 # 内容方向
 topics:
-  - AI/人工智能
-  - 产品设计
-  - 创业/商业模式
-  - 效率工具
+  - 亲密关系/恋爱
+  - 自我成长/情绪管理
+  - 家庭关系/原生家庭
+  - 婚姻/两性沟通
+  - 孤独/社交焦虑
 
 # 写作风格
-tone: "专业但不学术，有观点但不偏激，偶尔幽默"
-voice: "第一人称，像一个懂行的朋友在分享见解"
+tone: "温暖但不鸡汤，真诚但不煽情，有洞察但不说教"
+voice: "第一人称，像一个经历过很多的朋友在深夜跟你聊心事"
 word_count: "1500-2500"
 
 # 内容风格（干货/故事/情绪/热点/测评）
 # 影响选题偏好和框架推荐
-content_style: "干货"
+content_style: "情绪"
 
 # 写作人格（决定文章语感和 AI 检测通过率）
 # 可选：midnight-friend / industry-observer / sharp-journalist / warm-editor / cold-analyst
 # 详见 personas/ 目录
-writing_persona: "midnight-friend"
+writing_persona: "warm-editor"
 
 # 禁忌
 blacklist:
-  words: ["震惊", "必看", "不转不是中国人", "赶紧收藏"]
-  topics: ["政治敏感", "宗教", "色情", "赌博"]
+  words: ["震惊", "必看", "不转不是中国人", "赶紧收藏", "正能量", "负能量"]
+  topics: ["政治敏感", "宗教", "色情", "赌博", "PUA技巧", "情感操控"]
 
 # 参考账号风格
 reference_accounts:
-  - "36氪"
-  - "虎嗅"
-  - "少数派"
+  - "KnowYourself"
+  - "武志红"
+  - "ONE·一个"
 
 # 排版
-theme: "professional-clean"
+theme: "warm-editorial"
 
 # 封面
-cover_style: "简洁科技感，蓝色调，扁平化设计"
+cover_style: "温暖柔和，暖色调，有人文质感和情绪氛围"
 # cover_template: ""  # 设置后跳过 AI 生成，直接使用该文件
 
 # 署名
-author: "Demo编辑部"
+author: "深夜情感站"

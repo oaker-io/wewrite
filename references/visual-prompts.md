@@ -21,8 +21,9 @@
 
 **创意 B: 氛围渲染型**
 - 策略：营造一种情绪或场景氛围，引发好奇
-- 适合：故事类、情绪类文章
+- 适合：故事类、情绪类、情感类文章
 - 风格：细腻、有质感、让人想点进去看
+- 情感类偏好：暖色调、柔光、生活化场景（深夜台灯、雨天窗边、空荡的座位）
 
 **创意 C: 信息图表型**
 - 策略：用简洁的图形/图标/数据可视化传递信息
@@ -147,6 +148,8 @@
 
 ## 输出示例
 
+### 示例一：科技类选题
+
 ```
 ## 封面图创意
 
@@ -168,4 +171,28 @@
 - AI 绘图提示词：
   "Minimalist bar chart comparing two bars, left bar taller in red, right bar shorter in blue, question mark floating above the taller bar, clean white background, flat infographic style, 1:1 square, no text"
 - 备选方案：Unsplash 搜 "data comparison chart technology"
+```
+
+### 示例二：情感类选题
+
+```
+## 封面图创意
+
+### 创意 B: 深夜独处（氛围渲染型）
+- 视觉描述：深夜房间里，一盏暖黄色台灯照亮一张木桌，桌上放着一杯还冒热气的茶和一部亮着屏幕的手机。窗外是城市模糊的灯光。整体氛围温暖但带着淡淡的孤独感。
+- 色调：暖黄 + 深灰蓝 + 琥珀色
+- 构图：16:9 横版，台灯和手机偏左，右侧留白放标题
+- 文字区域：右侧 1/3 干净空间
+- AI 绘图提示词：
+  "A warm desk lamp illuminating a wooden table at night, a cup of steaming tea and a glowing phone screen on the table, blurred city lights through window in background, warm amber tones, cozy but slightly lonely atmosphere, soft focus, film grain texture, 16:9 aspect ratio, clean space on the right for text overlay, no text no letters no words"
+- 适配工具建议：即梦（氛围感强）
+
+## 内文配图
+
+### 配图 1: 位于"你并不孤独"段落后
+- 配图目的：情绪强化
+- 画面描述：两把椅子隔着一张小桌，一把椅子上有人，另一把空着，桌上放着两杯咖啡——一杯满的，一杯只剩杯底
+- AI 绘图提示词：
+  "两把木椅面对面放着，中间一张小圆桌，一把椅子有人坐着的痕迹（靠垫微微凹陷），另一把空着，桌上两杯咖啡，一杯满的冒着热气，一杯只剩底部残留，午后柔光，暖色调，文艺安静氛围"
+- 备选方案：Unsplash 搜 "empty chair cafe loneliness warm"
 ```
