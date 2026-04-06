@@ -35,6 +35,7 @@
 | 范文风格库 | SICO 式 few-shot：从你的文章提取风格指纹，写作时注入 | `scripts/extract_exemplar.py` |
 | 风格飞轮 | 学习你的修改，越用越像你 | `references/learn-edits.md` |
 | 排版学习 | 从任意公众号文章 URL 提取排版主题 | `scripts/learn_theme.py` |
+| 文章采集 | 从公众号 URL 提取正文为 Markdown，可导入范文库 | `scripts/fetch_article.py` |
 
 ## 写作人格
 
@@ -185,6 +186,7 @@ wewrite/
 │   ├── humanness_score.py      # 文章质量打分（11 项检测，供自检和 Step 5 使用）
 │   ├── extract_exemplar.py      # 范文风格提取（SICO 式 few-shot 建库）
 │   ├── learn_theme.py           # 从公众号文章 URL 提取排版主题
+│   ├── fetch_article.py         # 从公众号 URL 提取正文为 Markdown
 │   ├── diagnose.py             # 配置完备度检查
 │   └── build_openclaw.py       # SKILL.md → OpenClaw 格式转换
 │
@@ -194,7 +196,7 @@ wewrite/
 │   ├── theme.py                # YAML 主题引擎
 │   ├── publisher.py            # 微信草稿箱 API + 小绿书图片帖
 │   ├── wechat_api.py           # access_token / 图片上传
-│   ├── image_gen.py            # AI 图片生成（doubao / OpenAI / Gemini）
+│   ├── image_gen.py            # AI 图片生成（9 provider，自动 fallback）
 │   └── themes/                 # 16+ 排版主题（含暗黑模式，可从文章学习新增）
 │
 ├── personas/                 # 5 套写作人格预设（含朱雀实测数据）

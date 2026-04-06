@@ -12,7 +12,6 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-import requests
 import yaml
 from bs4 import BeautifulSoup
 
@@ -154,12 +153,6 @@ _TARGET_TAGS = {
     "blockquote", "code", "pre", "img", "a",
 }
 
-_BROWSER_UA = (
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-    "AppleWebKit/537.36 (KHTML, like Gecko) "
-    "Chrome/124.0.0.0 Safari/537.36"
-)
-
 TEMPLATE_THEME = "professional-clean"
 THEMES_DIR = Path(__file__).resolve().parent.parent / "toolkit" / "themes"
 
@@ -175,26 +168,20 @@ def _attach_title(soup, content) -> None:
 def fetch_article(url: str, timeout: int = 20) -> "BeautifulSoup tag":
     """Fetch a WeChat article, return the ``#js_content`` element.
 
-    The article title is attached as ``content._wewrite_title`` (empty string
-    if not found).  Exits with code 1 on network errors or missing content.
+    Delegates to fetch_article.fetch_html() for three-level fetching
+    (requests → Playwright → manual fallback).
 
-    Parameters
-    ----------
-    url:     WeChat article URL (mp.weixin.qq.com/…)
-    timeout: HTTP request timeout in seconds (default 20).
+    The article title is attached as ``content._wewrite_title`` (empty string
+    if not found).
     """
-    try:
-        resp = requests.get(url, headers={"User-Agent": _BROWSER_UA}, timeout=timeout)
-        resp.raise_for_status()
-    except requests.exceptions.RequestException as exc:
-        print(f"Error: failed to fetch URL: {exc}", file=sys.stderr)
-        sys.exit(1)
-    resp.encoding = "utf-8"
-    soup = BeautifulSoup(resp.text, "html.parser")
+    from scripts.fetch_article import fetch_html
+
+    html = fetch_html(url)
+    soup = BeautifulSoup(html, "html.parser")
 
     content = soup.find(id="js_content")
     if content is None:
-        print("Error: #js_content not found — the page may require verification.", file=sys.stderr)
+        print("Error: #js_content not found.", file=sys.stderr)
         sys.exit(1)
 
     _attach_title(soup, content)

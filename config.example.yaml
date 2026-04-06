@@ -8,27 +8,63 @@ wechat:
   author: ""  # 默认署名（可选）
 
 # AI 图片生成
+# 支持 9 个 provider，配一个就能用，配多个自动 fallback。
+#
+# ┌─────────────────┬────────────────────────────────────────────────┬────────────────────┐
+# │ Provider        │ 获取 API Key                                   │ 特点               │
+# ├─────────────────┼────────────────────────────────────────────────┼────────────────────┤
+# │ doubao          │ https://console.volcengine.com/ark             │ 中文提示词最优     │
+# │ dashscope       │ https://dashscope.console.aliyun.com/          │ 阿里通义万相       │
+# │ jimeng          │ https://console.volcengine.com/iam             │ 字节即梦，中文强   │
+# │ minimax         │ https://platform.minimaxi.com/                 │ 国内 provider      │
+# │ openai          │ https://platform.openai.com/api-keys           │ DALL-E，通用性强   │
+# │ azure_openai    │ Azure Portal                                   │ 国内可访问的 OpenAI│
+# │ gemini          │ https://aistudio.google.com/apikey             │ 免费额度较多       │
+# │ openrouter      │ https://openrouter.ai/settings/keys            │ 多模型代理         │
+# │ replicate       │ https://replicate.com/account/api-tokens       │ 开源模型丰富       │
+# └─────────────────┴────────────────────────────────────────────────┴────────────────────┘
+#
+# 支持两种配置方式：
+
+# 方式一：单 provider（简单用法，填一个就行）
 image:
-  # 可选 provider: doubao | openai | gemini
-  provider: "doubao"
+  provider: "doubao"           # 见上表 Provider 列
   api_key: "your_api_key"
+  # model: "doubao-seedream-5-0-260128"   # 可选，各 provider 有默认值
+  # base_url: "https://ark.cn-beijing.volces.com/api/v3"  # 可选
 
-  # doubao-seedream（默认）
-  # 获取 API key: https://console.volcengine.com/ark
-  # model: "doubao-seedream-5-0-260128"
-  # base_url: "https://ark.cn-beijing.volces.com/api/v3"
-
-  # OpenAI DALL-E 3
-  # provider: "openai"
-  # api_key: "sk-..."
-  # model: "dall-e-3"
-  # base_url: "https://api.openai.com/v1"
-
-  # Google Gemini Imagen
-  # provider: "gemini"
-  # api_key: "AIza..."
-  # 获取 API key: https://aistudio.google.com/apikey
-  # model: "gemini-3.1-flash-image-preview"
+# 方式二：多 provider 自动 fallback（推荐）
+# 按顺序尝试，第一个失败自动切换下一个，不需要全部填写
+# image:
+#   providers:
+#     - provider: doubao
+#       api_key: "your_volcengine_key"
+#     - provider: dashscope
+#       api_key: "your_dashscope_key"
+#       # model: "qwen-image-2.0-pro"
+#     - provider: jimeng
+#       api_key: "your_access_key_id"       # 即梦需要 access_key_id + secret_key
+#       secret_key: "your_secret_access_key"
+#       # model: "jimeng_t2i_v40"
+#     - provider: minimax
+#       api_key: "your_minimax_key"
+#       # model: "image-01"
+#     - provider: openai
+#       api_key: "sk-..."
+#       # model: "dall-e-3"
+#     - provider: azure_openai
+#       api_key: "your_azure_key"
+#       base_url: "https://YOUR-RESOURCE.openai.azure.com/openai"  # 必填
+#       # deployment: "dall-e-3"
+#     - provider: gemini
+#       api_key: "AIza..."
+#       # model: "gemini-3.1-flash-image-preview"
+#     - provider: openrouter
+#       api_key: "sk-or-..."
+#       # model: "google/gemini-3.1-flash-image-preview"
+#     - provider: replicate
+#       api_key: "r8_..."
+#       # model: "google/nano-banana-pro"
 
 # 默认排版主题
 theme: "warm-editorial"
