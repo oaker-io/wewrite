@@ -16,9 +16,13 @@ import json
 import sys
 from datetime import datetime, timezone, timedelta
 
+import time
+
 import requests
 
-TIMEOUT = 10
+TIMEOUT = (10, 15)  # (connect_timeout, read_timeout)
+MAX_RETRIES = 3
+RETRY_BACKOFF = [1, 2, 4]  # seconds between retries
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
                    "AppleWebKit/537.36 (KHTML, like Gecko) "
@@ -27,13 +31,33 @@ HEADERS = {
 }
 
 
+def _request_with_retry(url: str, headers: dict = None, source: str = "unknown") -> requests.Response:
+    """GET request with exponential backoff retry on network errors."""
+    hdrs = {**HEADERS, **(headers or {})}
+    last_exc = None
+    for attempt in range(MAX_RETRIES):
+        try:
+            resp = requests.get(url, headers=hdrs, timeout=TIMEOUT)
+            resp.raise_for_status()
+            return resp
+        except (requests.exceptions.ConnectionError,
+                requests.exceptions.Timeout,
+                requests.exceptions.HTTPError) as e:
+            last_exc = e
+            if attempt < MAX_RETRIES - 1:
+                wait = RETRY_BACKOFF[attempt]
+                print(f"[warn] {source} attempt {attempt + 1} failed: {e}, retrying in {wait}s...", file=sys.stderr)
+                time.sleep(wait)
+    raise last_exc
+
+
 def fetch_weibo() -> list[dict]:
     """Fetch Weibo hot search."""
     try:
-        resp = requests.get(
+        resp = _request_with_retry(
             "https://weibo.com/ajax/side/hotSearch",
-            headers={**HEADERS, "Referer": "https://weibo.com/"},
-            timeout=TIMEOUT,
+            headers={"Referer": "https://weibo.com/"},
+            source="weibo",
         )
         data = resp.json()
         items = []
@@ -57,10 +81,9 @@ def fetch_weibo() -> list[dict]:
 def fetch_toutiao() -> list[dict]:
     """Fetch Toutiao hot board."""
     try:
-        resp = requests.get(
+        resp = _request_with_retry(
             "https://www.toutiao.com/hot-event/hot-board/?origin=toutiao_pc",
-            headers=HEADERS,
-            timeout=TIMEOUT,
+            source="toutiao",
         )
         data = resp.json()
         items = []
@@ -84,10 +107,9 @@ def fetch_toutiao() -> list[dict]:
 def fetch_baidu() -> list[dict]:
     """Fetch Baidu hot search."""
     try:
-        resp = requests.get(
+        resp = _request_with_retry(
             "https://top.baidu.com/api/board?platform=wise&tab=realtime",
-            headers=HEADERS,
-            timeout=TIMEOUT,
+            source="baidu",
         )
         data = resp.json()
         items = []
@@ -131,17 +153,27 @@ def main():
     parser.add_argument("--limit", type=int, default=20, help="Max items to return")
     args = parser.parse_args()
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     all_items = []
     sources_ok = []
     sources_fail = []
 
-    for name, fetcher in [("weibo", fetch_weibo), ("toutiao", fetch_toutiao), ("baidu", fetch_baidu)]:
-        items = fetcher()
-        if items:
-            sources_ok.append(name)
-            all_items.extend(items)
-        else:
-            sources_fail.append(name)
+    fetchers = {"weibo": fetch_weibo, "toutiao": fetch_toutiao, "baidu": fetch_baidu}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {pool.submit(fn): name for name, fn in fetchers.items()}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                items = future.result()
+            except Exception as e:
+                print(f"[warn] {name} failed: {e}", file=sys.stderr)
+                items = []
+            if items:
+                sources_ok.append(name)
+                all_items.extend(items)
+            else:
+                sources_fail.append(name)
 
     all_items = deduplicate(all_items)
 

@@ -60,8 +60,11 @@ def _fetch_camoufox(url: str) -> str | None:
                 page.wait_for_selector("#js_content", timeout=10000)
             except Exception:
                 pass  # timeout — still try to parse
-            import time
-            time.sleep(2)  # let JS finish rendering
+            # Wait for network idle instead of fixed sleep
+            try:
+                page.wait_for_load_state("networkidle", timeout=5000)
+            except Exception:
+                pass  # best effort — page may still have content
             html = page.content()
             return html
     except Exception:

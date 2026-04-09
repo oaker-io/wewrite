@@ -5,6 +5,7 @@ Forked from wechat_article_skills/scripts/markdown_to_html.py,
 adapted for YAML-driven themes and agent integration.
 """
 
+import random
 import re
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -81,6 +82,14 @@ class WeChatConverter:
 
         # Inject dark mode attributes
         html = self._inject_darkmode(html)
+
+        # Apply CSS randomization if enabled (anti-fingerprint for WeChat low-creativity detection)
+        if self._theme.colors.get("css_randomize") or getattr(self._theme, '_raw_data', {}).get('css_randomize'):
+            html = self._randomize_css(html)
+
+        # Append AIGC declaration if theme enables it
+        if self._theme.colors.get("aigc_footer") or getattr(self._theme, '_raw_data', {}).get('aigc_footer'):
+            html = self._append_aigc_footer(html)
 
         # Generate digest from plain text
         digest = self._generate_digest(html)
@@ -418,6 +427,8 @@ class WeChatConverter:
         text = self._process_timeline(text)
         text = self._process_callout(text)
         text = self._process_quote_block(text)
+        text = self._process_highlight(text)
+        text = self._process_summary(text)
         return text
 
     def _process_dialogue(self, text: str) -> str:
@@ -504,6 +515,126 @@ class WeChatConverter:
                     f'"{content}"</section></section>')
 
         return re.sub(r':::quote\n(.*?)\n:::', replace_quote, text, flags=re.DOTALL)
+
+    # -- AIGC footer --
+
+    def _append_aigc_footer(self, html: str) -> str:
+        """Append AIGC declaration footer as required by WeChat platform rules."""
+        footer = ('<p style="text-align: center; font-size: 13px; color: #9ca3af; '
+                  'margin-top: 48px; padding-top: 24px; border-top: 1px solid #e5e7eb;">'
+                  '本文由 AI 辅助创作，作者进行了实测验证和编辑修改。</p>')
+        return html + '\n' + footer
+
+    # -- CSS randomization (anti-fingerprint) --
+
+    def _randomize_css(self, html: str) -> str:
+        """Apply random CSS perturbations to defeat WeChat low-creativity fingerprinting.
+
+        Slightly varies font-size, line-height, letter-spacing, margins etc.
+        so each article has a unique HTML fingerprint instead of identical templates.
+        """
+        soup = BeautifulSoup(html, "html.parser")
+
+        # Randomize body-level wrapper (first section or all p tags)
+        font_size_delta = random.choice([0, -1])  # 16 or 17
+        line_height_delta = random.uniform(-0.1, 0.05)
+        letter_spacing_delta = random.uniform(-0.1, 0.2)
+        margin_delta = random.randint(-4, 4)
+
+        for p in soup.find_all("p"):
+            style = p.get("style", "")
+            if not style:
+                continue
+            # Randomize margin-bottom
+            style = re.sub(
+                r'margin:\s*0\s+0\s+(\d+)px\s+0',
+                lambda m: f'margin: 0 0 {int(m.group(1)) + random.randint(-3, 3)}px 0',
+                style
+            )
+            # Randomize font-size if present
+            style = re.sub(
+                r'font-size:\s*17px',
+                f'font-size: {17 + font_size_delta}px',
+                style
+            )
+            # Randomize line-height if present
+            style = re.sub(
+                r'line-height:\s*1\.9',
+                f'line-height: {1.9 + line_height_delta:.2f}',
+                style
+            )
+            p["style"] = style
+
+        # Randomize h2 margins
+        for h2 in soup.find_all("h2"):
+            style = h2.get("style", "")
+            style = re.sub(
+                r'margin:\s*(\d+)px',
+                lambda m: f'margin: {int(m.group(1)) + random.randint(-3, 3)}px',
+                style
+            )
+            style = re.sub(
+                r'font-size:\s*22px',
+                f'font-size: {22 + random.choice([-1, 0, 1])}px',
+                style
+            )
+            h2["style"] = style
+
+        # Randomize letter-spacing on body-level container
+        for section in soup.find_all("section", recursive=False):
+            style = section.get("style", "")
+            if "letter-spacing" in style:
+                style = re.sub(
+                    r'letter-spacing:\s*[\d.]+px',
+                    f'letter-spacing: {0.3 + letter_spacing_delta:.1f}px',
+                    style
+                )
+                section["style"] = style
+
+        return str(soup)
+
+    def _process_highlight(self, text: str) -> str:
+        """Convert :::highlight blocks to amber highlight info boxes (Impeccable style)."""
+        secondary = self._theme.colors.get("secondary", "#c4820e")
+        highlight_bg = self._theme.colors.get("highlight_bg", "#fef7e8")
+        highlight_border = self._theme.colors.get("highlight_border", "rgba(196,130,14,0.2)")
+
+        def replace_highlight(match):
+            content = match.group(1).strip()
+            lines = content.split('\n', 1)
+            title = lines[0].strip() if lines else ""
+            body = lines[1].strip() if len(lines) > 1 else ""
+            html = (f'<section style="margin: 24px 0; padding: 20px 24px; background: {highlight_bg}; '
+                    f'border: 1px solid {highlight_border}; border-radius: 6px;">')
+            if title:
+                html += f'<p style="margin: 0;"><strong style="color: {secondary};">{title}</strong></p>'
+            if body:
+                html += f'<p style="margin: 8px 0 0 0;">{body}</p>'
+            html += '</section>'
+            return html
+
+        return re.sub(r':::highlight\n(.*?)\n:::', replace_highlight, text, flags=re.DOTALL)
+
+    def _process_summary(self, text: str) -> str:
+        """Convert :::summary blocks to teal summary boxes (Impeccable style)."""
+        primary = self._theme.colors.get("primary", "#1a6b5a")
+        summary_bg = self._theme.colors.get("summary_bg", "#e8f5f0")
+        summary_border = self._theme.colors.get("summary_border", "rgba(26,107,90,0.15)")
+
+        def replace_summary(match):
+            content = match.group(1).strip()
+            lines = content.split('\n', 1)
+            title = lines[0].strip() if lines else "总结"
+            body = lines[1].strip() if len(lines) > 1 else ""
+            html = (f'<section style="margin: 24px 0; padding: 20px 24px; background: {summary_bg}; '
+                    f'border: 1px solid {summary_border}; border-radius: 6px;">')
+            html += f'<p style="margin: 0;"><strong style="color: {primary};">{title}</strong></p>'
+            if body:
+                html += f'<p style="margin: 8px 0 0 0;">{body}</p>'
+            html += '</section>'
+            return html
+
+        return re.sub(r':::summary\n(.*?)\n:::', replace_summary, text, flags=re.DOTALL)
 
     # -- Digest generation --
 

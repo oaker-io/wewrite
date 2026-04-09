@@ -123,8 +123,8 @@ BROKEN_SENTENCE_PATTERNS = [
 # ============================================================
 
 def _split_sentences(text):
-    """Split text by Chinese sentence-ending punctuation."""
-    sentences = re.split(r'[。！？\n]', text)
+    """Split text by Chinese sentence-ending and clause-level punctuation."""
+    sentences = re.split(r'[。！？；;…\n]', text)
     return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 1]
 
 
@@ -534,6 +534,83 @@ def _print_verbose(result):
             print(f"  {param}: {score:.2f}")
 
 
+# ============================================================
+# Calibration Baselines
+# ============================================================
+
+CALIBRATION_BASELINES = {
+    "pure_ai": {
+        "label": "Pure AI (typical ChatGPT output)",
+        "expected_composite_min": 75,
+        "expected_composite_max": 85,
+    },
+    "ai_with_editing": {
+        "label": "AI draft + human editing",
+        "expected_composite_min": 40,
+        "expected_composite_max": 55,
+    },
+    "human_written": {
+        "label": "Genuine human blog post",
+        "expected_composite_min": 15,
+        "expected_composite_max": 30,
+    },
+    "target_range": {
+        "label": "WeWrite target range",
+        "expected_composite_min": 25,
+        "expected_composite_max": 45,
+    },
+}
+
+
+def _calibration_verdict(result):
+    """Return calibration info dict with target range and verdict."""
+    composite = result["composite_score"]
+    target = CALIBRATION_BASELINES["target_range"]
+    t_min = target["expected_composite_min"]
+    t_max = target["expected_composite_max"]
+    if composite <= t_max:
+        if composite >= t_min:
+            verdict = "PASS: within target range"
+        else:
+            verdict = "PASS: below target (very human-like)"
+    else:
+        verdict = "WARNING: above target, needs more humanization"
+    return {
+        "target_min": t_min,
+        "target_max": t_max,
+        "verdict": verdict,
+    }
+
+
+def _print_calibration(result):
+    """Print calibration comparison table."""
+    composite = result["composite_score"]
+    cal = _calibration_verdict(result)
+
+    print(f"\n{'=' * 60}")
+    print(f"CALIBRATION COMPARISON")
+    print(f"{'=' * 60}")
+    print(f"  Your article:  {composite:.1f}")
+    print()
+    for key, baseline in CALIBRATION_BASELINES.items():
+        lo = baseline["expected_composite_min"]
+        hi = baseline["expected_composite_max"]
+        marker = ""
+        if key == "target_range":
+            if lo <= composite <= hi:
+                marker = "  <-- YOUR SCORE IS HERE"
+            elif composite < lo:
+                marker = "  (your score is below this)"
+            else:
+                marker = "  (your score is above this)"
+        elif lo <= composite <= hi:
+            marker = "  <-- YOUR SCORE IS HERE"
+        print(f"  {baseline['label']:.<40s} {lo}-{hi}{marker}")
+    print()
+    print(f"  Verdict: {cal['verdict']}")
+    print()
+
+
 def main():
     parser = argparse.ArgumentParser(description="Score article humanness (0=human, 100=AI)")
     parser.add_argument("input", help="Markdown article file")
@@ -541,14 +618,21 @@ def main():
     parser.add_argument("--json", action="store_true", help="JSON output")
     parser.add_argument("--tier3", type=float, default=None,
                         help="Tier 3 LLM score (0-1), passed by agent from SKILL.md")
+    parser.add_argument("--calibrate", action="store_true",
+                        help="Compare scores against calibration baselines")
     args = parser.parse_args()
 
     text = Path(args.input).read_text(encoding="utf-8")
     result = score_article(text, verbose=args.verbose, tier3_score=args.tier3)
 
+    if args.calibrate:
+        _print_calibration(result)
+
     if args.json:
+        if args.verbose or args.calibrate:
+            result["calibration"] = _calibration_verdict(result)
         print(json.dumps(result, ensure_ascii=False, indent=2))
-    elif not args.verbose:
+    elif not args.verbose and not args.calibrate:
         print(f"{result['composite_score']:.1f}")
 
 

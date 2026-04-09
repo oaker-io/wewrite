@@ -1,0 +1,216 @@
+name: "lobster-notes"
+description: "军哥龙虾笔记专属：橙红主调，深色代码块，移动端优先，高辨识度教学风"
+colors:
+  primary: "#e05a2b"
+  secondary: "#ff7d45"
+  text: "#2d2d2d"
+  text_light: "#888888"
+  background: "#ffffff"
+  code_bg: "#1e1e1e"
+  code_color: "#d4d4d4"
+  quote_border: "#e05a2b"
+  quote_bg: "#fff8f5"
+  border_radius: "6px"
+darkmode:
+  background: "#1a1a1a"
+  text: "#e0e0e0"
+  text_light: "#999999"
+  primary: "#ff7d45"
+  code_bg: "#2d2d2d"
+  code_color: "#d4d4d4"
+  quote_bg: "#2a1f1a"
+  quote_border: "#ff7d45"
+base_css: |
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    font-size: 16px;
+    line-height: 2.0;
+    color: #2d2d2d;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px;
+    word-wrap: break-word;
+    letter-spacing: 0.5px;
+  }
+
+  /* === 标题系统：橙红品牌色 + 层级分明 === */
+  h1 {
+    font-size: 22px;
+    font-weight: 800;
+    color: #1a1a1a;
+    margin: 36px 0 18px 0;
+    padding: 12px 16px;
+    border-left: 6px solid #e05a2b;
+    background: linear-gradient(90deg, #fff5f0, #ffffff);
+    border-radius: 0 8px 8px 0;
+    line-height: 1.5;
+  }
+
+  h2 {
+    font-size: 19px;
+    font-weight: 700;
+    color: #ffffff;
+    margin: 32px 0 16px 0;
+    padding: 10px 16px;
+    background: linear-gradient(135deg, #e05a2b, #ff7d45);
+    border-radius: 8px;
+    line-height: 1.5;
+  }
+
+  h3 {
+    font-size: 17px;
+    font-weight: 600;
+    color: #e05a2b;
+    margin: 24px 0 12px 0;
+    padding: 8px 12px;
+    border-left: 3px solid #ffb347;
+    background: #fffaf7;
+    border-radius: 0 6px 6px 0;
+  }
+
+  /* === 正文：移动端友好，大行距 === */
+  p {
+    font-size: 16px;
+    line-height: 2.0;
+    color: #2d2d2d;
+    margin: 16px 0;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #e05a2b;
+    padding: 0 2px;
+  }
+
+  em {
+    font-style: italic;
+    color: #666666;
+  }
+
+  /* === 代码块：深色终端风，左侧品牌色条 === */
+  code {
+    font-family: "SF Mono", "Cascadia Code", Consolas, monospace;
+    font-size: 13px;
+    background: #fff0eb;
+    color: #c7254e;
+    padding: 2px 6px;
+    border-radius: 4px;
+    word-break: break-all;
+  }
+
+  pre {
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 14px 16px;
+    border-radius: 8px;
+    overflow-x: auto;
+    margin: 18px 0;
+    line-height: 1.6;
+    border-left: 4px solid #e05a2b;
+    font-size: 13px;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  pre code {
+    background: none;
+    color: #d4d4d4;
+    padding: 0;
+    border-radius: 0;
+    font-size: 13px;
+    word-break: normal;
+  }
+
+  /* === 引用块：品牌色调暖底 === */
+  blockquote {
+    border-left: 4px solid #e05a2b;
+    background: linear-gradient(90deg, #fff8f5, #ffffff);
+    margin: 18px 0;
+    padding: 14px 16px;
+    border-radius: 0 10px 10px 0;
+    color: #555555;
+    font-size: 15px;
+    line-height: 1.8;
+  }
+
+  blockquote p {
+    margin: 6px 0;
+    color: #555555;
+    font-size: 15px;
+  }
+
+  /* === 列表：间距适中，手机不挤 === */
+  ul { padding-left: 20px; margin: 14px 0; }
+  ol { padding-left: 20px; margin: 14px 0; }
+
+  li {
+    font-size: 16px;
+    line-height: 2.0;
+    color: #2d2d2d;
+    margin: 8px 0;
+  }
+
+  /* === 表格：品牌色表头，圆角阴影 === */
+  table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: 20px 0;
+    font-size: 14px;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 2px 12px rgba(224, 90, 43, 0.12);
+  }
+
+  thead { background: linear-gradient(135deg, #e05a2b, #ff7d45); }
+
+  th {
+    color: #ffffff !important;
+    font-weight: 700;
+    padding: 12px 14px;
+    text-align: left;
+    background: transparent;
+    font-size: 14px;
+    letter-spacing: 0.03em;
+  }
+
+  td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0ebe8;
+    color: #2d2d2d;
+    font-size: 14px;
+  }
+
+  tr:nth-child(even) { background: #fdf9f7; }
+  tr:last-child td { border-bottom: none; }
+
+  /* === 分割线：品牌渐变 === */
+  hr {
+    border: none;
+    height: 3px;
+    background: linear-gradient(90deg, #e05a2b, #ffb347, transparent);
+    margin: 32px 0;
+    border-radius: 2px;
+  }
+
+  /* === 链接 + 图片 === */
+  a {
+    color: #e05a2b;
+    text-decoration: none;
+    font-weight: 500;
+    border-bottom: 1px dashed #ffb347;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 24px auto;
+    border-radius: 10px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+  }
+
+  /* === 军哥专属：踩坑高亮块 === */
+  blockquote strong {
+    color: #e05a2b;
+  }

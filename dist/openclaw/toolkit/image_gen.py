@@ -40,20 +40,24 @@ import yaml
 
 # --- Config ---
 
-CONFIG_PATHS = [
-    Path.cwd() / "config.yaml",
-    Path(__file__).parent.parent / "config.yaml",  # skill root
-    Path(__file__).parent / "config.yaml",          # toolkit dir
-    Path.home() / ".config" / "wewrite" / "config.yaml",
-]
-
-
 def _load_config() -> dict:
-    for p in CONFIG_PATHS:
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-    return {}
+    """Load config via unified config module, with fallback to local search."""
+    try:
+        import sys as _sys
+        _sys.path.insert(0, str(Path(__file__).parent))
+        from config import load_config
+        return load_config()
+    except ImportError:
+        # Standalone usage fallback
+        for p in [
+            Path(__file__).parent.parent / "config.yaml",
+            Path(__file__).parent / "config.yaml",
+            Path.home() / ".config" / "wewrite" / "config.yaml",
+        ]:
+            if p.exists():
+                with open(p, "r", encoding="utf-8") as f:
+                    return yaml.safe_load(f) or {}
+        return {}
 
 
 # --- Size presets ---
@@ -89,6 +93,23 @@ SIZE_PRESETS = {
 }
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+
+def _mask_key(key: str) -> str:
+    """Mask an API key for safe logging: show first 4 + last 4 chars only."""
+    if not key or len(key) <= 8:
+        return "****"
+    return f"{key[:4]}...{key[-4:]}"
+
+
+def _sanitize_for_log(text: str) -> str:
+    """Remove potential API keys/tokens from log text by masking Bearer tokens and long hex/base64 strings."""
+    import re
+    # Mask Bearer tokens
+    text = re.sub(r'(Bearer\s+)(\S{9,})', lambda m: m.group(1) + _mask_key(m.group(2)), text)
+    # Mask x-goog-api-key / api-key values
+    text = re.sub(r'(api[_-]key["\s:=]+)(\S{9,})', lambda m: m.group(1) + _mask_key(m.group(2)), text, flags=re.IGNORECASE)
+    return text
 
 
 def _compress_image(raw_bytes: bytes, max_size: int) -> bytes:
@@ -612,7 +633,7 @@ def _build_provider_from_entry(entry: dict) -> ImageProvider:
     api_key = entry.get("api_key")
 
     if not api_key:
-        raise ValueError(f"No api_key for provider '{provider_name}'")
+        raise ValueError(f"No api_key for provider '{provider_name}' (key not configured)")
 
     provider_cls = PROVIDERS.get(provider_name)
     if not provider_cls:
@@ -701,19 +722,64 @@ def generate_image(
 
     chain = _build_provider_chain(config)
     last_error = None
+    max_retries = 2  # per provider
 
     for provider in chain:
         resolved_size = provider.resolve_size(size)
-        try:
-            raw_bytes = provider.generate(prompt, resolved_size)
-        except Exception as e:
-            last_error = e
-            print(
-                f"Provider '{provider.provider_key}' failed: {e}. "
-                f"Trying next...",
-                file=sys.stderr,
-            )
-            continue
+        for attempt in range(max_retries + 1):
+            try:
+                raw_bytes = provider.generate(prompt, resolved_size)
+                break  # success
+            except requests.exceptions.HTTPError as e:
+                if e.response is not None and e.response.status_code == 429 and attempt < max_retries:
+                    wait = 2 ** (attempt + 1)  # 2s, 4s
+                    print(
+                        f"Provider '{provider.provider_key}' rate limited, "
+                        f"retrying in {wait}s (attempt {attempt + 1}/{max_retries})...",
+                        file=sys.stderr,
+                    )
+                    time.sleep(wait)
+                    continue
+                last_error = e
+                print(
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
+                    file=sys.stderr,
+                )
+                break
+            except (requests.exceptions.Timeout, requests.exceptions.ConnectionError) as e:
+                if attempt < max_retries:
+                    wait = 2 ** (attempt + 1)
+                    print(
+                        f"Provider '{provider.provider_key}' network error, "
+                        f"retrying in {wait}s...",
+                        file=sys.stderr,
+                    )
+                    time.sleep(wait)
+                    continue
+                last_error = e
+                print(
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
+                    file=sys.stderr,
+                )
+                break
+            except ValueError as e:
+                last_error = e
+                print(
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
+                    file=sys.stderr,
+                )
+                break
+        else:
+            continue  # all retries exhausted, try next provider
 
         # Compress if over 5MB (WeChat upload limit)
         if len(raw_bytes) > MAX_FILE_SIZE:
@@ -725,7 +791,7 @@ def generate_image(
         return str(output)
 
     raise ValueError(
-        f"All providers failed. Last error: {last_error}"
+        _sanitize_for_log(f"All providers failed. Last error: {last_error}")
     )
 
 

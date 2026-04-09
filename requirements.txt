@@ -1,8 +1,9 @@
-markdown>=3.5
-beautifulsoup4>=4.12
-cssutils>=2.9
-requests>=2.31
-camoufox[geoip]>=0.4
-pyyaml>=6.0
-Pygments>=2.15
-Pillow>=10.0
+markdown==3.10.2
+beautifulsoup4==4.14.3
+cssutils==2.11.1
+requests==2.33.1
+camoufox[geoip]==0.4.11
+pyyaml==6.0.1
+Pygments==2.17.2
+Pillow==12.2.0
+playwright==1.58.0
