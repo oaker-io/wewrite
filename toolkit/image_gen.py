@@ -95,6 +95,23 @@ SIZE_PRESETS = {
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
 
 
+def _mask_key(key: str) -> str:
+    """Mask an API key for safe logging: show first 4 + last 4 chars only."""
+    if not key or len(key) <= 8:
+        return "****"
+    return f"{key[:4]}...{key[-4:]}"
+
+
+def _sanitize_for_log(text: str) -> str:
+    """Remove potential API keys/tokens from log text by masking Bearer tokens and long hex/base64 strings."""
+    import re
+    # Mask Bearer tokens
+    text = re.sub(r'(Bearer\s+)(\S{9,})', lambda m: m.group(1) + _mask_key(m.group(2)), text)
+    # Mask x-goog-api-key / api-key values
+    text = re.sub(r'(api[_-]key["\s:=]+)(\S{9,})', lambda m: m.group(1) + _mask_key(m.group(2)), text, flags=re.IGNORECASE)
+    return text
+
+
 def _compress_image(raw_bytes: bytes, max_size: int) -> bytes:
     """Compress image to fit under max_size by reducing JPEG quality."""
     from io import BytesIO
@@ -616,7 +633,7 @@ def _build_provider_from_entry(entry: dict) -> ImageProvider:
     api_key = entry.get("api_key")
 
     if not api_key:
-        raise ValueError(f"No api_key for provider '{provider_name}'")
+        raise ValueError(f"No api_key for provider '{provider_name}' (key not configured)")
 
     provider_cls = PROVIDERS.get(provider_name)
     if not provider_cls:
@@ -725,8 +742,10 @@ def generate_image(
                     continue
                 last_error = e
                 print(
-                    f"Provider '{provider.provider_key}' failed: {e}. "
-                    f"Trying next...",
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
                     file=sys.stderr,
                 )
                 break
@@ -742,16 +761,20 @@ def generate_image(
                     continue
                 last_error = e
                 print(
-                    f"Provider '{provider.provider_key}' failed: {e}. "
-                    f"Trying next...",
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
                     file=sys.stderr,
                 )
                 break
             except ValueError as e:
                 last_error = e
                 print(
-                    f"Provider '{provider.provider_key}' failed: {e}. "
-                    f"Trying next...",
+                    _sanitize_for_log(
+                        f"Provider '{provider.provider_key}' failed: {e}. "
+                        f"Trying next..."
+                    ),
                     file=sys.stderr,
                 )
                 break
@@ -768,7 +791,7 @@ def generate_image(
         return str(output)
 
     raise ValueError(
-        f"All providers failed. Last error: {last_error}"
+        _sanitize_for_log(f"All providers failed. Last error: {last_error}")
     )
 
 

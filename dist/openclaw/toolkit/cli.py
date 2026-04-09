@@ -19,9 +19,30 @@ from wechat_api import get_access_token, upload_image, upload_thumb
 from publisher import create_draft, create_image_post
 from config import load_config
 
+# Safe base directories for file path validation
+_SAFE_BASES = [Path.cwd(), Path("/tmp")]
+
+
+def _validate_path(raw: str, label: str = "file") -> Path:
+    """Resolve a user-supplied path and ensure it doesn't escape safe directories."""
+    resolved = Path(raw).resolve()
+    for base in _SAFE_BASES:
+        try:
+            resolved.relative_to(base.resolve())
+            return resolved
+        except ValueError:
+            continue
+    raise SystemExit(
+        f"Error: {label} path '{raw}' resolves to '{resolved}' which is outside "
+        f"allowed directories: {[str(b) for b in _SAFE_BASES]}"
+    )
+
 
 def cmd_preview(args):
     """Generate HTML preview and open in browser."""
+    _validate_path(args.input, "input")
+    if args.output:
+        _validate_path(args.output, "output")
     theme = load_theme(args.theme)
     converter = WeChatConverter(theme=theme)
     result = converter.convert_file(args.input)
@@ -46,6 +67,9 @@ def cmd_preview(args):
 
 def cmd_publish(args):
     """Convert, upload images, and create WeChat draft."""
+    _validate_path(args.input, "input")
+    if args.cover:
+        _validate_path(args.cover, "cover")
     cfg = load_config()
     wechat_cfg = cfg.get("wechat", {})
 
@@ -126,6 +150,8 @@ def cmd_themes(args):
 
 def cmd_image_post(args):
     """Create a WeChat image post (小绿书) from image files."""
+    for img in args.images:
+        _validate_path(img, "image")
     cfg = load_config()
     wechat_cfg = cfg.get("wechat", {})
 
@@ -186,6 +212,7 @@ def cmd_gallery(args):
 
     # Use provided markdown or a built-in sample
     if args.input:
+        _validate_path(args.input, "input")
         md_text = Path(args.input).read_text(encoding="utf-8")
     else:
         md_text = _gallery_sample_markdown()
