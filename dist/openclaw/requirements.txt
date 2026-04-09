@@ -6,3 +6,4 @@ camoufox[geoip]>=0.4
 pyyaml>=6.0
 Pygments>=2.15
 Pillow>=10.0
+playwright>=1.40

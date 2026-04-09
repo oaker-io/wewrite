@@ -123,8 +123,8 @@ BROKEN_SENTENCE_PATTERNS = [
 # ============================================================
 
 def _split_sentences(text):
-    """Split text by Chinese sentence-ending punctuation."""
-    sentences = re.split(r'[。！？\n]', text)
+    """Split text by Chinese sentence-ending and clause-level punctuation."""
+    sentences = re.split(r'[。！？；;…\n]', text)
     return [s.strip() for s in sentences if s.strip() and len(s.strip()) > 1]
 
 

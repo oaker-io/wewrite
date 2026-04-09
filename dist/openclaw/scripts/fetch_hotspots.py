@@ -131,17 +131,27 @@ def main():
     parser.add_argument("--limit", type=int, default=20, help="Max items to return")
     args = parser.parse_args()
 
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
     all_items = []
     sources_ok = []
     sources_fail = []
 
-    for name, fetcher in [("weibo", fetch_weibo), ("toutiao", fetch_toutiao), ("baidu", fetch_baidu)]:
-        items = fetcher()
-        if items:
-            sources_ok.append(name)
-            all_items.extend(items)
-        else:
-            sources_fail.append(name)
+    fetchers = {"weibo": fetch_weibo, "toutiao": fetch_toutiao, "baidu": fetch_baidu}
+    with ThreadPoolExecutor(max_workers=3) as pool:
+        futures = {pool.submit(fn): name for name, fn in fetchers.items()}
+        for future in as_completed(futures):
+            name = futures[future]
+            try:
+                items = future.result()
+            except Exception as e:
+                print(f"[warn] {name} failed: {e}", file=sys.stderr)
+                items = []
+            if items:
+                sources_ok.append(name)
+                all_items.extend(items)
+            else:
+                sources_fail.append(name)
 
     all_items = deduplicate(all_items)
 

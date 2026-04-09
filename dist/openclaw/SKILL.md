@@ -5,7 +5,7 @@ description: |
   触发关键词：公众号、推文、微信文章、微信推文、草稿箱、微信排版、选题、热搜、
   热点抓取、封面图、配图、写公众号、写一篇、主题画廊、排版主题、容器语法。
   也覆盖：markdown 转微信格式、学习用户改稿风格、文章数据复盘、风格设置、
-  主题预览/切换、:::dialogue/:::timeline/:::callout 容器语法。
+  主题预览/切换、:::dialogue/:::timeline/:::callout/:::highlight/:::summary 容器语法。
   不应被通用的"写文章"、blog、邮件、PPT、抖音/短视频、网站 SEO 触发——
   需要有公众号/微信等明确上下文。
 ---
@@ -290,7 +290,7 @@ Category 映射规则：
 - **收尾方式**：persona 的 `closing_tendency` 仅作为倾向参考。根据文章内容和情绪弧线自行判断最自然的收尾方式。如果 history.yaml 中最近 3 篇有 `closing_type` 字段，避免使用相同的收尾类型
 - **写作规范**：writing-guide.md 中的基础规则（禁用词、句长方差、词汇混用等）在初稿阶段生效
 - 2-3 个编辑锚点：`<!-- ✏️ 编辑建议：在这里加一句你自己的经历/看法 -->`
-- 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`
+- 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`、`:::highlight`（琥珀高亮框）、`:::summary`（青色总结框）
 
 保存到 `{baseDir}/output/{date}-{slug}.md`
 
@@ -408,7 +408,7 @@ python3 {baseDir}/scripts/humanness_score.py {article_path} --json --tier3 {agen
 读取: {baseDir}/references/wechat-constraints.md
 ```
 
-Converter 自动处理：CJK 加空格、加粗标点外移、列表转 section、外链转脚注、暗黑模式、容器语法。
+Converter 自动处理：CJK 加空格、加粗标点外移、列表转 section、外链转脚注、暗黑模式、容器语法、AIGC 声明（impeccable 主题自动追加）、CSS 随机扰动（反低创检测指纹）。
 
 ```bash
 # 发布

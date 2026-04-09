@@ -13,29 +13,11 @@ import sys
 import webbrowser
 from pathlib import Path
 
-import yaml
-
 from converter import WeChatConverter, preview_html
 from theme import load_theme, list_themes
 from wechat_api import get_access_token, upload_image, upload_thumb
 from publisher import create_draft, create_image_post
-
-# Config file search order
-CONFIG_PATHS = [
-    Path.cwd() / "config.yaml",
-    Path(__file__).parent.parent / "config.yaml",  # skill root
-    Path(__file__).parent / "config.yaml",          # toolkit dir
-    Path.home() / ".config" / "wewrite" / "config.yaml",
-]
-
-
-def load_config() -> dict:
-    """Load config from first found config.yaml."""
-    for p in CONFIG_PATHS:
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-    return {}
+from config import load_config
 
 
 def cmd_preview(args):

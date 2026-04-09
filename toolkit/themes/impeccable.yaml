@@ -1,0 +1,228 @@
+name: "impeccable"
+description: "基于 Impeccable 设计语言，衬线正文+无衬线标题，深青+琥珀双色，反AI味排版"
+# --- 反模式清单 ---
+# ❌ 紫色/蓝色渐变（AI味太重）
+# ❌ 纯灰 #666 或纯黑 #000 文字
+# ❌ Inter / Arial / 系统默认字体做正文
+# ❌ 卡片套卡片嵌套
+# ❌ bounce / elastic 动画
+# ❌ 到处都是圆角卡片
+colors:
+  primary: "#1a6b5a"
+  secondary: "#c4820e"
+  text: "#3d4249"
+  text_light: "#6b7280"
+  text_heading: "#1c2024"
+  text_caption: "#9ca3af"
+  background: "#ffffff"
+  background_light: "#f8f9fa"
+  code_bg: "#1e293b"
+  code_color: "#e2e8f0"
+  quote_border: "#2d9b7e"
+  quote_bg: "#e8f5f0"
+  highlight_bg: "#fef7e8"
+  highlight_border: "rgba(196,130,14,0.2)"
+  summary_bg: "#e8f5f0"
+  summary_border: "rgba(26,107,90,0.15)"
+  border_radius: "6px"
+  darkmode:
+    background: "#1a1a1a"
+    text: "#c8c8c8"
+    text_light: "#999999"
+    text_heading: "#e0e0e0"
+    primary: "#3db897"
+    secondary: "#e0a82e"
+    code_bg: "#2d2d2d"
+    code_color: "#d4d4d4"
+    quote_bg: "#1e2e28"
+    quote_border: "#3db897"
+    highlight_bg: "#2a2518"
+# --- 特殊标记 ---
+aigc_footer: true
+css_randomize: true
+css_randomize_ranges:
+  body_font_size: [16, 17]
+  body_line_height: [1.8, 1.95]
+  body_letter_spacing: [0.2, 0.5]
+  p_margin_bottom: [20, 28]
+  h2_font_size: [21, 23]
+  h2_margin_top: [36, 44]
+base_css: |
+  body {
+    font-family: 'Noto Serif SC', 'Source Han Serif SC', Georgia, 'Songti SC', 'SimSun', serif;
+    font-size: 17px;
+    line-height: 1.9;
+    color: #3d4249;
+    background: #ffffff;
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 20px;
+    letter-spacing: 0.3px;
+    word-wrap: break-word;
+  }
+
+  h1 {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    color: #1c2024;
+    margin: 32px 0 16px 0;
+    padding-bottom: 12px;
+    border-bottom: 2px solid #1a6b5a;
+    line-height: 1.4;
+  }
+
+  h2 {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: #1c2024;
+    margin: 40px 0 16px 0;
+    padding-left: 14px;
+    border-left: 4px solid #1a6b5a;
+    line-height: 1.4;
+  }
+
+  h3 {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 19px;
+    font-weight: 700;
+    color: #1a6b5a;
+    margin: 24px 0 8px 0;
+    line-height: 1.4;
+  }
+
+  h4 {
+    font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    color: #1c2024;
+    margin: 20px 0 8px 0;
+    line-height: 1.4;
+  }
+
+  p {
+    font-size: 17px;
+    line-height: 1.9;
+    color: #3d4249;
+    margin: 0 0 24px 0;
+  }
+
+  strong {
+    font-weight: 700;
+    color: #1c2024;
+  }
+
+  em {
+    font-style: italic;
+    color: #3d4249;
+  }
+
+  code {
+    font-family: 'JetBrains Mono', 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    background: #f1f5f9;
+    color: #1a6b5a;
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+
+  pre {
+    background: #1e293b;
+    color: #e2e8f0;
+    padding: 16px;
+    border-radius: 6px;
+    overflow-x: auto;
+    margin: 16px 0;
+    line-height: 1.6;
+  }
+
+  pre code {
+    font-family: 'JetBrains Mono', 'SF Mono', 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+    font-size: 14px;
+    background: none;
+    color: #e2e8f0;
+    padding: 0;
+    border-radius: 0;
+  }
+
+  blockquote {
+    border-left: 3px solid #2d9b7e;
+    background: #e8f5f0;
+    margin: 24px 0;
+    padding: 16px 24px;
+    border-radius: 0 6px 6px 0;
+    color: #6b7280;
+  }
+
+  blockquote p {
+    margin: 0;
+    color: #6b7280;
+  }
+
+  ul {
+    padding-left: 28px;
+    margin: 0 0 24px 0;
+  }
+
+  ol {
+    padding-left: 28px;
+    margin: 0 0 24px 0;
+  }
+
+  li {
+    font-size: 17px;
+    line-height: 1.8;
+    color: #3d4249;
+    margin: 10px 0;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 15px;
+  }
+
+  thead {
+    background: #1a6b5a;
+  }
+
+  th {
+    background: #1a6b5a;
+    color: #ffffff;
+    font-weight: 600;
+    padding: 10px 14px;
+    text-align: left;
+    border: 1px solid #1a6b5a;
+  }
+
+  td {
+    padding: 10px 14px;
+    border: 1px solid #e5e7eb;
+    color: #3d4249;
+  }
+
+  tr {
+    background: #ffffff;
+  }
+
+  img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 32px auto;
+    border-radius: 6px;
+  }
+
+  a {
+    color: #1a6b5a;
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  hr {
+    border: none;
+    border-top: 1px solid #e5e7eb;
+    margin: 24px 0;
+  }

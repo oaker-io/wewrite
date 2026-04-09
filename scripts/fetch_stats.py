@@ -10,12 +10,14 @@ Usage:
     python3 fetch_stats.py
     python3 fetch_stats.py --days 7
 
-Requires: wechat appid/secret in config.yaml (skill root or toolkit dir)
+Requires: wechat appid/secret in config.yaml or env vars (WECHAT_APPID, WECHAT_SECRET)
 """
 
 import argparse
 import json
+import os
 import sys
+import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -23,26 +25,19 @@ import requests
 import yaml
 
 SKILL_DIR = Path(__file__).parent.parent
-TOOLKIT_CONFIG_PATHS = [
-    SKILL_DIR / "config.yaml",                      # skill root
-    SKILL_DIR / "toolkit" / "config.yaml",           # toolkit dir
-    Path.home() / ".config" / "wewrite" / "config.yaml",
-    Path.cwd() / "config.yaml",
-]
 
+# Import unified config loader
+sys.path.insert(0, str(SKILL_DIR / "toolkit"))
+from config import load_config, get_wechat_credentials
 
-def _load_toolkit_config() -> dict:
-    for p in TOOLKIT_CONFIG_PATHS:
-        if p.exists():
-            with open(p, "r", encoding="utf-8") as f:
-                return yaml.safe_load(f) or {}
-    return {}
+API_TIMEOUT = 30
 
 
 def _get_access_token(appid: str, secret: str) -> str:
     resp = requests.get(
         "https://api.weixin.qq.com/cgi-bin/token",
         params={"grant_type": "client_credential", "appid": appid, "secret": secret},
+        timeout=API_TIMEOUT,
     )
     data = resp.json()
     if "access_token" not in data:
@@ -60,13 +55,13 @@ def fetch_article_summary(token: str, date: str) -> list[dict]:
         "https://api.weixin.qq.com/datacube/getarticlesummary",
         params={"access_token": token},
         json={"begin_date": date, "end_date": date},
+        timeout=API_TIMEOUT,
     )
     data = resp.json()
     if "list" not in data:
         errcode = data.get("errcode", "unknown")
         errmsg = data.get("errmsg", "")
         if errcode == 61500:
-            # No data for this date (article not yet published or no reads)
             return []
         print(f"[warn] getarticlesummary error: {errcode} {errmsg}", file=sys.stderr)
         return []
@@ -82,6 +77,7 @@ def fetch_article_total(token: str, date: str) -> list[dict]:
         "https://api.weixin.qq.com/datacube/getarticletotal",
         params={"access_token": token},
         json={"begin_date": date, "end_date": date},
+        timeout=API_TIMEOUT,
     )
     data = resp.json()
     if "list" not in data:
@@ -89,8 +85,30 @@ def fetch_article_total(token: str, date: str) -> list[dict]:
     return data["list"]
 
 
+def _atomic_write_yaml(path: Path, data: dict):
+    """Write YAML atomically: write to temp file then rename to prevent corruption."""
+    tmp_fd, tmp_path = tempfile.mkstemp(
+        dir=path.parent, suffix=".tmp", prefix=path.stem
+    )
+    try:
+        with os.fdopen(tmp_fd, "w", encoding="utf-8") as f:
+            yaml.dump(data, f, allow_unicode=True, default_flow_style=False)
+        os.replace(tmp_path, str(path))
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
+
+
 def update_history(stats_list: list[dict]):
-    """Match stats to history.yaml entries and update."""
+    """Match stats to history.yaml entries and update.
+
+    Matching priority:
+      1. media_id (exact, reliable)
+      2. title (fallback for older entries without media_id)
+    """
     history_path = SKILL_DIR / "history.yaml"
     if not history_path.exists():
         print("No history.yaml found.")
@@ -104,16 +122,31 @@ def update_history(stats_list: list[dict]):
         print("No articles in history to update.")
         return
 
-    # Build a lookup by title for matching
-    title_to_idx = {}
+    # Build lookups: media_id first (reliable), title as fallback
+    media_id_to_idx: dict[str, int] = {}
+    title_to_idx: dict[str, int] = {}
     for i, article in enumerate(articles):
-        title_to_idx[article.get("title", "")] = i
+        mid = article.get("media_id", "")
+        if mid:
+            media_id_to_idx[mid] = i
+        title = article.get("title", "")
+        if title:
+            title_to_idx[title] = i
 
     updated = 0
     for stat in stats_list:
-        title = stat.get("title", "")
-        if title in title_to_idx:
-            idx = title_to_idx[title]
+        # Try media_id match first
+        idx = None
+        stat_media_id = stat.get("media_id", "")
+        if stat_media_id and stat_media_id in media_id_to_idx:
+            idx = media_id_to_idx[stat_media_id]
+        else:
+            # Fallback to title match
+            title = stat.get("title", "")
+            if title in title_to_idx:
+                idx = title_to_idx[title]
+
+        if idx is not None:
             articles[idx]["stats"] = {
                 "read_count": stat.get("int_page_read_count", 0),
                 "share_count": stat.get("share_count", 0),
@@ -129,8 +162,7 @@ def update_history(stats_list: list[dict]):
 
     if updated > 0:
         history["articles"] = articles
-        with open(history_path, "w", encoding="utf-8") as f:
-            yaml.dump(history, f, allow_unicode=True, default_flow_style=False)
+        _atomic_write_yaml(history_path, history)
         print(f"Updated stats for {updated} article(s).")
     else:
         print("No matching articles found in stats data.")
@@ -141,13 +173,10 @@ def main():
     parser.add_argument("--days", type=int, default=3, help="Days to look back")
     args = parser.parse_args()
 
-    cfg = _load_toolkit_config()
-    wechat_cfg = cfg.get("wechat", {})
-    appid = wechat_cfg.get("appid")
-    secret = wechat_cfg.get("secret")
-
-    if not appid or not secret:
-        print("Error: wechat appid/secret not found in config.yaml", file=sys.stderr)
+    try:
+        appid, secret = get_wechat_credentials()
+    except ValueError as e:
+        print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
     token = _get_access_token(appid, secret)

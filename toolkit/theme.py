@@ -68,12 +68,15 @@ def load_theme(name: str, themes_dir: str = None) -> Theme:
         if key not in data:
             raise ValueError(f"Theme file missing required field '{key}': {theme_path}")
 
-    return Theme(
+    theme = Theme(
         name=data["name"],
         description=data["description"],
         base_css=data["base_css"],
         colors=data.get("colors", {}),
     )
+    # Attach raw data for extra fields (aigc_footer, css_randomize, etc.)
+    theme._raw_data = data
+    return theme
 
 
 def list_themes(themes_dir: str = None) -> list[str]:

@@ -7,16 +7,21 @@ from dataclasses import dataclass
 # Token cache
 _token_cache: dict = {}
 
+# Unified timeout for WeChat API calls
+API_TIMEOUT = 30
+
 
 @dataclass
 class TokenResult:
     access_token: str
     expires_at: float  # unix timestamp
+    appid: str
+    secret: str
 
 
 def get_access_token(appid: str, secret: str, force_refresh: bool = False) -> str:
     """
-    Get access_token with caching.
+    Get access_token with caching and auto-refresh.
     Cache key: appid
     API: GET https://api.weixin.qq.com/cgi-bin/token
     Cache until expires_in - 300 seconds (5 min buffer).
@@ -36,6 +41,7 @@ def get_access_token(appid: str, secret: str, force_refresh: bool = False) -> st
             "appid": appid,
             "secret": secret,
         },
+        timeout=API_TIMEOUT,
     )
     data = resp.json()
 
@@ -50,9 +56,26 @@ def get_access_token(appid: str, secret: str, force_refresh: bool = False) -> st
     _token_cache[appid] = TokenResult(
         access_token=access_token,
         expires_at=now + expires_in - 300,
+        appid=appid,
+        secret=secret,
     )
 
     return access_token
+
+
+def ensure_valid_token(appid: str, secret: str) -> str:
+    """Get a valid token, force-refreshing if near expiry.
+
+    Use this instead of get_access_token for long-running operations
+    where the token may have expired since initial acquisition.
+    """
+    now = time.time()
+    if appid in _token_cache:
+        cached = _token_cache[appid]
+        if now >= cached.expires_at:
+            return get_access_token(appid, secret, force_refresh=True)
+        return cached.access_token
+    return get_access_token(appid, secret)
 
 
 def _guess_content_type(file_path: str) -> str:
@@ -76,6 +99,7 @@ def upload_image(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/media/uploadimg",
             params={"access_token": access_token},
             files={"media": (path.name, f, content_type)},
+            timeout=API_TIMEOUT,
         )
 
     data = resp.json()
@@ -103,6 +127,7 @@ def upload_thumb(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/material/add_material",
             params={"access_token": access_token, "type": "image"},
             files={"media": (path.name, f, content_type)},
+            timeout=API_TIMEOUT,
         )
 
     data = resp.json()
