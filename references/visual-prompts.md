@@ -6,6 +6,21 @@
 
 你不负责生成图片本身——你输出的是结构化的提示词文件 `output/{slug}-prompts.md`。用户主要走**路径 1**（ChatGPT Plus 网页粘贴）或**路径 2**（Gemini Advanced），API 配置好时也可走**路径 3**（自动调用 image_gen.py 批量生成）。
 
+## 配图模式（必须为每张图选择一种）
+
+| 模式 | 适用 | 一张图承载 | 模板在哪 |
+|------|------|-----------|---------|
+| **`decorative`**（装饰型） | 封面、氛围渲染段、故事型文章 | 1 个概念（单一隐喻/场景/曲线） | 本文件「二、内文配图」6 种旧模板 |
+| **`infographic-dense`**（高密度型） | 数据段、对比段、清单段、避坑段、干货型文章 | 6-7 个独立模块，每个带小标题 + 具体数据 | 本文件「三、infographic-dense」新模板 + `references/visuals/layouts/` + `references/visuals/styles/` |
+
+**配图模式选择规则**（按文章框架自动决定，详见 SKILL.md Step 6.1b）：
+
+- **热点解读型 / 纯观点型**：封面 `decorative`，内文 ≥50% `infographic-dense`
+- **痛点型 / 清单型 / 对比型 / 复盘型**：封面 `decorative`，内文**全部** `infographic-dense`
+- **故事型 / 情绪型**：封面 `decorative`，内文 `decorative`（多用 scene 类型）
+
+核心原则：**干货段必须上高密度图**。用户反馈显示，单概念装饰图（天平/曲线）在公众号阅读体验下信息量不足，读者会跳过。
+
 ## 提示词文件（prompts.md）通用头部模板
 
 每次生成 `{slug}-prompts.md`，**必须**在文件顶部使用下列模板（替换 `{...}` 占位符）：
@@ -380,7 +395,132 @@ Aspect: 16:9
 
 ---
 
-## 三、辅助功能
+## 三、infographic-dense（高密度多模块信息图)
+
+高密度型配图是一张图承载 6-7 个独立模块的信息图。**跟 decorative 完全不同**——它不是画一个概念,而是像一张"小报/仪表盘/干货卡"把文章的核心数据点都可视化。
+
+### 资源位置
+
+- Layout 菜单(21 种):`{skill_dir}/references/visuals/layouts/*.md`
+- Style 菜单(20 种):`{skill_dir}/references/visuals/styles/*.md`
+- 主提示词模板:`{skill_dir}/references/visuals/base-prompt.md`
+- 结构化内容模板:`{skill_dir}/references/visuals/structured-content-template.md`
+- 菜单概览和推荐搭配:`{skill_dir}/references/visuals/README.md`(先读它)
+
+### 生成流程(每张 infographic-dense 图)
+
+**Step 1: 选 Layout**
+
+按文章内容类型挑 1 个(5 种最实用的先看):
+
+| 文章内容 | 推荐 Layout |
+|---------|------------|
+| 多维度盘点/避坑/全面解析 | `dense-modules` |
+| 多选项横向对比 | `comparison-matrix` 或 `binary-comparison` |
+| 清单/榜单/标签云 | `bento-grid` |
+| 数据复盘/多指标 | `dashboard` |
+| 元素分类/赛道盘点 | `periodic-table` |
+
+读对应的 `references/visuals/layouts/{layout}.md`,把其中的 Structure / Module Archetypes / Visual Elements 要点提取出来。
+
+**Step 2: 选 Style**
+
+按文章调性挑 1 个(5 种最实用):
+
+| 文章调性 | 推荐 Style |
+|---------|-----------|
+| 科技/数据/研究(默认首选) | `pop-laboratory` |
+| 商业/干货/清单 | `corporate-memphis` |
+| 文艺/生活/随笔 | `morandi-journal` |
+| 文化/趋势/反叛 | `retro-pop-grid` |
+| 教程/Step by Step | `ikea-manual` |
+
+读对应的 `references/visuals/styles/{style}.md`,提取 Color Palette / Typography / Texture 关键词。
+
+**Step 3: 结构化内容(核心)**
+
+按 `structured-content-template.md` 把本 H2 对应的内容拆成 **6-7 个 Section**,每个 Section 含 4 项:
+
+- **Key Concept**:该模块核心论点,1 句话(≤12 字)
+- **Content**(逐字从文章/素材提取,**禁止改写**):2-3 条数据点
+- **Visual Element**:icon / mini-chart / callout / list / emoji 徽章
+- **Text Labels**:精确的显示文字(含数字和术语)
+
+**Step 4: 合成英文 prompt**
+
+按 base-prompt.md 骨架,填入 {{LAYOUT}} / {{STYLE}} / {{CONTENT}} / {{TEXT_LABELS}},**显式列出每个 module 的中文文字**(让模型准确渲染)。
+
+### 结构化模板
+
+````markdown
+### 配图 {序号}: 位于「{H2标题}」段后
+- 类型:infographic-dense
+- **存为**:`images/chart-{序号}.png`
+- Layout:`{layout 名,如 dense-modules}`
+- Style:`{style 名,如 pop-laboratory}`
+- 对应内容:{1 句话概括本张图回答什么核心问题}
+
+**模块结构**(6-7 个 Section,从文章真实素材提取):
+
+#### Section 1: {模块小标题 6-10 字}
+- Key Concept: {1 句话核心论点}
+- Content:
+  - {数据点 1,含来源,如 "Copilot 市场份额 42%(JetBrains 2026 调研)"}
+  - {数据点 2}
+  - {数据点 3}
+- Visual Element: {icon/mini-chart/callout}
+- Text Labels: {"显示的精确文字 1", "精确文字 2"}
+
+#### Section 2 ~ 7: ...
+
+**视觉规格**:
+- 色板:{主/辅/强调 hex,对齐封面锚点}
+- Aspect:16:9(横版 · 公众号正文宽)
+- Text Density:80-150 个中文字符必须渲染在图上,小字号可接受
+- 每个模块用坐标标签(MOD-01、MOD-02...)或强分隔线区分
+
+**英文提示词**(粘贴到 ChatGPT/Gemini):
+
+```
+Create a high-density infographic using {layout} layout with {style} style aesthetic.
+
+Composition: {N} modules arranged in {2x3 / bento / matrix / etc.} on {background color hex}.
+
+Module 1 (position, color): title "{中文标题}",
+  data points: "{数据点 1}", "{数据点 2}", "{数据点 3}",
+  visual: {icon/chart description},
+  Chinese text to render exactly: "{每个要渲染的中文}"
+
+Module 2 (...): ...
+
+Module 6/7 (...): ...
+
+Style guidelines: {从 styles/{style}.md 提取的 color palette / typography / texture 关键词}
+Layout guidelines: {从 layouts/{layout}.md 提取的 structure / density rules}
+
+Every corner contains metadata. Coordinate labels in each module.
+No decorative-only empty space. Information over whitespace.
+16:9 horizontal, clean empty space at top for title overlay.
+```
+
+> **Gemini Advanced 用户**:同一份英文提示词可直接粘到 gemini.google.com
+
+> **baoyu-infographic 二次加工(可选)**:想追求更高精度,可把本 Section 的模块结构喂给 `baoyu-infographic` skill(`/baoyu-infographic`)走官方 dense-modules + pop-laboratory 合成
+
+- 备选图库关键词:Unsplash "{检索词}"
+````
+
+### 高密度图的硬标准
+
+1. **6 个 Section 是下限,7 个是推荐**,少于 6 个不算高密度
+2. **每个 Section 都必须有具体数据点**(数字/品牌名/百分比/专有名词),禁止"显著提升""广泛应用"这种空话
+3. **Content 逐字提取**,不加工、不总结——保留文章/素材的原始表达
+4. **英文 prompt 里必须显式列出每个模块的中文文字**(用 `Chinese text to render exactly: "..."`)——这是 gpt-image-1.5 / nano-banana 2 准确渲染中文的关键
+5. **Layout × Style 组合必须匹配文章调性**(参考 `visuals/README.md` 推荐搭配表)
+
+---
+
+## 四、辅助功能
 
 ### 提示词修改
 
@@ -393,6 +533,10 @@ Aspect: 16:9
 ### 配图场景调整
 
 如果用户说"第 3 张配图位置不对"或"这段不需要图"，按用户要求增删调整。
+
+### 模式切换
+
+如果用户说"这张图换成高密度信息图"或"加干货",把该配图的类型从 decorative 换到 infographic-dense,按「三、infographic-dense」流程重写。
 
 ---
 

@@ -207,8 +207,14 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 每次搜索 2 轮，从结果中**同时**提取：
 1. **素材**：5-8 条真实素材（具名来源 + 具体数据/引述/案例）。**禁止编造**。
 2. **增强材料**：按 content-enhance.md 对应策略的要求提取（角度/密度要点/细节/用户声音）。
+3. **模块化素材（为 Step 6 高密度信息图预备）**：素材除了写作用，还会直接灌进 `infographic-dense` 配图作为模块内容。搜索时有意识地保留**可成模块**的材料：
+   - 带具体数字的数据点（数字越多越好）
+   - 品牌名/产品名/工具名清单
+   - 时间节点序列（适合 timeline/linear-progression 模块）
+   - 优缺点 / 对比维度 / 踩坑点 / 清单条目（适合 dense-modules、comparison-matrix 模块）
+   - Top N 排名（适合 dashboard、bento-grid）
 
-两者并入框架大纲，一起传入 Step 4 写作。
+两者并入框架大纲，一起传入 Step 4 写作 + Step 6 视觉生成。
 
 **降级**：WebSearch 不可用 → 用 LLM 训练数据中可验证的公开信息。但需告知用户："素材采集未能使用 WebSearch，建议在编辑锚点处多加入你自己的内容。"密度强化不依赖搜索，始终执行。
 
@@ -397,7 +403,23 @@ mkdir -p {skill_dir}/output/images
 
 **6.1 实体提取**：从终稿中提取 3-5 个**具体实体**（人物、产品名、场景、数据点、行业术语）。后续所有提示词必须包含至少 2 个实体。
 
-**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，选最佳 1 组调用 image_gen.py 生成。
+**6.1b 配图模式选择**（决定每张图是 decorative 还是 infographic-dense）：
+
+按文章框架（Step 3.1 选定的）决定配图模式组合：
+
+| 框架 | 封面 | 内文配图模式分布 | 备注 |
+|------|------|-----------------|------|
+| 热点解读 / 纯观点 | `decorative` | ≥50% `infographic-dense` | 有数据段/对比段时优先高密度 |
+| 痛点 / 清单 / 对比 / 复盘 | `decorative` | **100% `infographic-dense`** | 干货类文章读者明确期待高密度 |
+| 故事 / 情绪 | `decorative` | `decorative`（多用 scene 类型） | 场景感优先，数据为辅 |
+
+**判定个别配图该用哪个模式的细则**：
+- 段落含具体数据点 ≥3 个 → `infographic-dense`
+- 段落是对比/清单/盘点 → `infographic-dense`
+- 段落是氛围渲染/情感过渡 → `decorative`
+- 段落只有结论/金句 → `decorative`
+
+**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略，均为 `decorative`），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，选最佳 1 组调用 image_gen.py 生成。
 
 **6.3 封面验证**：
 - **交互模式**：展示封面，问用户"封面效果如何？"。用户 OK → 继续；不满意 → 调整提示词重新生成。
@@ -405,7 +427,11 @@ mkdir -p {skill_dir}/output/images
 
 **6.3b 风格锚定**：封面确认后，提取视觉锚点（色板 hex、风格关键词、画面调性），后续所有内文配图的提示词必须引用这组锚点，保证全文视觉一致。
 
-**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成 3-6 张配图提示词（按 visual-prompts.md），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，批量调用 image_gen.py 并替换 Markdown 占位符。
+**6.4 内文配图**：分析文章结构，为每个需要配图的段落按 6.1b 选模式：
+- **`decorative` 图**：从 visual-prompts.md 的 6 种旧模板中选（infographic/scene/flowchart/comparison/framework/timeline），1 张图 1 个概念
+- **`infographic-dense` 图**：走 visual-prompts.md 第三节的 4 步流程（选 Layout → 选 Style → 结构化内容 → 合成英文 prompt），1 张图塞 6-7 个模块；先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
+
+生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，批量调用 image_gen.py 并替换 Markdown 占位符。
 
 **降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。**提示词文件始终保留**，即使图片生成失败或被跳过。
 
