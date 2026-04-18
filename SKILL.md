@@ -300,6 +300,11 @@ Category 映射规则：
 - **写作规范**：writing-guide.md 中的基础规则（禁用词、句长方差、词汇混用等）在初稿阶段生效
 - 2-3 个编辑锚点：`<!-- ✏️ 编辑建议：在这里加一句你自己的经历/看法 -->`
 - 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`
+- **图片占位符**（必须）：预埋本地图片引用，方便用户用路径 1（ChatGPT 网页）生成图后直接渲染和推送：
+  - H1 标题下一行插入封面占位符：`![封面](images/cover.png)`
+  - 内文配图位置按 Step 6 的规划逐个插入：`![](images/chart-1.png)`、`![](images/chart-2.png)` ...
+  - 命名**必须**与 `{slug}-prompts.md` 里的「存为」字段完全一致
+  - 占位符在 preview 时若文件不存在会显示破图标（提示用户去生成）；在 publish 时 `cli.py` 的 `upload_image` 会自动找到本地文件并上传到微信 CDN
 
 保存到 `{skill_dir}/output/{date}-{slug}.md`
 
@@ -373,15 +378,26 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 ### Step 6: 视觉 AI
 
-**如果 `skip_image_gen = true`** → 只执行 6.1。
-
 ```
 读取: {skill_dir}/references/visual-prompts.md
 ```
 
+**硬规则**：无论 `skip_image_gen` 是否为 true，都必须执行 6.1–6.4 的**提示词生成**并写入 `output/{slug}-prompts.md`。`skip_image_gen=true` 只跳过实际 image_gen.py 调用。数量固定（封面 3 组 + 内文 3-6 张按字数），不随模型变化。
+
+**提示词语言**按 `config.yaml` 的 `image.provider`（或 `providers[0]`）自动选择：
+- `openai` / `azure_openai` / `openrouter` / `gemini` / `replicate` → 英文提示词（gpt-image-1、DALL-E、Gemini Imagen 英文表现最好）
+- `doubao` / `jimeng` / `dashscope` / `minimax` → 中文提示词（国内模型中文理解强）
+- 未识别的 provider → 英文（fallback）
+
+**6.0 准备目录**（必须第一步执行）：
+
+```bash
+mkdir -p {skill_dir}/output/images
+```
+
 **6.1 实体提取**：从终稿中提取 3-5 个**具体实体**（人物、产品名、场景、数据点、行业术语）。后续所有提示词必须包含至少 2 个实体。
 
-**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md），选最佳 1 组调用 image_gen.py 生成。
+**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，选最佳 1 组调用 image_gen.py 生成。
 
 **6.3 封面验证**：
 - **交互模式**：展示封面，问用户"封面效果如何？"。用户 OK → 继续；不满意 → 调整提示词重新生成。
@@ -389,9 +405,9 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 **6.3b 风格锚定**：封面确认后，提取视觉锚点（色板 hex、风格关键词、画面调性），后续所有内文配图的提示词必须引用这组锚点，保证全文视觉一致。
 
-**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成 3-6 张配图提示词（按 visual-prompts.md）。批量调用 image_gen.py，替换 Markdown 占位符。
+**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成 3-6 张配图提示词（按 visual-prompts.md），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，批量调用 image_gen.py 并替换 Markdown 占位符。
 
-**降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。
+**降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。**提示词文件始终保留**，即使图片生成失败或被跳过。
 
 ---
 
@@ -465,6 +481,22 @@ python3 {skill_dir}/toolkit/cli.py preview {markdown} --theme {theme} --no-open 
 
 - 最终标题 + 2 备选 + 摘要 + 5 标签 + media_id
 - 编辑建议："文章有 2-3 个编辑锚点，建议加入你自己的话。你可以在本地 markdown 里改，也可以直接在微信草稿箱改——改完后说**'学习我的修改'**，WeWrite 都能学到你的风格。"
+- **图片下一步**（标准回复模板，按此输出）：
+
+  ```
+  📸 图片生成（路径 1 · ChatGPT 网页，推荐）
+
+  1. 提示词文件：output/{slug}-prompts.md
+  2. 打开 chat.openai.com，把**封面创意 C**的英文提示词粘过去生成，下载后存为
+     output/images/cover.png
+  3. 依次把 N 张内文配图的英文提示词也粘过去生成，按 prompts.md 里标注的
+     `存为` 字段命名（chart-1.png / chart-2.png / ...），放到 output/images/
+  4. 存完立即预览：
+     python3 toolkit/cli.py preview output/{slug}.md --theme {theme}
+  5. 将来推送时 cli.py publish 会自动上传这些本地图到微信 CDN，无需手动处理
+
+  如果想走路径 2（Gemini Advanced），同一份英文提示词直接粘到 gemini.google.com
+  ```
 
 **8.3 后续操作**：
 

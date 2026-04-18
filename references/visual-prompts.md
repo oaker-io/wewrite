@@ -4,7 +4,44 @@
 
 为文章生成两类视觉素材的 AI 绘图提示词：封面图（3 组差异化创意）和内文配图（3-6 张，按段落匹配）。
 
-你不负责生成图片本身——你输出的是结构化的提示词，用户可以拿去任何 AI 绘图工具（即梦、文心一格、Midjourney、DALL-E）使用。
+你不负责生成图片本身——你输出的是结构化的提示词文件 `output/{slug}-prompts.md`。用户主要走**路径 1**（ChatGPT Plus 网页粘贴）或**路径 2**（Gemini Advanced），API 配置好时也可走**路径 3**（自动调用 image_gen.py 批量生成）。
+
+## 提示词文件（prompts.md）通用头部模板
+
+每次生成 `{slug}-prompts.md`，**必须**在文件顶部使用下列模板（替换 `{...}` 占位符）：
+
+```markdown
+# 视觉提示词 · {文章标题}
+
+**目标模型**：`gpt-image-1`（或用户 config.yaml 指定的模型）
+**对应文章**：`{slug}.md`
+**主题**：{主题名} · {cover_style 描述}
+
+---
+
+## 使用方式（路径 1 · ChatGPT Plus 网页，推荐）
+
+1. 打开 chat.openai.com，对话里说「用 gpt-image-1 生成，16:9，提示词如下」然后粘贴下方任一组英文提示词
+2. 下载生成的图片，**按下表命名**后放到 `output/images/`
+3. 直接 `python3 toolkit/cli.py preview output/{slug}.md --theme {主题}` 看效果
+4. 将来推送时 `python3 toolkit/cli.py publish output/{slug}.md` 会自动上传本地图到微信 CDN，无需手动处理
+
+> **Gemini Advanced 用户（路径 2）**：同一份英文提示词可直接粘到 gemini.google.com 或 Google AI Studio，Imagen 4 英文表现强
+
+## 文件名对照表
+
+| 位置 | 存为文件名 |
+|------|-----------|
+| 封面（3 组创意选 1 组生成） | `cover.png` |
+| 内文配图 1 | `chart-1.png` |
+| 内文配图 2 | `chart-2.png` |
+| 内文配图 3 | `chart-3.png` |
+| ...依此类推 | `chart-N.png` |
+
+---
+```
+
+头部之后，继续输出「实体提取」「封面图（3 组）」「视觉锚点」「内文配图（N 张）」四个部分。
 
 ---
 
@@ -33,16 +70,24 @@
 
 每组输出：
 
-```
+````markdown
 ### 封面创意 A: {创意名称}
+- **存为**：`images/cover.png`（只需要从 A/B/C 三组中选 1 组生成，统一存为 cover.png）
 - 视觉描述：{详细的画面描述，100-150字}
 - 色调：{主色+辅色}
 - 构图：{横版 16:9，主体位置、留白位置}
 - 文字区域：{标题放在什么位置，需要留多大空间}
-- AI 绘图提示词：
-  "{英文提示词，适配主流 AI 绘图工具，包含风格、构图、色调、光影}"
-- 适配工具建议：{即梦/文心一格/Midjourney/DALL-E 中哪个最适合}
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+
 ```
+{英文提示词，适配 gpt-image-1 / Imagen 4，包含风格、构图、色调、光影，显式加 "16:9 horizontal composition, no text no letters no words, clean space for title overlay"}
+```
+
+- 适配工具建议：{gpt-image-1（文字渲染强）/ Imagen 4（氛围表现好）/ Midjourney / DALL-E 3}
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+````
 
 ### 实体锚定（必须）
 
@@ -141,11 +186,14 @@
 
 #### infographic（信息图）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：infographic
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Layout: {grid / radial / hierarchical}
 Zones:
   - Zone 1: {具体数据点，用文章真实数字}
@@ -155,34 +203,56 @@ Labels: {文章中的真实数字、术语、指标名}
 Colors: {视觉锚点色板}
 Style: {视觉锚点风格关键词}, clean infographic, no text
 Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 #### scene（场景）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：scene
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Focal Point: {画面主体，必须是文章实体}
 Atmosphere: {光影、环境、时间}
 Mood: {情绪基调}
 Color Temperature: {warm / cool / neutral，与视觉锚点一致}
 Style: {视觉锚点风格关键词}, no text no letters
 Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 #### flowchart（流程图）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：flowchart
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Layout: {left-right / top-down / circular}
 Steps:
   1. {步骤名} — {简述}
@@ -192,17 +262,28 @@ Connections: {箭头方向、决策分支}
 Colors: {视觉锚点色板}
 Style: {视觉锚点风格关键词}, clean diagram, no text
 Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 #### comparison（对比图）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：comparison
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Left Side — {选项A名称}:
   - {要点1}
   - {要点2}
@@ -213,17 +294,28 @@ Divider: {分隔线样式}
 Colors: {视觉锚点色板，左右各用一个主色}
 Style: {视觉锚点风格关键词}, split layout, no text
 Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 #### framework（架构图）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：framework
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Structure: {hierarchical / network / matrix}
 Nodes:
   - {概念1} — {角色}
@@ -233,17 +325,28 @@ Relationships: {节点间如何连接}
 Colors: {视觉锚点色板}
 Style: {视觉锚点风格关键词}, clean diagram, no text
 Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 #### timeline（时间线）
 
-```
+````markdown
 ### 配图 {序号}: 位于「{H2标题}」第{N}段后
 - 类型：timeline
+- **存为**：`images/chart-{序号}.png`
 - 对应内容：{1句话概括}
 
+**结构化模板**：
+```
 Direction: {horizontal / vertical}
 Events:
   - {时间点1}: {里程碑}
@@ -253,9 +356,17 @@ Markers: {视觉标记样式}
 Colors: {视觉锚点色板}
 Style: {视觉锚点风格关键词}, clean timeline, no text
 Aspect: 16:9
+```
+
+**英文提示词**(粘贴到 ChatGPT/Gemini):
+```
+{根据上方结构化模板生成的完整英文提示词}
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
-```
+````
 
 ### 内文配图通用要求
 
@@ -263,8 +374,9 @@ Aspect: 16:9
 - **视觉锚定**：每条提示词的 Colors 和 Style 字段必须引用封面提取的视觉锚点
 - 实体锚定规则同封面——每条提示词至少包含 2 个文章实体
 - 不要太复杂——手机屏幕上看，简洁的图比复杂的图好
-- 提示词用中文（seedream 中文理解强）
+- **提示词语言**：按 `config.yaml` 的 provider 自动切换（见 SKILL.md Step 6 映射表）；路径 1 默认走 openai/gemini → 英文提示词
 - 每张图都提供一个**免费图库备选关键词**，以防生图效果不佳
+- **命名约定**：每张配图的「存为」字段按顺序 `images/chart-1.png`、`images/chart-2.png`... 与文章 markdown 里的占位符一一对应
 
 ---
 
@@ -286,25 +398,84 @@ Aspect: 16:9
 
 ## 输出示例
 
-```
-## 封面图创意
+完整 prompts.md 文件结构应如下（**头部模板必须完整复用本文档开头的「提示词文件通用头部模板」**）：
+
+````markdown
+# 视觉提示词 · 深夜看完 Cursor 的 500 亿估值...
+
+**目标模型**：`gpt-image-1`
+**对应文章**：`2026-04-18-ai-coding-non-consensus.md`
+**主题**：professional-clean · 简洁科技感 · 蓝色调 · 扁平化
+
+---
+
+## 使用方式（路径 1 · ChatGPT Plus 网页，推荐）
+
+（省略，按头部模板原样输出）
+
+## 文件名对照表
+
+| 位置 | 存为文件名 |
+|------|-----------|
+| 封面（A/B/C 选 1） | `cover.png` |
+| 内文配图 1 | `chart-1.png` |
+| 内文配图 2 | `chart-2.png` |
+| 内文配图 3 | `chart-3.png` |
+| 内文配图 4 | `chart-4.png` |
+
+---
+
+## 实体提取
+- Cursor / Claude Code / GitHub Copilot
+- Anthropic / OpenAI
+- $20B / $25B / 42% / 18% / 70%
+
+## 封面图（3 组创意）
 
 ### 创意 A: 天平失衡（直觉冲击型）
-- 视觉描述：一个巨大的天平，左边是中国国旗配色的芯片堆叠，右边是美国国旗配色的芯片，天平明显向左倾斜。背景是深蓝色数据流。
-- 色调：深蓝 + 科技蓝 + 金色点缀
-- 构图：16:9 横版，天平居中，右侧 1/3 留白放标题
-- 文字区域：右侧留出干净空间
-- AI 绘图提示词：
-  "A large balance scale, left side stacked with red-themed microchips, right side with blue-themed microchips, scale tilting left, dark blue background with flowing data streams, flat design, minimalist, tech aesthetic, 16:9 aspect ratio, clean space on the right third for text overlay, no text no letters no words"
-- 适配工具建议：即梦（国内场景理解好）
+- **存为**：`images/cover.png`（A/B/C 三选一生成，统一存为 cover.png）
+- 视觉描述：天平左托盘放 "Cursor $20B"，右托盘放 "Claude Code $25B"，向右倾斜。
+- 色调：深蓝 #0F172A + 青色 #06B6D4 + 暖金 #F59E0B
+- 构图：16:9 横版，天平居中，下方 25% 留白
+- 文字区域：下方水平长条
 
-## 内文配图
-
-### 配图 1: 位于"数字背后是什么"段落后
-- 配图目的：信息强化
-- 画面描述：一个简洁的柱状图，展示中美大模型调用量的对比，中国柱子更高但带有问号标记
-- 尺寸：1:1 方形
-- AI 绘图提示词：
-  "Minimalist bar chart comparing two bars, left bar taller in red, right bar shorter in blue, question mark floating above the taller bar, clean white background, flat infographic style, 1:1 square, no text"
-- 备选方案：Unsplash 搜 "data comparison chart technology"
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
 ```
+A large minimalist balance scale in a dark navy environment (#0F172A). Left pan holds a glowing cyan plaque labeled "Cursor $20B ARR"; right pan holds a brighter plaque labeled "Claude Code $25B ARR", scale tilts right. Flat minimalist tech aesthetic, 16:9 horizontal composition, clean empty space at bottom 25% for title overlay, no decorative text.
+```
+
+- 适配工具建议：gpt-image-1（文字渲染强）/ Imagen 4
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+
+## 视觉锚点
+色板 #0F172A + #06B6D4 + #F59E0B，风格 "flat design, minimalist infographic"
+
+## 内文配图（4 张）
+
+### 配图 1: 位于「Cursor 是真的在飞」段后
+- 类型：timeline
+- **存为**：`images/chart-1.png`
+- 对应内容：Cursor ARR 从 Nov 2025 到 Q2 2026 的里程碑
+
+**结构化模板**：
+```
+Direction: horizontal left-to-right
+Events:
+  - "Nov 2025": $10B ARR
+  - "Feb 2026": $20B ARR
+  - "Q2 2026": $50B valuation
+Colors: navy #0F172A + cyan #06B6D4 + amber #F59E0B
+Style: flat minimalist infographic, no text
+Aspect: 16:9
+```
+
+**英文提示词**（粘贴到 ChatGPT/Gemini）：
+```
+A clean horizontal timeline on dark navy background (#0F172A). Three glowing milestone markers in cyan labeled "Nov 2025 · $10B ARR", "Feb 2026 · $20B ARR", "Q2 2026 · $50B valuation". Flat minimalist, 16:9.
+```
+
+> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+
+- 备选方案：Unsplash "startup growth timeline"
+````
