@@ -189,7 +189,7 @@ class DoubaoProvider(ImageProvider):
 
 
 class OpenAIProvider(ImageProvider):
-    """OpenAI DALL-E 3 provider."""
+    """OpenAI image provider (DALL-E 3 + gpt-image-1)."""
 
     provider_key = "openai"
 
@@ -200,21 +200,29 @@ class OpenAIProvider(ImageProvider):
         self._base_url = base_url
 
     def generate(self, prompt: str, size: str) -> bytes:
+        is_gpt_image = self._model.startswith("gpt-image")
+        payload = {"model": self._model, "prompt": prompt, "n": 1, "size": size}
+        if not is_gpt_image:
+            # dall-e-3 still supports response_format; gpt-image-1 rejects it and always returns b64
+            payload["response_format"] = "url"
         resp = requests.post(
             f"{self._base_url}/images/generations",
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {self._api_key}"},
-            json={"model": self._model, "prompt": prompt,
-                  "n": 1, "size": size, "response_format": "url"},
+            json=payload,
             timeout=120,
         )
         data = resp.json()
         if resp.status_code != 200:
             raise ValueError(f"OpenAI error ({resp.status_code}): "
                              f"{data.get('error', {}).get('message', str(data))}")
-        url = data.get("data", [{}])[0].get("url")
+        first = data.get("data", [{}])[0]
+        if first.get("b64_json"):
+            import base64
+            return base64.b64decode(first["b64_json"])
+        url = first.get("url")
         if not url:
-            raise ValueError(f"No image URL: {data}")
+            raise ValueError(f"No image url or b64_json in response: {data}")
         return _download_image(url)
 
 
