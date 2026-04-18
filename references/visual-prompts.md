@@ -28,7 +28,7 @@
 ```markdown
 # 视觉提示词 · {文章标题}
 
-**目标模型**：`gpt-image-1`（或用户 config.yaml 指定的模型）
+**目标模型**：`gpt-image-1.5` / `nano-banana-2`（Gemini 3 Flash Image，均对中文理解强、中文渲染准）
 **对应文章**：`{slug}.md`
 **主题**：{主题名} · {cover_style 描述}
 
@@ -36,12 +36,20 @@
 
 ## 使用方式（路径 1 · ChatGPT Plus 网页，推荐）
 
-1. 打开 chat.openai.com，对话里说「用 gpt-image-1 生成，16:9，提示词如下」然后粘贴下方任一组英文提示词
+1. 打开 chat.openai.com，对话里说「用 gpt-image-1.5 生成，比例 2.35:1（封面）或 16:9（内文），提示词如下」然后粘贴下方**中文提示词**
 2. 下载生成的图片，**按下表命名**后放到 `output/images/`
 3. 直接 `python3 toolkit/cli.py preview output/{slug}.md --theme {主题}` 看效果
 4. 将来推送时 `python3 toolkit/cli.py publish output/{slug}.md` 会自动上传本地图到微信 CDN，无需手动处理
 
-> **Gemini Advanced 用户（路径 2）**：同一份英文提示词可直接粘到 gemini.google.com 或 Google AI Studio，Imagen 4 英文表现强
+> **Gemini Advanced 用户（路径 2）**：同一份中文提示词可直接粘到 gemini.google.com 或 Google AI Studio。nano-banana-2 对中文理解和中文字渲染都非常准，不需要翻英文。
+
+## 比例规范（严格遵守）
+
+| 用途 | 比例 | 对应微信位置 |
+|------|------|-------------|
+| **封面图** `cover.png` | **2.35:1**（如 1080×459 / 1200×510） | 公众号头条主封面 |
+| **内文配图** `chart-N.png` | **16:9**（如 1280×720） | 正文段落间配图 |
+| 小封面（可选） | 1:1（如 600×600） | 次条封面 |
 
 ## 文件名对照表
 
@@ -87,22 +95,40 @@
 
 ````markdown
 ### 封面创意 A: {创意名称}
-- **存为**：`images/cover.png`（只需要从 A/B/C 三组中选 1 组生成，统一存为 cover.png）
+- **存为**：`images/cover.png`（A/B/C 三组中选 1 组生成，统一存为 cover.png）
+- **中文主标题**（必须，画面上要渲染出来）：`{10-16 字简练高点击率标题}`
 - 视觉描述：{详细的画面描述，100-150字}
 - 色调：{主色+辅色}
-- 构图：{横版 16:9，主体位置、留白位置}
-- 文字区域：{标题放在什么位置，需要留多大空间}
+- 构图：**2.35:1 横幅**（微信公众号主封面规格），主体位置、标题区位置
+- 标题区：{标题放画面的哪个位置，字号约占画面高度的 25-40%}
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT / Gemini 网页）：
 
 ```
-{英文提示词，适配 gpt-image-1 / Imagen 4，包含风格、构图、色调、光影，显式加 "16:9 horizontal composition, no text no letters no words, clean space for title overlay"}
+{中文提示词，适配 gpt-image-1.5 / nano-banana-2。必须显式包含：
+- 画面比例："2.35:1 横幅比例，适合微信公众号头条封面"
+- 中文主标题文字："画面左上/右侧/下方渲染中文大标题『{标题}』，字号粗黑醒目"
+- 视觉主体：{具体画面描述，含 ≥2 个文章实体}
+- 风格关键词：{如"扁平科技风"、"胶片写实"、"手绘水彩"等}
+- 色调 + 光影
+- 装饰避让："主标题区保持干净背景，不放杂乱元素干扰文字"}
 ```
 
-- 适配工具建议：{gpt-image-1（文字渲染强）/ Imagen 4（氛围表现好）/ Midjourney / DALL-E 3}
+- 适配工具建议：**gpt-image-1.5（中文大字渲染最准）** / nano-banana-2（氛围好）/ Midjourney（仅画面，文字易错）
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词直接粘到 gemini.google.com（nano-banana-2 中文渲染强）
 ````
+
+### 中文主标题撰写要点（决定点击率的关键）
+
+- **字数**：10-16 字,超过 18 字在 2.35:1 封面上会拥挤
+- **句式**：
+  - 疑问句最强(例:「Cursor 估值 500 亿,谁是真赢家?」)
+  - 冲突句次之(例:「你以为 Cursor 赢了,其实早被反超」)
+  - 数字+悬念最稳(例:「500 亿估值背后的 3 个真相」)
+- **避免**:完整句号;与文章 H1 一字不差(封面应该是"钩子版"的 H1)
+- **从文章 H1 压缩**:H1 通常 20-28 字,封面标题压到 10-16 字,保留最锋利的那部分
+- **3 组创意的标题可以不同**:A 用疑问句、B 用冲突句、C 用数字句
 
 ### 实体锚定（必须）
 
@@ -124,12 +150,11 @@
 
 ### 提示词撰写要点
 
-- 始终指定 `16:9 aspect ratio, horizontal composition`
-- 避免生成文字（AI 绘图工具生成的文字通常是乱码）
-- 指定 `no text, no letters, no words` 防止出现乱码文字
-- 为标题留出干净的空间：`clean space on the left/right/bottom for text overlay`
-- 色调与客户 style.yaml 的 cover_style 对齐
-- 风格关键词要具体：不说"好看"，说"flat design, soft gradient, minimalist"
+- **封面**必须 `2.35:1 横幅比例`（公众号头条规格）
+- **内文配图**保持 `16:9 横版比例`（正文段落间配图）
+- **除了中文主标题文字**（封面必须）**和 infographic 模块内的数据标签**（信息图必须），其他地方加 `画面主体区不出现多余装饰文字`
+- 色调与 style.yaml 的 cover_style 对齐
+- 风格关键词要具体：不说"好看"，说"扁平化设计 + 柔和渐变 + 极简主义"
 
 ---
 
@@ -220,12 +245,12 @@ Style: {视觉锚点风格关键词}, clean infographic, no text
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -248,12 +273,12 @@ Style: {视觉锚点风格关键词}, no text no letters
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -279,12 +304,12 @@ Style: {视觉锚点风格关键词}, clean diagram, no text
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -311,12 +336,12 @@ Style: {视觉锚点风格关键词}, split layout, no text
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -342,12 +367,12 @@ Style: {视觉锚点风格关键词}, clean diagram, no text
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -373,12 +398,12 @@ Style: {视觉锚点风格关键词}, clean timeline, no text
 Aspect: 16:9
 ```
 
-**英文提示词**(粘贴到 ChatGPT/Gemini):
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）:
 ```
-{根据上方结构化模板生成的完整英文提示词}
+{根据上方结构化模板生成的完整中文提示词}
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：{Unsplash/Pexels 搜索关键词}
 ````
@@ -389,7 +414,7 @@ Aspect: 16:9
 - **视觉锚定**：每条提示词的 Colors 和 Style 字段必须引用封面提取的视觉锚点
 - 实体锚定规则同封面——每条提示词至少包含 2 个文章实体
 - 不要太复杂——手机屏幕上看，简洁的图比复杂的图好
-- **提示词语言**：按 `config.yaml` 的 provider 自动切换（见 SKILL.md Step 6 映射表）；路径 1 默认走 openai/gemini → 英文提示词
+- **提示词语言**：**统一用中文**。gpt-image-1.5 / nano-banana-2 对中文理解和中文字渲染都足够好,中文提示词表达更精确,图中要渲染的中文数据点可以直接原样引用,不需要中英切换
 - 每张图都提供一个**免费图库备选关键词**，以防生图效果不佳
 - **命名约定**：每张配图的「存为」字段按顺序 `images/chart-1.png`、`images/chart-2.png`... 与文章 markdown 里的占位符一一对应
 
@@ -479,33 +504,50 @@ Aspect: 16:9
 - Text Density:80-150 个中文字符必须渲染在图上,小字号可接受
 - 每个模块用坐标标签(MOD-01、MOD-02...)或强分隔线区分
 
-**英文提示词**(粘贴到 ChatGPT/Gemini):
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）:
 
 ```
-Create a high-density infographic using {layout} layout with {style} style aesthetic.
+请生成一张高密度信息图,采用 {layout} 布局 + {style} 视觉风格。
 
-Composition: {N} modules arranged in {2x3 / bento / matrix / etc.} on {background color hex}.
+画面规格:
+- 比例:16:9 横版(微信公众号正文宽度)
+- 背景:{背景色 hex,如深蓝 #0F172A}
+- 模块数:{N 个,建议 6-7}
+- 模块排布:{2×3 网格 / 便当格 / 对比矩阵 等,根据 layout 决定}
 
-Module 1 (position, color): title "{中文标题}",
-  data points: "{数据点 1}", "{数据点 2}", "{数据点 3}",
-  visual: {icon/chart description},
-  Chinese text to render exactly: "{每个要渲染的中文}"
+模块 1(位置、颜色):
+  - 小标题:「{中文小标题}」
+  - 数据点(必须在画面上原样渲染):「{数据点 1}」、「{数据点 2}」、「{数据点 3}」
+  - 视觉元素:{icon/迷你图表/对比条}
+  - 模块坐标:MOD-01
 
-Module 2 (...): ...
+模块 2(同上结构): ...
 
-Module 6/7 (...): ...
+模块 6 / 模块 7:(同上结构)
 
-Style guidelines: {从 styles/{style}.md 提取的 color palette / typography / texture 关键词}
-Layout guidelines: {从 layouts/{layout}.md 提取的 structure / density rules}
+视觉风格关键词(从 styles/{style}.md 提取):
+  - 色板:{主/辅/强调/强调 2}
+  - 排版:{字体感觉、标题对比}
+  - 纹理:{网格/粗线/涂鸦/颗粒等}
 
-Every corner contains metadata. Coordinate labels in each module.
-No decorative-only empty space. Information over whitespace.
-16:9 horizontal, clean empty space at top for title overlay.
+布局规则(从 layouts/{layout}.md 提取):
+  - {结构要点 1,如"模块间坐标标签 MOD-01"}
+  - {结构要点 2,如"右下角放元信息:时间戳、来源"}
+  - 信息密度优先于留白,不允许纯装饰空白
+
+画面上必须原样渲染的中文文字(清单):
+  「{小标题 1}」、「{数据点 1.1}」、「{数据点 1.2}」...
+  「{小标题 2}」、「{数据点 2.1}」...
+
+禁忌:
+  - 不要胡乱生成英文标签替代中文
+  - 不要把小标题缩成一两个字,保持 6-10 字完整
+  - 不要在数据区以外出现装饰性大字
 ```
 
-> **Gemini Advanced 用户**:同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**:同一份中文提示词可直接粘到 gemini.google.com(nano-banana-2 中文渲染强)
 
-> **baoyu-infographic 二次加工(可选)**:想追求更高精度,可把本 Section 的模块结构喂给 `baoyu-infographic` skill(`/baoyu-infographic`)走官方 dense-modules + pop-laboratory 合成
+> **baoyu-infographic 二次加工(可选)**:想追求更高精度,可把本 Section 的模块结构喂给 `baoyu-infographic` skill(`/baoyu-infographic`)走官方 dense-modules + pop-laboratory 合成。详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`
 
 - 备选图库关键词:Unsplash "{检索词}"
 ````
@@ -515,8 +557,9 @@ No decorative-only empty space. Information over whitespace.
 1. **6 个 Section 是下限,7 个是推荐**,少于 6 个不算高密度
 2. **每个 Section 都必须有具体数据点**(数字/品牌名/百分比/专有名词),禁止"显著提升""广泛应用"这种空话
 3. **Content 逐字提取**,不加工、不总结——保留文章/素材的原始表达
-4. **英文 prompt 里必须显式列出每个模块的中文文字**(用 `Chinese text to render exactly: "..."`)——这是 gpt-image-1.5 / nano-banana 2 准确渲染中文的关键
+4. **中文提示词必须显式列出"画面上必须原样渲染的中文文字"清单**——这是 gpt-image-1.5 / nano-banana-2 准确渲染中文标题和数据点的关键
 5. **Layout × Style 组合必须匹配文章调性**(参考 `visuals/README.md` 推荐搭配表)
+6. **比例**:内文配图 `16:9`(正文宽);**封面专属** `2.35:1`(公众号头条规格)
 
 ---
 
@@ -583,14 +626,14 @@ No decorative-only empty space. Information over whitespace.
 - 构图：16:9 横版，天平居中，下方 25% 留白
 - 文字区域：下方水平长条
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
 A large minimalist balance scale in a dark navy environment (#0F172A). Left pan holds a glowing cyan plaque labeled "Cursor $20B ARR"; right pan holds a brighter plaque labeled "Claude Code $25B ARR", scale tilts right. Flat minimalist tech aesthetic, 16:9 horizontal composition, clean empty space at bottom 25% for title overlay, no decorative text.
 ```
 
 - 适配工具建议：gpt-image-1（文字渲染强）/ Imagen 4
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 ## 视觉锚点
 色板 #0F172A + #06B6D4 + #F59E0B，风格 "flat design, minimalist infographic"
@@ -614,12 +657,12 @@ Style: flat minimalist infographic, no text
 Aspect: 16:9
 ```
 
-**英文提示词**（粘贴到 ChatGPT/Gemini）：
+**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
 ```
 A clean horizontal timeline on dark navy background (#0F172A). Three glowing milestone markers in cyan labeled "Nov 2025 · $10B ARR", "Feb 2026 · $20B ARR", "Q2 2026 · $50B valuation". Flat minimalist, 16:9.
 ```
 
-> **Gemini Advanced 用户**：同一份英文提示词可直接粘到 gemini.google.com
+> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
 
 - 备选方案：Unsplash "startup growth timeline"
 ````

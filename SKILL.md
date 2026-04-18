@@ -390,10 +390,15 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 **硬规则**：无论 `skip_image_gen` 是否为 true，都必须执行 6.1–6.4 的**提示词生成**并写入 `output/{slug}-prompts.md`。`skip_image_gen=true` 只跳过实际 image_gen.py 调用。数量固定（封面 3 组 + 内文 3-6 张按字数），不随模型变化。
 
-**提示词语言**按 `config.yaml` 的 `image.provider`（或 `providers[0]`）自动选择：
-- `openai` / `azure_openai` / `openrouter` / `gemini` / `replicate` → 英文提示词（gpt-image-1、DALL-E、Gemini Imagen 英文表现最好）
-- `doubao` / `jimeng` / `dashscope` / `minimax` → 中文提示词（国内模型中文理解强）
-- 未识别的 provider → 英文（fallback）
+**提示词语言**：**统一用中文**(不论 provider)。理由:
+- 当前主力模型 gpt-image-1.5 / nano-banana-2(Gemini 3 Flash Image)对中文的理解和中文字渲染都足够好
+- 中文提示词表达更精确,画面中要渲染的中文数据点可原样引用
+- 国内模型(doubao/jimeng/dashscope)原本就需要中文
+- 避免中英切换带来的术语翻译损耗
+
+**比例规格**(严格遵守,见 visual-prompts.md 头部的比例规范表):
+- **封面** `cover.png`:**2.35:1**(微信公众号头条主封面规格)
+- **内文配图** `chart-N.png`:**16:9**(正文段落间配图)
 
 **6.0 准备目录**（必须第一步执行）：
 
@@ -419,7 +424,13 @@ mkdir -p {skill_dir}/output/images
 - 段落是氛围渲染/情感过渡 → `decorative`
 - 段落只有结论/金句 → `decorative`
 
-**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略，均为 `decorative`），写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，选最佳 1 组调用 image_gen.py 生成。
+**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略,均为 `decorative`）写入 `output/{slug}-prompts.md`。**封面硬规则**:
+- **比例** `2.35:1`(微信公众号头条主封面,如 1080×459)
+- **必须含中文主标题**（10-16 字,简练高点击率,从文章 H1 压缩出"钩子版"）,并在提示词里显式要求画面渲染该标题
+- **3 组创意的标题可以不同**(A 用疑问句、B 用冲突句、C 用数字句等),以覆盖不同点击诱饵类型
+- 其他装饰避让:主标题区保持干净背景,不让杂乱元素干扰文字
+
+如果 `skip_image_gen != true`,选最佳 1 组调用 image_gen.py 生成。
 
 **6.3 封面验证**：
 - **交互模式**：展示封面，问用户"封面效果如何？"。用户 OK → 继续；不满意 → 调整提示词重新生成。
@@ -429,9 +440,30 @@ mkdir -p {skill_dir}/output/images
 
 **6.4 内文配图**：分析文章结构，为每个需要配图的段落按 6.1b 选模式：
 - **`decorative` 图**：从 visual-prompts.md 的 6 种旧模板中选（infographic/scene/flowchart/comparison/framework/timeline），1 张图 1 个概念
-- **`infographic-dense` 图**：走 visual-prompts.md 第三节的 4 步流程（选 Layout → 选 Style → 结构化内容 → 合成英文 prompt），1 张图塞 6-7 个模块；先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
+- **`infographic-dense` 图**：走 visual-prompts.md 第三节的 4 步流程（选 Layout → 选 Style → 结构化内容 → 合成中文 prompt），1 张图塞 6-7 个模块；先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
 
-生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`，批量调用 image_gen.py 并替换 Markdown 占位符。
+生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`,批量调用 image_gen.py 并替换 Markdown 占位符。
+
+**6.5 什么时候调用外部 baoyu-infographic**(判定详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`):
+
+默认 WeWrite 自己生成的 `infographic-dense` 提示词够用(批产公众号正文配图的场景下)。**仅当以下任一条件满足时建议调用 `/baoyu-infographic`**:
+
+| 触发条件 | 为什么 |
+|---------|--------|
+| 小红书 3:4 独立图文(一篇 = 6-7 张分 P 图) | baoyu 专为此优化,有完整分 P 工作流 |
+| 用户手动说「这张图给我做得更精」「单独打磨这张」 | baoyu 的 analysis-framework 精度更高 |
+| 复杂多维度数据(需要 12+ 元素,超过 WeWrite 推荐的 6-7) | baoyu 能处理周期表/生态图这种大信息量 |
+| 用户关键词:「高密度信息大图」「小红书风格」「单图打磨」 | 关键词匹配 |
+
+**不触发的场景**(WeWrite 自产就够):
+- 公众号文章正文批量配图(一次 4-6 张需要视觉协调)
+- 一周批产多篇文章
+- 时间紧迫
+
+**调用方式**(满足触发条件时):
+1. 把该张图的 Section 结构(6-7 个模块内容)保存到临时 md 文件
+2. `/baoyu-infographic <临时文件> --layout <layout> --style <style> --aspect 16:9 --lang zh`
+3. 用返回的精细化 prompt 替换或补充 WeWrite 原输出的版本
 
 **降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。**提示词文件始终保留**，即使图片生成失败或被跳过。
 
