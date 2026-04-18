@@ -61,10 +61,21 @@
 | 内文配图 3 | `chart-3.png` |
 | ...依此类推 | `chart-N.png` |
 
+## 📑 快速复制索引 · 看这张表就够了
+
+按顺序,每段独立开一个 ChatGPT 对话(避免串图)。每段**只需要复制一个代码块**,本文档有明显 `━━━ 开始复制 ━━━` / `━━━ 结束复制 ━━━` 分隔线。
+
+| 序号 | 提示词段 | 比例 | 跳转 | 下载后存为 |
+|----|---------|------|------|----------|
+| 1 | 封面 · A/B/C 三选一(推荐 C) | 2.35:1 | §1 | `output/images/cover.png` |
+| 2 | chart-1 · {H2 标题 1} | 16:9 | §2 | `output/images/chart-1.png` |
+| 3 | chart-2 · {H2 标题 2} | 16:9 | §3 | `output/images/chart-2.png` |
+| ... | chart-N · {H2 标题 N} | 16:9 | §N+1 | `output/images/chart-N.png` |
+
 ---
 ```
 
-头部之后，继续输出「实体提取」「封面图（3 组）」「视觉锚点」「内文配图（N 张）」四个部分。
+头部之后，继续输出「实体提取」「封面图（§1,3 组并列)」「视觉锚点」「内文配图(§2 ~ §N)」四个部分。**每段必须用 `## §N · 段名` 独立小节,代码块前后必须用 `<!-- ━━━ 📋 开始复制 ━━━ -->` / `<!-- ━━━ ✂️ 结束复制 ━━━ -->` HTML 注释分隔符包围**,让用户一眼就知道"哪段要粘给 ChatGPT"。
 
 ---
 
@@ -89,34 +100,53 @@
 - 适合：干货类、清单类、测评类文章
 - 风格：简洁、专业、一眼看懂文章主题
 
-### 提示词格式
+### 提示词格式(每组独立 §1A / §1B / §1C 小节)
 
-每组输出：
+每组按下列结构输出到 prompts.md 里 3 个独立小节。注意:代码块前后必须加 HTML 注释分隔符 `<!-- ━━━ 📋 开始复制 · 封面 X ━━━ -->` / `<!-- ━━━ ✂️ 结束复制 ━━━ -->`,用户就靠这个定位要复制的区域。
 
 ````markdown
-### 封面创意 A: {创意名称}
-- **存为**：`images/cover.png`（A/B/C 三组中选 1 组生成，统一存为 cover.png）
-- **中文主标题**（必须，画面上要渲染出来）：`{10-16 字简练高点击率标题}`
-- 视觉描述：{详细的画面描述，100-150字}
-- 色调：{主色+辅色}
-- 构图：**2.35:1 横幅**（微信公众号主封面规格），主体位置、标题区位置
-- 标题区：{标题放画面的哪个位置，字号约占画面高度的 25-40%}
+## §1A · 封面创意 A: {创意名称}
 
-**中文提示词**（粘贴到 ChatGPT / Gemini 网页）：
+- **存为**:`output/images/cover.png`(A/B/C 三组中选 1 组生成,统一存为 cover.png)
+- **中文主标题**(必须,画面上要渲染出来):「**{10-16 字简练高点击率标题}**」
+- 视觉描述:{详细的画面描述,100-150字}
+- 色调:{主色+辅色}
+- 构图:**2.35:1 横幅**(微信公众号主封面规格),主体位置 + 标题区位置
+- 标题区:{标题放画面的哪个位置,字号约占画面高度的 25-40%}
+
+**对 ChatGPT 说**:「请生成一张 **2.35:1** 横幅图片,1080×459 像素,用于微信公众号头条封面,提示词如下:」然后复制下方整段:
+
+<!-- ━━━ 📋 开始复制 · 封面 A ━━━ -->
 
 ```
-{中文提示词，适配 gpt-image-1.5 / nano-banana-2。必须显式包含：
-- 画面比例："2.35:1 横幅比例，适合微信公众号头条封面"
-- 中文主标题文字："画面左上/右侧/下方渲染中文大标题『{标题}』，字号粗黑醒目"
-- 视觉主体：{具体画面描述，含 ≥2 个文章实体}
-- 风格关键词：{如"扁平科技风"、"胶片写实"、"手绘水彩"等}
+{中文提示词,适配 gpt-image-1.5 / nano-banana-2。必须显式包含:
+- 画面比例:「2.35:1 横幅比例,适合微信公众号头条封面」
+- 中文主标题文字:「画面左上/右侧/下方渲染中文大标题『{标题}』,字号粗黑醒目」
+- 视觉主体:{具体画面描述,含 ≥2 个文章实体}
+- 风格关键词:{如"扁平科技风"、"胶片写实"、"手绘水彩"等}
 - 色调 + 光影
-- 装饰避让："主标题区保持干净背景，不放杂乱元素干扰文字"}
+- 装饰避让:「主标题区保持干净背景,不放杂乱元素干扰文字」}
 ```
 
-- 适配工具建议：**gpt-image-1.5（中文大字渲染最准）** / nano-banana-2（氛围好）/ Midjourney（仅画面，文字易错）
+<!-- ━━━ ✂️ 结束复制 ━━━ -->
 
-> **Gemini Advanced 用户**：同一份中文提示词直接粘到 gemini.google.com（nano-banana-2 中文渲染强）
+**⬇ 下载生成的图 → 存为** `output/images/cover.png`
+
+- 适配工具建议:**gpt-image-1.5(中文大字渲染最准)** / nano-banana-2(氛围好)
+
+> **Gemini Advanced 用户**:同一份中文提示词直接粘到 gemini.google.com
+
+---
+
+## §1B · 封面创意 B: {创意名称}
+
+(同上结构,代码块用 `<!-- ━━━ 📋 开始复制 · 封面 B ━━━ -->` 分隔)
+
+---
+
+## §1C · 封面创意 C: {创意名称}(推荐)
+
+(同上结构,代码块用 `<!-- ━━━ 📋 开始复制 · 封面 C ━━━ -->` 分隔)
 ````
 
 ### 中文主标题撰写要点（决定点击率的关键）
@@ -489,20 +519,25 @@ python3 toolkit/overlay_text.py chart-N-raw.png chart-N.overlay.json
 chart-N.png   (汉字精准的成品图)
 ```
 
-### 结构化模板(T2 双块输出)
+### 结构化模板(T2 双块输出 · 每张 chart 用 §N 独立小节 + 复制分隔符)
+
+注意:**每张 chart 必须作为独立 `## §N · chart-{序号}` 小节**,底图 prompt 和 overlay.json 各自用 HTML 注释分隔符包围。文档架构和用户粘贴体验详见已完成示范 `output/2026-04-18-ai-coding-non-consensus-prompts.md`。
 
 ````markdown
-### 配图 {序号}: 位于「{H2标题}」段后
+## §{N+1} · chart-{序号} · {H2 标题}
+
+⭐ **T2 两步法**:这一段先出"无字底图",下一步 §{N+2} 用脚本叠字。
+
 - 类型:`infographic-dense`
 - 档位:**T2**(底图 + Pillow 叠字)
-- 底图存为:`images/chart-{序号}-raw.png`(无字,AI 出)
-- 成图存为:`images/chart-{序号}.png`(叠字后,Pillow 出)
-- overlay 配置:`images/chart-{序号}.overlay.json`
+- 底图存为:`output/images/chart-{序号}-raw.png`(无字,AI 出)
+- 成图存为:`output/images/chart-{序号}.png`(叠字后,Pillow 自动出)
+- overlay 配置:`output/images/chart-{序号}.overlay.json`
 - Layout:`{layout 名,如 dense-modules}`
 - Style:`{style 名,如 pop-laboratory}`
 - 对应内容:{1 句话概括本张图回答什么核心问题}
 
-**模块结构**(6-7 个 Section,从文章真实素材提取):
+**模块结构**(6-7 个 Section,从文章真实素材提取,用于生成 overlay.json):
 
 #### Section 1: {模块小标题 6-10 字}
 - Key Concept: {1 句话核心论点}
@@ -522,7 +557,11 @@ chart-N.png   (汉字精准的成品图)
 
 ---
 
-#### 底图 prompt(AI 画这张,粘贴到 ChatGPT / Gemini 网页)
+**第一步 · 出无字底图**
+
+**对 ChatGPT 说**:「请生成一张 **16:9** 横版、**1280×720 像素**的纯视觉底图。**画面上不能出现任何文字、数字、字母**,只要视觉架构,提示词如下:」
+
+<!-- ━━━ 📋 开始复制 · chart-{序号} 底图 ━━━ -->
 
 ```
 请生成一张 **完全无文字** 的信息图底图,用于公众号正文配图(16:9 横版,1280×720)。
@@ -547,7 +586,15 @@ chart-N.png   (汉字精准的成品图)
   pure graphics/shapes/colors/icons only
 ```
 
-#### overlay.json(Pillow 叠这些字,保存到 `images/chart-{序号}.overlay.json`)
+<!-- ━━━ ✂️ 结束复制 ━━━ -->
+
+**⬇ 下载 → 存为** `output/images/chart-{序号}-raw.png`(注意后缀 `-raw`)
+
+**检查要点**:下载前确认画面上**没有任何文字/数字/字母**。若 AI 偷画了字,对它说「请重画,画面上不要出现任何文字」。
+
+---
+
+**第二步 · overlay.json(Pillow 叠字清单)**
 
 ```json
 {
@@ -578,14 +625,23 @@ chart-N.png   (汉字精准的成品图)
 - 模块 4(左下):(213, 540) · 模块 5(中下):(640, 540) · 模块 6(右下):(1067, 540)
 - 每模块内部:小标题 y - 80,主数据居中,说明 y + 50
 
-#### 生成命令(自动叠字)
+**⬇ 保存 overlay.json 到** `output/images/chart-{序号}.overlay.json`
+
+---
+
+## §{N+2} · chart-{序号} · 本地跑脚本叠中文字
+
+底图下载好后,在终端里复制这一行执行:
+
+<!-- ━━━ 📋 开始复制 · 终端命令 chart-{序号} ━━━ -->
 
 ```bash
-python3 toolkit/overlay_text.py \
-    output/images/chart-{序号}-raw.png \
-    output/images/chart-{序号}.overlay.json
-# 输出自动存为 images/chart-{序号}.png(去掉 -raw)
+cd /Users/mahaochen/wechatgzh/wewrite && python3 toolkit/overlay_text.py output/images/chart-{序号}-raw.png output/images/chart-{序号}.overlay.json
 ```
+
+<!-- ━━━ ✂️ 结束复制 ━━━ -->
+
+脚本会自动产出 `output/images/chart-{序号}.png`,汉字 100% 精准。
 
 > **Gemini Advanced 用户**:底图 prompt 同样适用 gemini.google.com
 
@@ -627,84 +683,60 @@ python3 toolkit/overlay_text.py \
 
 ## 输出示例
 
-完整 prompts.md 文件结构应如下（**头部模板必须完整复用本文档开头的「提示词文件通用头部模板」**）：
+**完整参考**:`output/2026-04-18-ai-coding-non-consensus-prompts.md`——这份按最新架构(§N 独立小节 + 复制分隔符 + 跳转索引)写完,可照此样板生成新 prompts.md。
 
-````markdown
-# 视觉提示词 · 深夜看完 Cursor 的 500 亿估值...
+### 核心骨架(必须遵守)
 
-**目标模型**：`gpt-image-1`
-**对应文章**：`2026-04-18-ai-coding-non-consensus.md`
-**主题**：professional-clean · 简洁科技感 · 蓝色调 · 扁平化
+每份 prompts.md 必须按下列顺序输出:
+
+```
+# 视觉提示词 · {文章标题}
+(元信息:模型/对应文章/主题)
+---
+
+## 📑 快速复制索引        ← 跳转索引表,序号 / 段名 / 比例 / 存储路径
+(按 §1 §2 §3 ... 列出全部可复制段)
 
 ---
 
-## 使用方式（路径 1 · ChatGPT Plus 网页，推荐）
+## §1 · 封面 · 推荐 C     ← 3 组里选最推荐的那组放前面
+(开场白 + 分隔符代码块 + ⬇ 下载存为 cover.png)
 
-（省略，按头部模板原样输出）
-
-## 文件名对照表
-
-| 位置 | 存为文件名 |
-|------|-----------|
-| 封面（A/B/C 选 1） | `cover.png` |
-| 内文配图 1 | `chart-1.png` |
-| 内文配图 2 | `chart-2.png` |
-| 内文配图 3 | `chart-3.png` |
-| 内文配图 4 | `chart-4.png` |
+## §1 备选 · 天平失衡      ← 可折叠 <details> 放 A/B 备选
+## §1 备选 · 深夜屏幕
 
 ---
 
-## 实体提取
-- Cursor / Claude Code / GitHub Copilot
-- Anthropic / OpenAI
-- $20B / $25B / 42% / 18% / 70%
+## §2 · chart-1 · {H2 1}  ← 每张 chart 独立 §N 小节
+(T1 直出 or T2 两步法)
 
-## 封面图（3 组创意）
+## §3 · chart-2 · {H2 2}
+...
 
-### 创意 A: 天平失衡（直觉冲击型）
-- **存为**：`images/cover.png`（A/B/C 三选一生成，统一存为 cover.png）
-- 视觉描述：天平左托盘放 "Cursor $20B"，右托盘放 "Claude Code $25B"，向右倾斜。
-- 色调：深蓝 #0F172A + 青色 #06B6D4 + 暖金 #F59E0B
-- 构图：16:9 横版，天平居中，下方 25% 留白
-- 文字区域：下方水平长条
+## §N · chart-M · {H2 M}
 
-**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
-```
-A large minimalist balance scale in a dark navy environment (#0F172A). Left pan holds a glowing cyan plaque labeled "Cursor $20B ARR"; right pan holds a brighter plaque labeled "Claude Code $25B ARR", scale tilts right. Flat minimalist tech aesthetic, 16:9 horizontal composition, clean empty space at bottom 25% for title overlay, no decorative text.
-```
+---
 
-- 适配工具建议：gpt-image-1（文字渲染强）/ Imagen 4
+## §N+1 · (T2 用户)终端跑脚本叠字   ← 集中给 overlay 命令
 
-> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
+## §N+2 · 预览成品                   ← preview 命令
 
-## 视觉锚点
-色板 #0F172A + #06B6D4 + #F59E0B，风格 "flat design, minimalist infographic"
+---
 
-## 内文配图（4 张）
-
-### 配图 1: 位于「Cursor 是真的在飞」段后
-- 类型：timeline
-- **存为**：`images/chart-1.png`
-- 对应内容：Cursor ARR 从 Nov 2025 到 Q2 2026 的里程碑
-
-**结构化模板**：
-```
-Direction: horizontal left-to-right
-Events:
-  - "Nov 2025": $10B ARR
-  - "Feb 2026": $20B ARR
-  - "Q2 2026": $50B valuation
-Colors: navy #0F172A + cyan #06B6D4 + amber #F59E0B
-Style: flat minimalist infographic, no text
-Aspect: 16:9
+## 附录 · 遇到问题怎么办             ← 常见 FAQ 表
+## 附录(折叠)· 设计理念               ← <details>,不干扰主流程
 ```
 
-**中文提示词**（粘贴到 ChatGPT/Gemini 网页）：
-```
-A clean horizontal timeline on dark navy background (#0F172A). Three glowing milestone markers in cyan labeled "Nov 2025 · $10B ARR", "Feb 2026 · $20B ARR", "Q2 2026 · $50B valuation". Flat minimalist, 16:9.
-```
+### 关键要求(硬约束)
 
-> **Gemini Advanced 用户**：同一份中文提示词可直接粘到 gemini.google.com
-
-- 备选方案：Unsplash "startup growth timeline"
-````
+1. **每个可复制代码块必须前后包围 HTML 注释分隔符**:
+   ```
+   <!-- ━━━ 📋 开始复制 · {段名} ━━━ -->
+   ```(代码块)```
+   <!-- ━━━ ✂️ 结束复制 ━━━ -->
+   ```
+2. **每段代码块前必须有一行开场白**,格式:「**对 ChatGPT 说**:「请生成 XXX 像素比例 YYY 提示词如下:」」
+3. **每段代码块后必须有一行下载指令**:「**⬇ 下载 → 存为** `output/images/xxx.png`」
+4. **比例显式标注**:封面 2.35:1,内文 16:9(每次说清楚)
+5. **T2 图的 overlay.json 必须实际写入** `output/images/chart-{序号}.overlay.json`(不是只放在 prompts.md 代码块里),方便用户直接跑 `overlay_text.py`
+6. **跳转索引表在开头**,让用户看一眼就知道"我要做哪几段"
