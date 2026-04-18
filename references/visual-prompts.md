@@ -471,16 +471,33 @@ Aspect: 16:9
 - **Visual Element**:icon / mini-chart / callout / list / emoji 徽章
 - **Text Labels**:精确的显示文字(含数字和术语)
 
-**Step 4: 合成英文 prompt**
+**Step 4: 分别合成「底图 prompt」+「overlay.json」**(T2 默认档)
 
-按 base-prompt.md 骨架,填入 {{LAYOUT}} / {{STYLE}} / {{CONTENT}} / {{TEXT_LABELS}},**显式列出每个 module 的中文文字**(让模型准确渲染)。
+infographic-dense 默认走 T2——图像模型对长中文、小字、数据标签的渲染错误率极高,实测"放漫/放缓"、"数揭/数据"、"揄末/样本"等。所以:
 
-### 结构化模板
+- **底图 prompt**:让 AI 只画**无字底图**(背景/色块/图表形状/icon/模块框/粒子流/网格线)。负面提示词**必须显式拒绝所有文字**
+- **overlay.json**:agent 把所有文字(模块小标题、数据点、来源、坐标标签)作为**叠字层清单**输出,Pillow 脚本自动叠上,**汉字 100% 精准**
+
+流程图:
+```
+AI 出底图 chart-N-raw.png   (无字,纯视觉)
+       ↓
+agent 产 chart-N.overlay.json   (字层清单)
+       ↓
+python3 toolkit/overlay_text.py chart-N-raw.png chart-N.overlay.json
+       ↓
+chart-N.png   (汉字精准的成品图)
+```
+
+### 结构化模板(T2 双块输出)
 
 ````markdown
 ### 配图 {序号}: 位于「{H2标题}」段后
-- 类型:infographic-dense
-- **存为**:`images/chart-{序号}.png`
+- 类型:`infographic-dense`
+- 档位:**T2**(底图 + Pillow 叠字)
+- 底图存为:`images/chart-{序号}-raw.png`(无字,AI 出)
+- 成图存为:`images/chart-{序号}.png`(叠字后,Pillow 出)
+- overlay 配置:`images/chart-{序号}.overlay.json`
 - Layout:`{layout 名,如 dense-modules}`
 - Style:`{style 名,如 pop-laboratory}`
 - 对应内容:{1 句话概括本张图回答什么核心问题}
@@ -489,65 +506,90 @@ Aspect: 16:9
 
 #### Section 1: {模块小标题 6-10 字}
 - Key Concept: {1 句话核心论点}
-- Content:
-  - {数据点 1,含来源,如 "Copilot 市场份额 42%(JetBrains 2026 调研)"}
+- Content(逐字从文章/素材提取,禁止改写):
+  - {数据点 1,含来源}
   - {数据点 2}
   - {数据点 3}
-- Visual Element: {icon/mini-chart/callout}
-- Text Labels: {"显示的精确文字 1", "精确文字 2"}
+- Visual Element: {icon / mini-chart / callout / 色块}
+- 后期叠字的 Text Labels: {"精确文字 1", "精确文字 2", "精确文字 3"}
 
 #### Section 2 ~ 7: ...
 
 **视觉规格**:
 - 色板:{主/辅/强调 hex,对齐封面锚点}
 - Aspect:16:9(横版 · 公众号正文宽)
-- Text Density:80-150 个中文字符必须渲染在图上,小字号可接受
-- 每个模块用坐标标签(MOD-01、MOD-02...)或强分隔线区分
+- 模块坐标:MOD-01、MOD-02... 或强分隔线区分
 
-**中文提示词**（粘贴到 ChatGPT/Gemini 网页）:
+---
+
+#### 底图 prompt(AI 画这张,粘贴到 ChatGPT / Gemini 网页)
 
 ```
-请生成一张高密度信息图,采用 {layout} 布局 + {style} 视觉风格。
+请生成一张 **完全无文字** 的信息图底图,用于公众号正文配图(16:9 横版,1280×720)。
 
-画面规格:
-- 比例:16:9 横版(微信公众号正文宽度)
+画面架构:采用 {layout} 布局,{style} 视觉风格。
 - 背景:{背景色 hex,如深蓝 #0F172A}
-- 模块数:{N 个,建议 6-7}
-- 模块排布:{2×3 网格 / 便当格 / 对比矩阵 等,根据 layout 决定}
+- 模块 6-7 个,{排布方式如 2×3 网格}
+- 每个模块是一个**圆角矩形色块**(不同颜色区分):
+  - 模块 1(左上):{颜色 A}色块,里面留出空白给后期叠字。画上 {icon 类型,如"建筑楼宇 icon"}
+  - 模块 2(上中):{颜色 B}色块,画上 {mini donut / mini bar chart 形状,但数字留空不画}
+  - 模块 3(右上):{颜色 C}色块,画上 {icon}
+  - 模块 4(左下):{颜色 D}色块,画上 {形状}
+  - 模块 5(中下):{颜色 E}色块,画上 {形状}
+  - 模块 6(右下,警示色):鲜艳{警告色}色块,画上感叹号 icon
 
-模块 1(位置、颜色):
-  - 小标题:「{中文小标题}」
-  - 数据点(必须在画面上原样渲染):「{数据点 1}」、「{数据点 2}」、「{数据点 3}」
-  - 视觉元素:{icon/迷你图表/对比条}
-  - 模块坐标:MOD-01
+视觉风格细节(从 styles/{style}.md 提取):
+- {色板/排版/纹理关键词}
 
-模块 2(同上结构): ...
-
-模块 6 / 模块 7:(同上结构)
-
-视觉风格关键词(从 styles/{style}.md 提取):
-  - 色板:{主/辅/强调/强调 2}
-  - 排版:{字体感觉、标题对比}
-  - 纹理:{网格/粗线/涂鸦/颗粒等}
-
-布局规则(从 layouts/{layout}.md 提取):
-  - {结构要点 1,如"模块间坐标标签 MOD-01"}
-  - {结构要点 2,如"右下角放元信息:时间戳、来源"}
-  - 信息密度优先于留白,不允许纯装饰空白
-
-画面上必须原样渲染的中文文字(清单):
-  「{小标题 1}」、「{数据点 1.1}」、「{数据点 1.2}」...
-  「{小标题 2}」、「{数据点 2.1}」...
-
-禁忌:
-  - 不要胡乱生成英文标签替代中文
-  - 不要把小标题缩成一两个字,保持 6-10 字完整
-  - 不要在数据区以外出现装饰性大字
+**负面提示词(关键!)**:
+  no text, no letters, no labels, no Chinese characters, no numbers in the image,
+  no watermark, no English words, no typography anywhere,
+  pure graphics/shapes/colors/icons only
 ```
 
-> **Gemini Advanced 用户**:同一份中文提示词可直接粘到 gemini.google.com(nano-banana-2 中文渲染强)
+#### overlay.json(Pillow 叠这些字,保存到 `images/chart-{序号}.overlay.json`)
 
-> **baoyu-infographic 二次加工(可选)**:想追求更高精度,可把本 Section 的模块结构喂给 `baoyu-infographic` skill(`/baoyu-infographic`)走官方 dense-modules + pop-laboratory 合成。详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`
+```json
+{
+  "size": [1280, 720],
+  "layers": [
+    {
+      "text": "{模块 1 小标题}",
+      "x": 213, "y": 100, "anchor": "mm",
+      "weight": "Bold", "size": 32, "color": "#2D2926"
+    },
+    {
+      "text": "{数据点 1.1}",
+      "x": 213, "y": 180, "anchor": "mm",
+      "weight": "Heavy", "size": 48, "color": "#06B6D4"
+    },
+    {
+      "text": "{数据点 1.2}",
+      "x": 213, "y": 230, "anchor": "mm",
+      "weight": "Regular", "size": 20, "color": "#6B7F5F"
+    },
+    ...(每个模块 3-5 层)
+  ]
+}
+```
+
+**overlay 坐标参考**(1280×720 的 2×3 网格):
+- 模块 1(左上):中心 (213, 180) · 模块 2(上中):(640, 180) · 模块 3(右上):(1067, 180)
+- 模块 4(左下):(213, 540) · 模块 5(中下):(640, 540) · 模块 6(右下):(1067, 540)
+- 每模块内部:小标题 y - 80,主数据居中,说明 y + 50
+
+#### 生成命令(自动叠字)
+
+```bash
+python3 toolkit/overlay_text.py \
+    output/images/chart-{序号}-raw.png \
+    output/images/chart-{序号}.overlay.json
+# 输出自动存为 images/chart-{序号}.png(去掉 -raw)
+```
+
+> **Gemini Advanced 用户**:底图 prompt 同样适用 gemini.google.com
+
+> **baoyu-infographic 二次加工(可选)**:想一键搞定不走 T2 分离流程,可 `/baoyu-infographic` 走官方合成。判定详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`
 
 - 备选图库关键词:Unsplash "{检索词}"
 ````

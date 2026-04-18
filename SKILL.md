@@ -408,27 +408,51 @@ mkdir -p {skill_dir}/output/images
 
 **6.1 实体提取**：从终稿中提取 3-5 个**具体实体**（人物、产品名、场景、数据点、行业术语）。后续所有提示词必须包含至少 2 个实体。
 
-**6.1b 配图模式选择**（决定每张图是 decorative 还是 infographic-dense）：
+**6.1b 配图模式与档位选择**(两条正交维度):
 
-按文章框架（Step 3.1 选定的）决定配图模式组合：
+**维度 1 · 配图模式**:按文章框架决定 `decorative` / `infographic-dense` 组合:
 
 | 框架 | 封面 | 内文配图模式分布 | 备注 |
 |------|------|-----------------|------|
 | 热点解读 / 纯观点 | `decorative` | ≥50% `infographic-dense` | 有数据段/对比段时优先高密度 |
 | 痛点 / 清单 / 对比 / 复盘 | `decorative` | **100% `infographic-dense`** | 干货类文章读者明确期待高密度 |
-| 故事 / 情绪 | `decorative` | `decorative`（多用 scene 类型） | 场景感优先，数据为辅 |
+| 故事 / 情绪 | `decorative` | `decorative`(多用 scene 类型) | 场景感优先,数据为辅 |
 
-**判定个别配图该用哪个模式的细则**：
+**判定个别配图该用哪个模式的细则**:
 - 段落含具体数据点 ≥3 个 → `infographic-dense`
 - 段落是对比/清单/盘点 → `infographic-dense`
 - 段落是氛围渲染/情感过渡 → `decorative`
 - 段落只有结论/金句 → `decorative`
 
-**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md 的 A/B/C 三种策略,均为 `decorative`）写入 `output/{slug}-prompts.md`。**封面硬规则**:
+**维度 2 · T0/T1/T2 档位**(文字渲染策略 · 两条腿走路):
+
+图像模型(gpt-image-1.5 / nano-banana-2)对长中文、小字、中英混排的渲染**错误率高**(实测"放漫/放缓"、"数揭/数据"、"揄末/样本"等)。三档处理:
+
+| 档 | AI 画什么 | Pillow 叠什么 | 用例 |
+|---|---------|-------------|------|
+| **T0** | 无文字(纯视觉) | 无 | 氛围场景、故事型配图、背景插画 |
+| **T1** | ≤16 字大标题(占画面高 ≥20%,独立干净区) | 无(AI 直出,容忍小瑕疵) | 封面主标题 |
+| **T2** | **完全无字底图**(背景/色块/图表形状/icon/模块框) | **所有文字**(标题/数据/小字/来源/坐标) | **`infographic-dense` 默认档** |
+
+**档位与模式的正交组合建议**:
+
+| 模式 × 档位 | 用法 |
+|------------|------|
+| `decorative` × T0 | 氛围场景图 |
+| `decorative` × T1 | 封面主标题(默认) |
+| `decorative` × T2 | 封面 T1 失败的降级 / 需要多个精准文字标签的概念图 |
+| `infographic-dense` × T2 | **默认**,干货数据图都走这里 |
+
+**两条腿走路回退规则**:
+- 先走 T1 出封面,如果用户反馈"错字了"/"标题乱了" → **命令**「封面走 T2 重做」→ agent 重新输出该封面为 T2(无字底图 + overlay.json + 调 toolkit/overlay_text.py)
+- 同理 chart-N 错字太多 → 用户说「chart-N 走 T2 重做」→ agent 重新输出该图为 T2
+- **infographic-dense 默认直接 T2**,跳过 T1 尝试(实测 AI 直出必错)
+
+**6.2 封面生成**:生成封面 3 组创意提示词(按 visual-prompts.md 的 A/B/C 三种策略,均为 `decorative`)写入 `output/{slug}-prompts.md`。**封面硬规则**:
 - **比例** `2.35:1`(微信公众号头条主封面,如 1080×459)
-- **必须含中文主标题**（10-16 字,简练高点击率,从文章 H1 压缩出"钩子版"）,并在提示词里显式要求画面渲染该标题
+- **档位默认 T1**:AI 直接渲染 10-16 字中文主标题(从文章 H1 压缩出"钩子版"),字号占画面高 ≥20%,放在画面独立干净区(其他区域禁止出现多余文字/英文标签/小字)
 - **3 组创意的标题可以不同**(A 用疑问句、B 用冲突句、C 用数字句等),以覆盖不同点击诱饵类型
-- 其他装饰避让:主标题区保持干净背景,不让杂乱元素干扰文字
+- **T1 失败降级 T2**:如果 AI 产出主标题有错字,用户说「封面走 T2 重做」→ 重新输出为 T2(无字底图 + overlay.json + Pillow 叠字),100% 汉字精准
 
 如果 `skip_image_gen != true`,选最佳 1 组调用 image_gen.py 生成。
 
@@ -438,13 +462,45 @@ mkdir -p {skill_dir}/output/images
 
 **6.3b 风格锚定**：封面确认后，提取视觉锚点（色板 hex、风格关键词、画面调性），后续所有内文配图的提示词必须引用这组锚点，保证全文视觉一致。
 
-**6.4 内文配图**：分析文章结构，为每个需要配图的段落按 6.1b 选模式：
-- **`decorative` 图**：从 visual-prompts.md 的 6 种旧模板中选（infographic/scene/flowchart/comparison/framework/timeline），1 张图 1 个概念
-- **`infographic-dense` 图**：走 visual-prompts.md 第三节的 4 步流程（选 Layout → 选 Style → 结构化内容 → 合成中文 prompt），1 张图塞 6-7 个模块；先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
+**6.4 内文配图**:分析文章结构,为每个需要配图的段落按 6.1b 选模式 + 档位:
+- **`decorative` 图(T0/T1)**:从 visual-prompts.md 的 6 种旧模板中选(infographic/scene/flowchart/comparison/framework/timeline),1 张图 1 个概念。文字极少时走 T0,有大标题走 T1
+- **`infographic-dense` 图(T2 默认)**:走 visual-prompts.md 第三节的 4 步流程(选 Layout → 选 Style → 结构化内容 → 分别合成「底图 prompts」和「overlay.json」两块输出),1 张图塞 6-7 个模块;先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
 
-生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`。如果 `skip_image_gen != true`,批量调用 image_gen.py 并替换 Markdown 占位符。
+生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`,每张 infographic-dense 图额外产出 `output/images/chart-N.overlay.json`。如果 `skip_image_gen != true`,批量调用 image_gen.py 出底图,然后自动跑 overlay_text.py 合成终图。
 
-**6.5 什么时候调用外部 baoyu-infographic**(判定详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`):
+**6.5 T2 叠字自动化**(Pillow 后期排字):
+
+每张 infographic-dense 图的产出链:
+```
+AI 出底图:chart-N-raw.png   ←(无任何文字,仅视觉)
+   ↓
+overlay.json:               ←(agent 按文章内容生成字层清单)
+  { "size": [1280, 720],
+    "layers": [
+      {"text": "付费 AI Coding 工具 Top 4",
+       "x": 640, "y": 100, "anchor": "mm",
+       "weight": "Bold", "size": 56, "color": "#2D2926",
+       "bg": "#DCAC5E"},
+      ... 6-30 层
+    ]
+  }
+   ↓
+python3 {skill_dir}/toolkit/overlay_text.py \
+    output/images/chart-N-raw.png \
+    output/images/chart-N.overlay.json
+   ↓
+chart-N.png  ←(汉字 100% 精准)
+```
+
+**overlay.json schema**:
+- 根级:`size` [w, h] 可选 · `layers` 列表
+- 每个 layer:`text`(必填)· `x`、`y`(必填,像素坐标)· `anchor`(默认 `mm`)· `weight`(Regular/Medium/Semibold/Bold/Heavy)· `size`(px)· `color`(#RRGGBB 或 #RRGGBBAA)· `stroke_color`、`stroke_width` 可选 · `bg`(背景色,画圆角矩形)· `bg_padding` · `line_spacing` · `max_width`(自动换行)· `rotation`(度)· `opacity`
+
+**skip_image_gen 行为**:
+- `skip_image_gen=true` → 不调 image_gen.py、不调 overlay_text.py
+- 但 **overlay.json 必须始终写到 `output/images/chart-N.overlay.json`**,用户拿到底图后可以手动跑 overlay_text.py
+
+**6.6 什么时候调用外部 baoyu-infographic**(判定详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`):
 
 默认 WeWrite 自己生成的 `infographic-dense` 提示词够用(批产公众号正文配图的场景下)。**仅当以下任一条件满足时建议调用 `/baoyu-infographic`**:
 
