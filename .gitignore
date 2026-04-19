@@ -1,5 +1,9 @@
-# Credentials
+# Credentials(永不入 git)
 config.yaml
+secrets/*
+!secrets/README.md
+.env
+.env.*
 
 # User data (generated at runtime, not tracked)
 style.yaml

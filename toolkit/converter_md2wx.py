@@ -1,26 +1,43 @@
 """
-md2wx 排版引擎 adapter · 把 md2wx CLI 的输出包装成 WeWrite 的 ConvertResult。
+md2wx 排版引擎 adapter · 直接打 aipickgold.com 的 API · 50 主题
 
-md2wx(https://github.com/soarsky1991/md2wx)提供 40 主题,分 5 系列:经典/极简/聚焦/渐变/卡片。
-相比 WeWrite 自带的 16 主题,md2wx 通过 aipickgold.com 服务器渲染,需要 API key。
+服务端 2026-04 升级后主题命名改为英文(见下方 THEMES 列表)。
+本 adapter 不依赖任何本地 md2wx CLI 版本,只用 HTTP。
+
+主题清单(50 个):
+  **通用**(16):default / bytedance / apple / sports / chinese / cyber /
+    wechat-native / nyt-classic / github-readme / sspai-red / mint-fresh /
+    sunset-amber / ink-minimal / lavender-dream / coffee-house / bauhaus-primary
+  **极简系列**(8):minimal-{gold,green,blue,orange,red,navy,gray,sky}
+  **聚焦系列**(8):focus-{gold,green,blue,orange,red,navy,gray,sky}
+  **优雅系列**(8):elegant-{gold,green,blue,orange,red,navy,gray,sky}
+  **粗犷系列**(8):bold-{gold,green,blue,orange,red,navy,gray,sky}
+  **特殊**(2):xiaomo / shikexin
 
 用法:
-    converter = Md2wxConverter(theme_name="经典-暖橙")
-    result = converter.convert_file("article.md")
+    from converter_md2wx import Md2wxConverter
+    c = Md2wxConverter(theme_name="focus-navy")
+    result = c.convert_file("article.md")
 
-环境/配置:
-    - md2wx repo 路径通过 MD2WX_DIR 环境变量或 ~/wechatgzh/md2wx 默认约定
-    - API key 通过 md2wx CLI 配置(~/.md2wx.json)或 MD2WECHAT_API_KEY 环境变量
+配置 API key(优先级):
+  1. 构造参数 api_key
+  2. 环境变量 MD2WECHAT_API_KEY
+  3. secrets/keys.env(同名变量,本脚本不自动 source,由调用方负责)
+  4. ~/.md2wx.json 的 api_key(旧版 md2wx CLI 的配置位)
 """
 
 from __future__ import annotations
 
+import json
 import os
 import re
-import subprocess
-import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
+
+import requests
+
+
+API_ENDPOINT = "https://aipickgold.com/api/convert"
 
 
 @dataclass
@@ -31,28 +48,31 @@ class ConvertResult:
     images: list[str] = field(default_factory=list)
 
 
-# md2wx CLI binary lookup order
-_CANDIDATES = [
-    os.environ.get("MD2WX_DIR"),  # explicit override
-    str(Path.home() / "wechatgzh" / "md2wx" / "skill" / "dist" / "index.js"),
-    str(Path.home() / "md2wx" / "skill" / "dist" / "index.js"),
-    str(Path(__file__).resolve().parent.parent.parent / "md2wx" / "skill" / "dist" / "index.js"),
-]
-
-
-def _find_md2wx() -> Path:
-    for c in _CANDIDATES:
-        if c and Path(c).exists():
-            return Path(c)
-    raise FileNotFoundError(
-        "md2wx CLI not found. Clone + build it:\n"
-        "  git clone https://github.com/soarsky1991/md2wx.git ~/wechatgzh/md2wx\n"
-        "  cd ~/wechatgzh/md2wx/skill && npm install && npm run build\n"
-        "Or set MD2WX_DIR to the built dist/index.js path."
+def _resolve_api_key(explicit=None):
+    if explicit:
+        return explicit
+    env = os.environ.get("MD2WECHAT_API_KEY")
+    if env:
+        return env
+    # Fallback:旧 md2wx CLI 的配置
+    cfg = Path.home() / ".md2wx.json"
+    if cfg.exists():
+        try:
+            data = json.loads(cfg.read_text())
+            if data.get("api_key"):
+                return data["api_key"]
+        except (json.JSONDecodeError, OSError):
+            pass
+    raise RuntimeError(
+        "md2wx API key 未配置。以下任一方式:\n"
+        "  1. export MD2WECHAT_API_KEY=...\n"
+        "  2. 编辑 secrets/keys.env 里的 MD2WECHAT_API_KEY,然后 source\n"
+        "  3. ~/.md2wx.json 里 { \"api_key\": \"...\" }\n"
+        "  去 https://aipickgold.com 账号中心申请 key。"
     )
 
 
-def _extract_title(markdown: str) -> str:
+def _extract_title(markdown):
     for line in markdown.splitlines():
         m = re.match(r"^\s*#\s+(.+?)\s*$", line)
         if m:
@@ -60,8 +80,7 @@ def _extract_title(markdown: str) -> str:
     return "未命名文章"
 
 
-def _extract_digest(markdown: str, max_bytes: int = 120) -> str:
-    # Skip H1 + blank, take first 2-3 non-structural paragraphs
+def _extract_digest(markdown, max_bytes=120):
     lines = []
     in_body = False
     for line in markdown.splitlines():
@@ -73,7 +92,6 @@ def _extract_digest(markdown: str, max_bytes: int = 120) -> str:
         stripped = line.strip()
         if not stripped or stripped.startswith("!") or stripped.startswith("<!--"):
             continue
-        # Strip markdown syntax inline
         clean = re.sub(r"[*_`\[\]()#>-]", "", stripped)
         clean = re.sub(r"\s+", " ", clean).strip()
         if clean:
@@ -81,54 +99,54 @@ def _extract_digest(markdown: str, max_bytes: int = 120) -> str:
         if sum(len(l.encode("utf-8")) for l in lines) >= max_bytes:
             break
     text = " ".join(lines)
-    # Truncate to max_bytes UTF-8
     encoded = text.encode("utf-8")
     if len(encoded) <= max_bytes:
         return text
     return encoded[:max_bytes - 3].decode("utf-8", errors="ignore") + "..."
 
 
-def _extract_images(markdown: str) -> list[str]:
-    # Find all image refs: ![alt](path)
+def _extract_images(markdown):
     return re.findall(r"!\[[^\]]*\]\(([^)\s]+)\)", markdown)
 
 
 class Md2wxConverter:
-    """Wrap md2wx CLI as a ConvertResult-producing converter."""
+    """Direct HTTP client for aipickgold.com /api/convert · 50 themes."""
 
-    def __init__(self, theme_name="经典-暖橙", font_size=None):
-        self._bin = _find_md2wx()
-        self._theme_name = theme_name
+    def __init__(self, theme_name="focus-navy", font_size=None, api_key=None, timeout=60):
+        self._theme = theme_name
         self._font_size = font_size
+        self._api_key = _resolve_api_key(api_key)
+        self._timeout = timeout
 
-    def convert(self, markdown_text: str) -> ConvertResult:
-        with tempfile.NamedTemporaryFile("w", suffix=".md", delete=False, encoding="utf-8") as f:
-            f.write(markdown_text)
-            src = Path(f.name)
-        try:
-            cmd = ["node", str(self._bin), "convert", str(src), "--theme", self._theme_name]
-            if self._font_size:
-                cmd += ["--font-size", self._font_size]
-            result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=60,
-                encoding="utf-8",
-            )
-            if result.returncode != 0:
-                stderr = result.stderr.strip() or result.stdout.strip()
-                raise RuntimeError(
-                    f"md2wx convert failed (exit {result.returncode}): {stderr[:400]}\n"
-                    f"Tip: run `md2wx config set api-key <YOUR_KEY>` or set MD2WECHAT_API_KEY "
-                    f"(sign up at aipickgold.com)."
-                )
-            html = result.stdout
-        finally:
+    def convert(self, markdown_text):
+        body = {"markdown": markdown_text, "theme": self._theme}
+        if self._font_size:
+            body["fontSize"] = self._font_size
+
+        resp = requests.post(
+            API_ENDPOINT,
+            headers={
+                "Content-Type": "application/json",
+                # Redundant auth headers — post-2026-04 server accepts all four:
+                "X-API-Key": self._api_key,
+                "Authorization": f"Bearer {self._api_key}",
+            },
+            json=body,
+            timeout=self._timeout,
+        )
+
+        if resp.status_code != 200:
             try:
-                src.unlink()
-            except OSError:
-                pass
+                err = resp.json().get("msg") or resp.json().get("message") or resp.text[:200]
+            except ValueError:
+                err = resp.text[:200]
+            raise RuntimeError(f"md2wx API {resp.status_code}: {err}")
+
+        data = resp.json()
+        # Server may return `{html, wordCount}` or `{code, data: {html, wordCount}}`
+        html = data.get("html") or (data.get("data") or {}).get("html") or ""
+        if not html:
+            raise RuntimeError(f"md2wx API empty html: {json.dumps(data)[:300]}")
 
         return ConvertResult(
             html=html,
@@ -137,6 +155,6 @@ class Md2wxConverter:
             images=_extract_images(markdown_text),
         )
 
-    def convert_file(self, input_path: str) -> ConvertResult:
+    def convert_file(self, input_path):
         markdown = Path(input_path).read_text(encoding="utf-8")
         return self.convert(markdown)
