@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wewrite.discord</string>
+
+  <!-- 开机自启,崩溃后自动拉起 -->
+  <key>RunAtLoad</key><true/>
+  <key>KeepAlive</key><true/>
+
+  <!-- 崩溃重启节流:10 秒冷却 -->
+  <key>ThrottleInterval</key><integer>10</integer>
+
+  <!-- 装安装时由 install.sh 替换 -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>__REPO_ROOT__/venv/bin/python3</string>
+    <string>__REPO_ROOT__/discord-bot/bot.py</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <!-- Token 等敏感变量不写在 plist,用 launchctl setenv 注入:
+         launchctl setenv DISCORD_BOT_TOKEN <your_token>
+         launchctl setenv ALLOWED_USER_IDS 123456789012345678 -->
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/discord-bot/logs/bot.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/discord-bot/logs/bot.err.log</string>
+</dict>
+</plist>

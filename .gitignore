@@ -42,3 +42,8 @@ CLAUDE.md
 # IDE
 .vscode/
 .idea/
+
+# Routine + Discord bot runtime artifacts
+routine/logs/
+discord-bot/logs/
+venv/
