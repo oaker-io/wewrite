@@ -154,20 +154,55 @@ def _get_session_state():
         return "idle"
 
 
+_IMAGE_TARGET_RE = re.compile(
+    r"(cover|chart[-\s]?[1-4])",
+    re.IGNORECASE,
+)
+
+
+def _normalize_image_target(raw: str) -> str | None:
+    """'Cover' / 'CHART-3' / 'chart 3' → cover|chart-N · None if invalid."""
+    if not raw:
+        return None
+    t = raw.strip().lower().replace("_", "-")
+    t = re.sub(r"\s+", "", t)
+    if t == "cover":
+        return "cover"
+    m = re.match(r"^chart[-‐‒–—]?([1-4])$", t)
+    if m:
+        return f"chart-{m.group(1)}"
+    return None
+
+
 def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     """
     Return (action, kwargs). Actions:
-      brief / custom_idea / write_idx / next / reset / claude_fallback
+      brief / custom_idea / write_idx / next / reset /
+      revise / revise_image / claude_fallback
     """
     raw = text.strip()
     t = raw.lower()
 
+    # ============================================================
+    # 优先级最高:明确的流程控制(next / reset / brief / 选号 / custom_idea)
+    # 这些关键词即便在 wrote/imaged 状态也要优先于 revise
+    # ============================================================
+
+    # Reset / pass
+    if any(kw in t for kw in ["pass", "跳过", "今天不写", "reset", "重置", "放弃"]):
+        return ("reset", {})
+
+    # Natural "continue / next / ok" · 比 revise 优先,免得 "ok" 被当改稿指令
+    # 匹配整句就是这几个确认词(避免 "可以加段 XXX" 误判)
+    short_ok = {"ok", "okay", "好", "好的", "继续", "下一步", "next", "go",
+                "行", "行了", "没问题", "可以", "嗯", "嗯嗯"}
+    if t in short_ok:
+        return ("next", {})
+
     # Custom idea · "写 XXX" / "写一篇 XXX" / "帮我写 XXX" / "来一篇 XXX"
-    # 必须在 brief 之前识别(优先级高 · 更具体)
     m = re.match(r'^(?:写一篇|写篇|帮我写|来一篇|来篇|写)\s*[::,,、]?\s*(.+)', raw)
     if m:
         idea = m.group(1).strip()
-        # 排除 "写今天"、"写" 等空壳短语;idea ≥ 3 字且非 brief 关键词
         if len(idea) >= 3 and idea not in ("今天", "今日", "一下", "点东西"):
             return ("custom_idea", {"idea": idea})
 
@@ -175,19 +210,61 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if any(kw in t for kw in ["brief", "今日热点", "今天写", "开始", "选题", "看看有什么写"]):
         return ("brief", {})
 
-    # Reset / pass
-    if any(kw in t for kw in ["pass", "跳过", "今天不写", "reset", "重置", "放弃"]):
-        return ("reset", {})
-
     # Number pick (only valid after brief) · 支持 1-5
     if state == "briefed":
         for i, num_kw in enumerate(["1", "2", "3", "4", "5"]):
             if t == num_kw or t == f"选{num_kw}" or t == f"第{num_kw}" or f"选 {num_kw}" in t or f"第{num_kw}个" in t:
                 return ("write_idx", {"idx": i})
 
-    # Natural "continue / next / ok"
-    if any(kw in t for kw in ["ok", "好", "继续", "下一步", "next", "go", "行", "没问题", "可以"]):
-        return ("next", {})
+    # ============================================================
+    # state=imaged · 图片返工(比 revise 文本优先,避免 "chart-3 太密" 走错路)
+    # ============================================================
+    if state == "imaged":
+        # "重做 cover" / "重生 chart-3" / "换 cover" / "cover 不好"
+        img_trigger = re.match(
+            r'^(?:重做|重生|重新生成|换|再来一张)\s*(cover|chart[-\s]?[1-4])\s*(.*)$',
+            raw, re.IGNORECASE,
+        )
+        if img_trigger:
+            target = _normalize_image_target(img_trigger.group(1))
+            hint = img_trigger.group(2).strip() or None
+            if target:
+                return ("revise_image", {"target": target, "hint": hint})
+
+        # "cover 不好" / "chart-3 太密" / "cover 色调冷一点"
+        m = re.match(
+            r'^(cover|chart[-\s]?[1-4])\s+(.+)$',
+            raw, re.IGNORECASE,
+        )
+        if m:
+            target = _normalize_image_target(m.group(1))
+            hint = m.group(2).strip()
+            if target and hint:
+                return ("revise_image", {"target": target, "hint": hint})
+
+    # ============================================================
+    # state=wrote · 文章改稿
+    # ============================================================
+    if state == "wrote":
+        # "重写" / "重新写" → 全量换角度
+        if re.match(r'^(?:重写|重新写)\b', raw) or t in ("重写", "重新写"):
+            return ("revise", {"instruction": "从头重写 · 换角度"})
+
+        # 局部编辑关键字 · 整句原话当 instruction
+        edit_patterns = [
+            r"^改(.+)",
+            r"(.+)太硬$", r"(.+)太硬[,,。]",
+            r"(.+)不好$", r"(.+)不好[,,。]",
+            r"^加段(.+)", r"^加一段(.+)", r"^加(.+)",
+            r"^换(.+)", r"^去掉(.+)", r"^删掉(.+)", r"^删(.+)",
+        ]
+        for pat in edit_patterns:
+            if re.search(pat, raw):
+                return ("revise", {"instruction": raw})
+
+        # Fallback:state=wrote · 消息 ≥ 4 字 · 不是短确认词 · 当自然语言改稿
+        if len(raw) >= 4:
+            return ("revise", {"instruction": raw})
 
     # Unknown → fallback to generic claude -p
     return ("claude_fallback", {})
@@ -309,6 +386,44 @@ async def on_message(message: discord.Message):
                 f"🤷 当前状态 **{state}** · 没下一步可走。\n"
                 f"想开新流程回复「今日热点」或「brief」。"
             )
+        return
+
+    if action == "revise":
+        instruction = kw.get("instruction", "").strip()
+        if not instruction:
+            await message.reply("🤷 改稿意图为空 · 直接说「改开头太硬」之类。")
+            return
+        status = await message.reply(
+            f"✏️ 收到改稿意图:\n**{instruction[:80]}**\n\nclaude 改写中(2-6 分钟)..."
+        )
+        rc, out = await _run_workflow_script(
+            "revise.py", ["--instruction", instruction], status,
+        )
+        await status.edit(
+            content=(f"✓ 改稿完成,已推新预览" if rc == 0
+                     else f"❌ 改稿失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "revise_image":
+        target = kw.get("target")
+        hint = kw.get("hint")
+        if not target:
+            await message.reply("🤷 没识别出要重做哪张 · 试「重做 cover」或「重做 chart-3」。")
+            return
+        args_list = ["--target", target]
+        if hint:
+            args_list += ["--hint", hint]
+        status = await message.reply(
+            f"🎨 重做 **{target}.png**"
+            + (f" · 反馈:{hint[:60]}" if hint else "")
+            + "\n(2-8 分钟)..."
+        )
+        rc, out = await _run_workflow_script("revise_image.py", args_list, status)
+        await status.edit(
+            content=(f"✓ {target}.png 已重做,图已推给你" if rc == 0
+                     else f"❌ 图片返工失败\n```\n{out[-600:]}\n```")
+        )
         return
 
     if action == "reset":
