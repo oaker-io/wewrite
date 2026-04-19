@@ -38,14 +38,25 @@ def load_config() -> dict:
     return {}
 
 
+def _build_converter(engine, theme_name, font_size=None):
+    """Return (converter, theme_obj_or_none). Supports 'native' and 'md2wx'."""
+    if engine == "md2wx":
+        from converter_md2wx import Md2wxConverter
+        return Md2wxConverter(theme_name=theme_name, font_size=font_size), None
+    theme = load_theme(theme_name)
+    return WeChatConverter(theme=theme), theme
+
+
 def cmd_preview(args):
     """Generate HTML preview and open in browser."""
-    theme = load_theme(args.theme)
-    converter = WeChatConverter(theme=theme)
+    converter, theme = _build_converter(args.engine, args.theme, getattr(args, "font_size", None))
     result = converter.convert_file(args.input)
 
-    # Wrap in full HTML for browser preview
-    full_html = preview_html(result.html, theme)
+    # md2wx returns complete HTML; native returns body-only needing preview_html wrapping
+    if args.engine == "md2wx":
+        full_html = result.html
+    else:
+        full_html = preview_html(result.html, theme)
 
     # Write to temp file
     input_path = Path(args.input)
@@ -77,13 +88,13 @@ def cmd_publish(args):
         print("Error: --appid and --secret required (or set in config.yaml)", file=sys.stderr)
         sys.exit(1)
 
-    theme = load_theme(theme_name)
-    converter = WeChatConverter(theme=theme)
+    converter, _theme = _build_converter(args.engine, theme_name, getattr(args, "font_size", None))
     result = converter.convert_file(args.input)
 
     print(f"Title: {result.title}")
     print(f"Digest: {result.digest}")
     print(f"Images found: {len(result.images)}")
+    print(f"Engine: {args.engine}")
 
     # Get access token
     token = get_access_token(appid, secret)
@@ -375,9 +386,13 @@ def main():
     # preview
     p_preview = sub.add_parser("preview", help="Generate HTML and open in browser")
     p_preview.add_argument("input", help="Markdown file path")
-    p_preview.add_argument("-t", "--theme", default="professional-clean", help="Theme name")
+    p_preview.add_argument("-t", "--theme", default="professional-clean",
+                           help="Theme name (native: English IDs; md2wx: Chinese IDs like 经典-暖橙)")
     p_preview.add_argument("-o", "--output", help="Output HTML file path")
     p_preview.add_argument("--no-open", action="store_true", help="Don't open browser")
+    p_preview.add_argument("--engine", choices=["native", "md2wx"], default="native",
+                           help="Rendering engine: 'native' (16 themes, zero-dep) or 'md2wx' (40 themes, external CLI)")
+    p_preview.add_argument("--font-size", default=None, help="Font size (md2wx only, e.g. 16px)")
 
     # publish
     p_publish = sub.add_parser("publish", help="Convert and publish as WeChat draft")
@@ -389,6 +404,9 @@ def main():
     p_publish.add_argument("--title", help="Override article title")
     p_publish.add_argument("--author", default=None, help="Article author")
     p_publish.add_argument("--digest", default=None, help="Override article digest (≤120 UTF-8 bytes)")
+    p_publish.add_argument("--engine", choices=["native", "md2wx"], default="native",
+                           help="Rendering engine: 'native' (16 themes) or 'md2wx' (40 themes)")
+    p_publish.add_argument("--font-size", default=None, help="Font size (md2wx only, e.g. 16px)")
 
     # themes
     sub.add_parser("themes", help="List available themes")
