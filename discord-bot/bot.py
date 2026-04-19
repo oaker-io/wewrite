@@ -100,12 +100,37 @@ async def _run_claude(prompt: str, status_msg: discord.Message) -> str:
     return stdout.decode("utf-8", errors="replace")
 
 
+import time
+
+
+def _now():
+    return time.strftime("%H:%M:%S")
+
+
 @bot.event
 async def on_ready():
-    print(f"✅ Logged in as {bot.user} (id={bot.user.id})")
+    print(f"[{_now()}] ✅ Logged in as {bot.user} (id={bot.user.id})")
     print(f"   WEWRITE_DIR = {WEWRITE_DIR}")
     print(f"   CLAUDE_BIN  = {CLAUDE_BIN}")
     print(f"   ALLOWED     = {ALLOWED or '(all users)'}")
+
+
+@bot.event
+async def on_connect():
+    # Fires once when the websocket first connects (before READY)
+    print(f"[{_now()}] 🔌 websocket connected")
+
+
+@bot.event
+async def on_disconnect():
+    # Fires whenever gateway connection drops (common under proxies)
+    print(f"[{_now()}] ⚠️  gateway disconnected — discord.py will auto-reconnect")
+
+
+@bot.event
+async def on_resumed():
+    # Fires when session resumes after a disconnect (events replayed)
+    print(f"[{_now()}] ✅ gateway session resumed")
 
 
 @bot.event
