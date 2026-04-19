@@ -67,6 +67,20 @@ def _excerpt(md: str) -> tuple[str, str]:
     return first, last
 
 
+WORD_MIN = 1500  # 硬下限 · < 1500 字触发 warning(目标范围 1800-2500)
+WORD_MAX = 3500  # 硬上限 · > 3500 字触发 warning
+
+
+def _length_warning(count: int) -> str:
+    if count < WORD_MIN:
+        return (f"\n⚠️ **正文偏短** · {count} 字 < 目标下限 {WORD_MIN} · "
+                "建议再改一次,让 claude 补素材或展开论点。")
+    if count > WORD_MAX:
+        return (f"\n⚠️ **正文偏长** · {count} 字 > 目标上限 {WORD_MAX} · "
+                "建议说「精简第 X 段」或「去掉重复的部分」。")
+    return ""
+
+
 def push_revised(md_path: Path, instruction: str, word_diff: int):
     """Push 改稿后的预览到 Discord。"""
     md = md_path.read_text(encoding="utf-8")
@@ -75,10 +89,12 @@ def push_revised(md_path: Path, instruction: str, word_diff: int):
 
     sign = "+" if word_diff > 0 else ""
     diff_str = f"{sign}{word_diff}" if word_diff != 0 else "±0"
+    warn = _length_warning(new_count)
 
     header = (
         f"✏️ **已按『{instruction[:50]}』改过**\n"
-        f"📂 `{md_path.relative_to(ROOT)}` · {new_count} 字({diff_str})\n"
+        f"📂 `{md_path.relative_to(ROOT)}` · {new_count} 字({diff_str})"
+        f"{warn}\n"
         "---\n"
         "回复 `ok` / `继续` 进入生图 · 再改一次直接说意图 · `重写` 全部换角度"
     )

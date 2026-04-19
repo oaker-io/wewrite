@@ -41,10 +41,15 @@
 - ✅ **个人 IP 化**:author=智辰 · brand=宸的 AI 掘金笔记 · 私域二维码 + aipickgold 推广固定在文末
 
 ### ✅ **阶段 B 已完成** · 手机审阅驱动的分步流程
-- `scripts/workflow/{brief,write,images,publish}.py` 4 个子脚本
+- `scripts/workflow/{brief,write,images,publish,revise,revise_image}.py` 6 个子脚本
 - `output/session.yaml` 状态机(`_state.py` 维护 · idle/briefed/wrote/imaged/done)
-- `bot.py` · `_classify_intent()` 自然语言路由(今日热点 → brief · 1-5 → write · ok/继续 → 按 state 派发 · pass → reset)
+- `bot.py` · `_classify_intent()` 7 种 action 自然语言路由:
+  - brief(今日热点/开始)· custom_idea(写 XXX)· write_idx(1-5)
+  - revise(state=wrote · 改 XX / 加段 XX / 重写)
+  - revise_image(state=imaged · 重做 cover / 换 chart-3)
+  - next(ok/继续)· reset(pass/跳过)
 - `routine/daily-brief.sh` · 08:30 调 brief.py · AI 白名单过滤 · Top N 推 Discord
+- `tests/test_revise.py` · 34 条 smoke + intent 路由 + 字数警告测试(全绿)
 
 ## 关键文件地图
 

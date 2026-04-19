@@ -296,6 +296,32 @@ class BuildPromptTests(unittest.TestCase):
 
 
 # =========================================================================
+# revise.py · 字数警告
+# =========================================================================
+
+class LengthWarningTests(unittest.TestCase):
+
+    def setUp(self):
+        import importlib
+        self.mod = importlib.import_module("revise")
+
+    def test_short_triggers_warning(self):
+        w = self.mod._length_warning(1200)
+        self.assertIn("偏短", w)
+        self.assertIn("1200", w)
+
+    def test_long_triggers_warning(self):
+        w = self.mod._length_warning(4000)
+        self.assertIn("偏长", w)
+        self.assertIn("4000", w)
+
+    def test_in_range_no_warning(self):
+        self.assertEqual(self.mod._length_warning(2000), "")
+        self.assertEqual(self.mod._length_warning(1500), "")  # 下限等于
+        self.assertEqual(self.mod._length_warning(3500), "")  # 上限等于
+
+
+# =========================================================================
 # bot._classify_intent · 路由表驱动测试
 # =========================================================================
 
