@@ -41,7 +41,7 @@ build/
 
 # Internal dev docs
 docs/
-CLAUDE.md
+# CLAUDE.md intentionally kept in git · it's the onboarding doc for new sessions
 
 # IDE
 .vscode/
