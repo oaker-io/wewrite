@@ -545,11 +545,11 @@ class OpenRouterProvider(ImageProvider):
 
 
 class PoeProvider(ImageProvider):
-    """Poe — OpenAI-compatible proxy for multiple image models (nano-banana-2 etc.).
+    """Poe — OpenAI-compatible proxy for image bots (nano-banana-2 etc.).
 
-    Uses the /v1/chat/completions endpoint; response carries the generated image
-    as either a markdown-embedded attachment URL or a data URI in the assistant
-    message. We scan the content for image URLs/data-URIs and download.
+    Poe's image bots require **stream=True** for image delivery: the image
+    arrives as a markdown `![alt](url)` reference inside a late stream chunk.
+    Non-streaming responses only contain "thinking text" without the image.
     """
 
     provider_key = "poe"
@@ -561,65 +561,75 @@ class PoeProvider(ImageProvider):
         self._base_url = base_url
 
     def generate(self, prompt: str, size: str) -> bytes:
+        import re
         aspect = _size_to_aspect(size)
-        # Embed aspect hint in the prompt; Poe's image bots honour text instructions
+        # Embed aspect hint in the prompt; Poe's image bots follow text instructions
         if aspect != "1:1":
             prompt = f"{prompt}\n\n(image aspect ratio: {aspect})"
+
         resp = requests.post(
             f"{self._base_url}/chat/completions",
-            headers={"Content-Type": "application/json",
-                     "Authorization": f"Bearer {self._api_key}"},
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+                "Accept": "text/event-stream",
+            },
             json={
                 "model": self._model,
                 "messages": [{"role": "user", "content": prompt}],
-                "stream": False,
+                "stream": True,
             },
+            stream=True,
             timeout=180,
         )
         if resp.status_code != 200:
             raise ValueError(f"Poe error ({resp.status_code}): {resp.text[:300]}")
-        data = resp.json()
-        msg = data.get("choices", [{}])[0].get("message", {})
 
-        # Path 1: structured image array (OpenAI tool-call style)
-        for key in ("images", "attachments"):
-            items = msg.get(key) or []
-            for item in items:
-                url = item if isinstance(item, str) else (
-                    item.get("url") or item.get("image_url", {}).get("url"))
-                if url:
-                    if url.startswith("data:"):
-                        _, b64 = url.split(",", 1)
-                        return base64.b64decode(b64)
-                    return _download_image(url)
+        # Accumulate streamed content until we find an image reference
+        content = ""
+        md_img = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+        data_uri = re.compile(r"data:image/[^;]+;base64,([A-Za-z0-9+/=]+)")
 
-        # Path 2: markdown-embedded image in content string
-        content = msg.get("content", "")
-        if isinstance(content, str):
-            import re
-            # data: URI
-            m = re.search(r"data:image/[^;]+;base64,([A-Za-z0-9+/=]+)", content)
-            if m:
-                return base64.b64decode(m.group(1))
-            # markdown ![](url) or bare URL
-            m = re.search(r"\((https?://[^)\s]+\.(?:png|jpe?g|webp|gif))\)?", content)
-            if not m:
-                m = re.search(r"(https?://\S+\.(?:png|jpe?g|webp|gif))", content)
-            if m:
-                return _download_image(m.group(1))
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
+            payload = line[6:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                ev = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
 
-        # Path 3: content list (multimodal style)
-        if isinstance(content, list):
-            for item in content:
-                if isinstance(item, dict):
-                    url = item.get("url") or item.get("image_url", {}).get("url")
+            delta = ev.get("choices", [{}])[0].get("delta", {})
+
+            # Structured image delivery (tool-call style, uncommon on Poe)
+            for key in ("images", "attachments"):
+                items = delta.get(key) or []
+                for item in items:
+                    url = item if isinstance(item, str) else (
+                        item.get("url") or (item.get("image_url") or {}).get("url"))
                     if url:
                         if url.startswith("data:"):
                             _, b64 = url.split(",", 1)
                             return base64.b64decode(b64)
                         return _download_image(url)
 
-        raise ValueError(f"No image found in Poe response: {str(data)[:500]}")
+            # Accumulate text deltas and scan for markdown/data-URI images
+            text = delta.get("content", "")
+            if isinstance(text, str):
+                content += text
+                m = md_img.search(content)
+                if m:
+                    return _download_image(m.group(1))
+                m = data_uri.search(content)
+                if m:
+                    return base64.b64decode(m.group(1))
+
+        # Stream ended without image
+        raise ValueError(
+            f"Poe stream finished without image. Content preview: {content[:400]!r}"
+        )
 
 
 class JimengProvider(ImageProvider):
