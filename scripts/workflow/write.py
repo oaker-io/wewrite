@@ -3,7 +3,9 @@
 读 session 的 selected_idx · 调 claude -p 跑 Step 3-5(框架+素材+写作)。
 输出到 output/YYYY-MM-DD-slug.md · push 全文到手机等用户审。
 
-用法: python3 scripts/workflow/write.py [topic_idx]   # idx 0-based · 省略读 session
+用法:
+  python3 scripts/workflow/write.py 0           # 选 session Top N 里的第 1 条
+  python3 scripts/workflow/write.py --idea "Cursor 2.0 冲击 Claude Code"  # 自定义 idea · 绕开 brief
 """
 from __future__ import annotations
 import os, re, subprocess, sys
@@ -108,35 +110,65 @@ def push_article(md_path: Path, topic):
 
 
 def main():
+    # 两种模式:
+    #   python3 write.py 0                    · 按 session Top N 里的 idx
+    #   python3 write.py --idea "<自定义标题>" · 绕过 brief · 直接用这个 idea 写
     argv_idx = None
+    custom_idea = None
     if len(sys.argv) > 1:
-        try:
-            argv_idx = int(sys.argv[1])
-        except ValueError:
-            print(f"❌ bad idx: {sys.argv[1]}", file=sys.stderr); sys.exit(1)
+        if sys.argv[1] == "--idea":
+            if len(sys.argv) < 3:
+                print("❌ --idea 需要跟一个 idea 字符串", file=sys.stderr); sys.exit(1)
+            custom_idea = " ".join(sys.argv[2:]).strip()
+            if not custom_idea:
+                print("❌ idea 不能为空", file=sys.stderr); sys.exit(1)
+        else:
+            try:
+                argv_idx = int(sys.argv[1])
+            except ValueError:
+                print(f"❌ 首参数要么 idx (0-based) 要么 --idea '...'", file=sys.stderr); sys.exit(1)
 
-    s = _state.load()
-    if s["state"] != _state.STATE_BRIEFED and argv_idx is None:
-        print(f"❌ state={s['state']} · 先跑 brief 选 Top 3", file=sys.stderr); sys.exit(1)
+    if custom_idea:
+        # 构造一个虚拟 topic · 绕过 brief 状态检查
+        topic = {
+            "title": custom_idea,
+            "source": "用户 idea",
+            "hot": 0,
+            "score": 100,
+            "ai_kw": "custom",
+            "url": "",
+        }
+        date_str = datetime.now().strftime("%Y-%m-%d")
+        slug = slugify(custom_idea)
+        out_path = ROOT / "output" / f"{date_str}-{slug}.md"
+        _state.advance(
+            "writing",
+            selected_idx=-1, selected_topic=topic,
+            article_md=str(out_path.relative_to(ROOT)),
+        )
+    else:
+        s = _state.load()
+        if s["state"] != _state.STATE_BRIEFED and argv_idx is None:
+            print(f"❌ state={s['state']} · 先跑 brief 选 Top 3", file=sys.stderr); sys.exit(1)
 
-    topics = s.get("topics") or []
-    if not topics:
-        print("❌ session 无 topics,先 brief", file=sys.stderr); sys.exit(1)
+        topics = s.get("topics") or []
+        if not topics:
+            print("❌ session 无 topics,先 brief", file=sys.stderr); sys.exit(1)
 
-    idx = argv_idx if argv_idx is not None else (s.get("selected_idx") or 0)
-    if idx < 0 or idx >= len(topics):
-        print(f"❌ idx {idx} out of range(0-{len(topics)-1})", file=sys.stderr); sys.exit(1)
+        idx = argv_idx if argv_idx is not None else (s.get("selected_idx") or 0)
+        if idx < 0 or idx >= len(topics):
+            print(f"❌ idx {idx} out of range(0-{len(topics)-1})", file=sys.stderr); sys.exit(1)
 
-    topic = topics[idx]
-    date_str = s.get("article_date") or datetime.now().strftime("%Y-%m-%d")
-    slug = slugify(topic["title"])
-    out_path = ROOT / "output" / f"{date_str}-{slug}.md"
+        topic = topics[idx]
+        date_str = s.get("article_date") or datetime.now().strftime("%Y-%m-%d")
+        slug = slugify(topic["title"])
+        out_path = ROOT / "output" / f"{date_str}-{slug}.md"
 
-    _state.advance(
-        "writing",
-        selected_idx=idx, selected_topic=topic,
-        article_md=str(out_path.relative_to(ROOT)),
-    )
+        _state.advance(
+            "writing",
+            selected_idx=idx, selected_topic=topic,
+            article_md=str(out_path.relative_to(ROOT)),
+        )
 
     try:
         run_claude_write(topic, date_str, out_path)

@@ -157,9 +157,19 @@ def _get_session_state():
 def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     """
     Return (action, kwargs). Actions:
-      brief / write_idx / next / reset / claude_fallback
+      brief / custom_idea / write_idx / next / reset / claude_fallback
     """
-    t = text.strip().lower()
+    raw = text.strip()
+    t = raw.lower()
+
+    # Custom idea · "写 XXX" / "写一篇 XXX" / "帮我写 XXX" / "来一篇 XXX"
+    # 必须在 brief 之前识别(优先级高 · 更具体)
+    m = re.match(r'^(?:写一篇|写篇|帮我写|来一篇|来篇|写)\s*[::,,、]?\s*(.+)', raw)
+    if m:
+        idea = m.group(1).strip()
+        # 排除 "写今天"、"写" 等空壳短语;idea ≥ 3 字且非 brief 关键词
+        if len(idea) >= 3 and idea not in ("今天", "今日", "一下", "点东西"):
+            return ("custom_idea", {"idea": idea})
 
     # Trigger brief
     if any(kw in t for kw in ["brief", "今日热点", "今天写", "开始", "选题", "看看有什么写"]):
@@ -234,6 +244,7 @@ async def on_message(message: discord.Message):
             f"👋 当前状态:**{state}** · 命令示例:\n"
             "• 「今日热点」/「开始」 → 触发选题(AI 白名单过滤)\n"
             "• 「1」~「5」 → 选 Top N(仅在 briefed 状态)\n"
+            "• 「写 Cursor 2.0 冲击 Claude Code」→ 绕过 brief · 直接按你的 idea 写\n"
             "• 「ok」/「继续」 → 下一步(根据当前状态自动路由)\n"
             "• 「pass」/「跳过」 → 放弃当前任务\n"
             "• 其他自由问题 → 回退给 Claude 回答"
@@ -262,6 +273,18 @@ async def on_message(message: discord.Message):
         rc, out = await _run_workflow_script("write.py", [str(idx)], status)
         await status.edit(
             content=(f"✓ 文章就绪,已推预览" if rc == 0
+                     else f"❌ 写作失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "custom_idea":
+        idea = kw["idea"]
+        status = await message.reply(
+            f"💡 收到自定义 idea:\n**{idea}**\n\n绕过 brief · claude 直接开写(3-8 分钟)..."
+        )
+        rc, out = await _run_workflow_script("write.py", ["--idea", idea], status)
+        await status.edit(
+            content=(f"✓ 文章就绪,已推预览 · 回 `ok` 进生图" if rc == 0
                      else f"❌ 写作失败\n```\n{out[-600:]}\n```")
         )
         return
