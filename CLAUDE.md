@@ -36,20 +36,15 @@
 - ✅ **排版双引擎**:native(自带 16 主题,零依赖)+ md2wx(50 主题,`--engine md2wx` 切换)
 - ✅ **`:::author-card` 容器**:8 style preset · 61 theme 自动映射(50 md2wx + 16 native + 1 default)· 渐变 + 顶部品牌色条
 - ✅ **微信草稿箱发布**:`cli.py publish` 自动上传图片 + src 重写 · AppID/AppSecret + IP 白名单已配
-- ✅ **routine 基础**:launchd 每日 08:30 · Bark/ntfy/osascript 三档推送
+- ✅ **routine 已上线**:launchd 每日 08:30 · `daily-brief.sh` → `brief.py` → AI 白名单过滤 → Discord Top N · Bark/ntfy 仅作异常降级
 - ✅ **Discord bot**:入站 `bot.py` daemon · ACL 白名单 · 出站 `push.py` CLI(主动推送 + DM/channel fallback + 图片附件)
 - ✅ **个人 IP 化**:author=智辰 · brand=宸的 AI 掘金笔记 · 私域二维码 + aipickgold 推广固定在文末
 
-### 进行中 · **阶段 B** "手机审阅驱动的分步流程"
-目标:`/brief` → 手机审 → `/write` → 手机审 → `/images` → 手机审 → `/publish` → 去微信后台发表。
-
-4 个审阅节点,每节点 push 内容给手机,用户**自然语言**回复驱动下一步("继续"/"改开头"/"重做 chart-3" 等)。
-
-未完成:
-- [ ] WeWrite 的 `/brief` / `/write` / `/images` / `/publish` 分步入口(目前只有一整套 `/wewrite`)
-- [ ] `output/session.yaml` 状态机(跨 `claude -p` session 记录"在哪一步")
-- [ ] bot.py 收到自然语言 → 分类意图 → 路由到对应 step
-- [ ] daily-brief.sh 升级:跑 `/brief` 推手机,不再只发热点摘要
+### ✅ **阶段 B 已完成** · 手机审阅驱动的分步流程
+- `scripts/workflow/{brief,write,images,publish}.py` 4 个子脚本
+- `output/session.yaml` 状态机(`_state.py` 维护 · idle/briefed/wrote/imaged/done)
+- `bot.py` · `_classify_intent()` 自然语言路由(今日热点 → brief · 1-5 → write · ok/继续 → 按 state 派发 · pass → reset)
+- `routine/daily-brief.sh` · 08:30 调 brief.py · AI 白名单过滤 · Top N 推 Discord
 
 ## 关键文件地图
 

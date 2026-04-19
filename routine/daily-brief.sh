@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
-# 每日早报:推送"今日可做什么"的提醒到 iPhone
-# - 抓一轮热点摘要(10 条,简短)
-# - push 给手机,用户看到后在 Claude Code 里说「/wewrite」触发完整流程
-# 风险控制:**不**自动跑 Step 1-8(避免半夜消耗 Poe 额度 + 生成废稿)
+# 每日 08:30 自动触发 brief · 推 Discord 等用户手机审
+# ──
+# 流程:fetch hotspots → AI 白名单过滤 → Top N 推 Discord → 用户回 1/2/3
+# 不自动写文 / 不自动生图 / 不自动发布 · 那 3 步必须用户手动驱动(Discord 自然语言)
+# ──
+# 失败降级:Discord 推送失败 → notify.sh 本地提醒 Mac(推 Bark / ntfy / osascript)
 
 set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
@@ -12,34 +14,28 @@ cd "$REPO_ROOT"
 PY="${PY:-$REPO_ROOT/venv/bin/python3}"
 [ -x "$PY" ] || PY="python3"
 
-# 1. 抓热点(20 条取 5 条最热的)
-HOT_JSON="$(mktemp)"
-trap "rm -f '$HOT_JSON'" EXIT
+# 加载 secrets(DISCORD_BOT_TOKEN + ALLOWED_USER_IDS 等)
+if [ -f "$REPO_ROOT/secrets/keys.env" ]; then
+  set -a
+  # shellcheck source=/dev/null
+  . "$REPO_ROOT/secrets/keys.env"
+  set +a
+fi
 
-"$PY" scripts/fetch_hotspots.py --limit 20 > "$HOT_JSON" 2>/dev/null || {
-  "$SCRIPT_DIR/notify.sh" "WeWrite 早报失败" "热点抓取失败,请到 Mac 手动检查" ""
-  exit 1
-}
+LOG="$SCRIPT_DIR/logs/daily-brief.$(date +%Y-%m-%d).log"
+mkdir -p "$SCRIPT_DIR/logs"
 
-# 2. 抽 top 5 标题拼成推送正文
-TOP5="$("$PY" - <<'PY' "$HOT_JSON"
-import json, sys
-with open(sys.argv[1]) as f:
-    data = json.load(f)
-items = data.get("items", [])[:5]
-for i, it in enumerate(items, 1):
-    print(f"{i}. {it['title']} · {it['source']}")
-PY
-)"
+echo "[$(date '+%F %T')] → brief.py start" >> "$LOG"
 
-# 3. 昨日/近期是否有未发表的草稿
-LAST_ARTICLE="$(ls -t output/*.md 2>/dev/null | head -1 | xargs basename 2>/dev/null || echo '-')"
+if "$PY" scripts/workflow/brief.py >> "$LOG" 2>&1; then
+  echo "[$(date '+%F %T')] ✓ brief done" >> "$LOG"
+  exit 0
+fi
 
-# 4. 推送
-BODY="📰 今日 Top 5 热点
-${TOP5}
-
-📝 最近草稿:${LAST_ARTICLE}
-
-🚀 想写的话,在 Claude Code 里说「/wewrite 写今天」"
-"$SCRIPT_DIR/notify.sh" "WeWrite 早报 · $(date '+%m-%d %H:%M')" "$BODY" ""
+# 失败 · 本地 Mac 兜底提醒
+echo "[$(date '+%F %T')] ✗ brief failed · fallback to notify.sh" >> "$LOG"
+"$SCRIPT_DIR/notify.sh" \
+  "WeWrite 早报失败" \
+  "brief.py 异常退出 · 看 $LOG" \
+  "" || true
+exit 1

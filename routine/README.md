@@ -1,73 +1,67 @@
-# WeWrite · 日常自动化(launchd + push)
+# WeWrite · 日常自动化(launchd + Discord)
 
-每天 08:30 自动抓 5 条热点,推送到你 iPhone,提醒你今天写不写稿。不自动生成文章(避免浪费额度 + 生成废稿)。
+每天 08:30 launchd 触发 `daily-brief.sh` → `scripts/workflow/brief.py` → **AI 白名单过滤** → Top N 选题推 Discord。你在手机上回复 `1/2/3` 驱动后续步骤(写文/生图/发布)。
 
-## 架构
+**不自动写文 / 不自动生图 / 不自动发布** — 这 3 步必须你审过才跑(防止生成废稿 + 烧 Poe 额度)。
+
+## 流程
 
 ```
-08:30 每天  · launchd 触发 com.wewrite.daily
-        ↓
+每天 08:30 · launchd
+    ↓
 daily-brief.sh
-  → 跑 scripts/fetch_hotspots.py 抓 Top 20 热点
-  → 抽 Top 5 标题拼文
-  → notify.sh "WeWrite 早报" "5 条热点..."
-        ↓
-notify.sh
-  → 按优先级 Bark > ntfy.sh > macOS 本地通知
-        ↓
-iPhone 收到推送
-  → 你看完决定
-  → 要写就打开 Mac 说「/wewrite 今天写」,触发完整 Step 1-8
+  · source secrets/keys.env  (DISCORD_BOT_TOKEN 等)
+  · run scripts/workflow/brief.py
+    ↓
+brief.py
+  · fetch hotspots(60 条)
+  · AI 白名单过滤 · 机器人话题降权 + cap 2
+  · Top 5 推 Discord DM(走 push.py · bot.py token)
+    ↓
+你的 iPhone Discord
+  · 收到 "📰 今日 AI 选题 Top N" · 每条带分数 + 命中词
+  · 回 `1/2/3` → bot.py 触发 write.py → 3-8 分钟预览
+  · 回 `ok/继续` → images.py / publish.py 按状态自动派发
+  · 回 `pass/跳过` → 清 session 等明天
+
+失败降级:brief 异常 → notify.sh(Bark / ntfy / osascript 本地弹窗)
 ```
 
-## 一键安装
+## 安装
 
-**步骤 1**:选一种推送方式(推荐 Bark,国内好用)
-
-### 方案 A · Bark(推荐国内用户)
-
-1. 在 iPhone App Store 搜 **「Bark」**,安装
-2. 打开 app → 复制你的个人 URL(类似 `https://api.day.app/xxxxxxxxxx/`)
-3. Key 就是 `xxxxxxxxxx` 那段(10 字母数字)
-
-```bash
-./routine/install.sh xxxxxxxxxx
-```
-
-### 方案 B · ntfy.sh(推荐海外用户)
-
-1. 在 iPhone 装 **ntfy** app(App Store)
-2. 订阅一个你自己定的 topic,比如 `wewrite-mahaochen-x7k2`(不要太简单,否则别人订阅同个 topic 能收到你的推送)
-
-```bash
-./routine/install.sh @ntfy wewrite-mahaochen-x7k2
-```
-
-### 方案 C · 先试本地通知(不装任何 app,只弹 Mac 自己的通知中心)
+前置条件(都已具备可跳过):
+- `secrets/keys.env` 有 `DISCORD_BOT_TOKEN` + `ALLOWED_USER_IDS`
+- `com.wewrite.discord`(bot 主进程)已装 launchd 并在线
+- `venv/bin/python3` 可用
 
 ```bash
 ./routine/install.sh
 ```
 
-**步骤 2**:立即测试(不等到明天 08:30)
+装完 `launchctl list | grep com.wewrite.daily` 能看到 PID。
+
+## 立即测试(不等 08:30)
 
 ```bash
 bash routine/daily-brief.sh
+tail routine/logs/daily-brief.$(date +%F).log
 ```
 
-应该看到 `[bark] pushed` 或 `[ntfy] pushed` 或 `[osascript] local notified`。
-iPhone 上马上能看到:
+手机 Discord 应马上收到 Top 选题推送。
 
-> **WeWrite 早报 · 04-19 08:30**
->
-> 📰 今日 Top 5 热点
-> 1. xxxx
-> 2. xxxx
-> ...
->
-> 📝 最近草稿:2026-04-18-xxx.md
->
-> 🚀 想写的话,在 Claude Code 里说「/wewrite 写今天」
+## 改时间
+
+编辑 `routine/com.wewrite.daily.plist`:
+
+```xml
+<key>StartCalendarInterval</key>
+<dict>
+  <key>Hour</key><integer>8</integer>      ← 改
+  <key>Minute</key><integer>30</integer>   ← 改
+</dict>
+```
+
+然后重跑 `./routine/install.sh`(内部会 unload 旧的再 load 新的)。
 
 ## 卸载
 
@@ -76,37 +70,25 @@ launchctl unload ~/Library/LaunchAgents/com.wewrite.daily.plist
 rm ~/Library/LaunchAgents/com.wewrite.daily.plist
 ```
 
-## 改时间
+## 为什么只自动触发 brief,不跑全流程?
 
-编辑 `routine/com.wewrite.daily.plist` 里的:
+1. **生成废稿风险** · 没你的选题审核,AI 每天可能生成没人要的稿
+2. **烧 Poe 额度** · 每篇 5 张图 · 一天一篇一个月 150 张
+3. **质量无人把关** · 标题/框架/配色 AI 自决 ≠ 你的风格
 
-```xml
-<key>StartCalendarInterval</key>
-<dict>
-  <key>Hour</key><integer>8</integer>      ← 改这里
-  <key>Minute</key><integer>30</integer>   ← 改这里
-</dict>
-```
+**正确姿势**:早 08:30 推送 Top N 选题 → 通勤路上看 → 挑一条回 `1` → 中午回 Mac 已经有预览了 → Discord `ok` 进生图 → 再 `ok` 推草稿箱 → 去微信后台加公众号卡片 → 发。
 
-然后重跑 `./routine/install.sh <KEY>` 重新安装。
+## 故障排查
 
-## 日志
-
-```bash
-tail -f routine/logs/daily-brief.out.log
-tail -f routine/logs/daily-brief.err.log
-```
-
-## 为什么不自动跑全流程?
-
-1. **生成废稿风险**:没有你的选题审核,AI 可能每天生成一篇没人要的文章
-2. **浪费 Poe 额度**:每篇 5 张图,每天烧 5 张,一个月 150 张很贵
-3. **内容质量无人把关**:标题/框架/配色 AI 自己决定 ≠ 你的风格
-
-**正确姿势**:早上收到推送 → 上班路上看热点 → 到办公室打开 Mac 说「/wewrite 写第 2 条」→ 15 分钟出草稿 → 你审一下 → 发布。
+| 现象 | 检查 |
+|------|------|
+| 08:30 没收到 Discord | `launchctl list \| grep wewrite` 看两个服务(discord + daily)都在 |
+| brief 跑了但无推送 | `tail routine/logs/daily-brief.*.log` · 看有无 Discord HTTP 错 |
+| "DISCORD_BOT_TOKEN 未设置" | `secrets/keys.env` 有没有这行 + chmod 600 |
+| bot 在线但不响应 `1/2/3` | bot.py 改过后要 `launchctl unload/load ~/Library/LaunchAgents/com.wewrite.discord.plist` |
 
 ## 未来扩展
 
-- 每周日晚推送「本周数据复盘」(阅读量/新增粉丝)
-- 每篇草稿推送后追踪 24 小时效果,送「阅读量低于平均」的重写提醒
-- 结合 Discord bot,做双向对话(见 `discord-bot/README.md`)
+- 周日晚推「本周阅读量复盘」(要先对接微信数据 API)
+- 草稿发布后 24h 追踪阅读量 · 触发重写提醒
+- 直接 Discord 里说「改开头」/「重做 chart-3」路由到对应子流程
