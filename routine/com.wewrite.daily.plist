@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wewrite.daily</string>
+
+  <!-- 每天 08:30 本机时间触发 -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>8</integer>
+    <key>Minute</key><integer>30</integer>
+  </dict>
+
+  <!-- 装安装时由 install.sh 替换 REPO_ROOT 占位符 -->
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_ROOT__/routine/daily-brief.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <!-- 把 Bark / ntfy 配置从 shell env 继承过来 -->
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+    <!-- 在 launchctl setenv 时注入:
+         launchctl setenv BARK_KEY xxxxxxxxx
+         launchctl setenv NTFY_TOPIC wewrite-myname -->
+  </dict>
+
+  <!-- 日志(便于排错) -->
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/routine/logs/daily-brief.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/routine/logs/daily-brief.err.log</string>
+
+  <!-- 失败不重跑(避免刷屏) -->
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>
