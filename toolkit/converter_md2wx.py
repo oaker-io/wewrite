@@ -119,6 +119,9 @@ class Md2wxConverter:
         self._timeout = timeout
 
     def convert(self, markdown_text):
+        # Pre-process author-card container with theme-aware style mapping
+        from author_card import preprocess_author_card
+        markdown_text = preprocess_author_card(markdown_text, theme_id=self._theme)
         body = {"markdown": markdown_text, "theme": self._theme}
         if self._font_size:
             body["fontSize"] = self._font_size
