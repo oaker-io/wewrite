@@ -169,9 +169,9 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if any(kw in t for kw in ["pass", "跳过", "今天不写", "reset", "重置", "放弃"]):
         return ("reset", {})
 
-    # Number pick (only valid after brief)
+    # Number pick (only valid after brief) · 支持 1-5
     if state == "briefed":
-        for i, num_kw in enumerate(["1", "2", "3"]):
+        for i, num_kw in enumerate(["1", "2", "3", "4", "5"]):
             if t == num_kw or t == f"选{num_kw}" or t == f"第{num_kw}" or f"选 {num_kw}" in t or f"第{num_kw}个" in t:
                 return ("write_idx", {"idx": i})
 
@@ -232,8 +232,8 @@ async def on_message(message: discord.Message):
         state = _get_session_state()
         await message.reply(
             f"👋 当前状态:**{state}** · 命令示例:\n"
-            "• 「今日热点」/「开始」 → 触发选题\n"
-            "• 「1」/「2」/「3」 → 选 Top N(仅在 briefed 状态)\n"
+            "• 「今日热点」/「开始」 → 触发选题(AI 白名单过滤)\n"
+            "• 「1」~「5」 → 选 Top N(仅在 briefed 状态)\n"
             "• 「ok」/「继续」 → 下一步(根据当前状态自动路由)\n"
             "• 「pass」/「跳过」 → 放弃当前任务\n"
             "• 其他自由问题 → 回退给 Claude 回答"
