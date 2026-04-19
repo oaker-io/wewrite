@@ -72,6 +72,8 @@ async def _run_claude(prompt: str, status_msg: discord.Message) -> str:
         CLAUDE_BIN,
         "-p",
         "--output-format", "text",
+        "--permission-mode", "bypassPermissions",  # ACL already restricts to owner;
+                                                    # non-interactive mode needs this to run tools
         prompt,
         cwd=str(WEWRITE_DIR),
         stdout=asyncio.subprocess.PIPE,

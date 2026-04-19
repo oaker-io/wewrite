@@ -27,9 +27,9 @@
   <dict>
     <key>PATH</key>
     <string>__HOME__/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-    <!-- Token 等敏感变量不写在 plist,用 launchctl setenv 注入:
-         launchctl setenv DISCORD_BOT_TOKEN <your_token>
-         launchctl setenv ALLOWED_USER_IDS 123456789012345678 -->
+    <key>PYTHONUNBUFFERED</key>
+    <string>1</string>
+    <!-- Token 等敏感变量不写在 plist,用 launchctl setenv 注入 -->
   </dict>
 
   <key>StandardOutPath</key>
