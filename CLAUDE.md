@@ -57,6 +57,7 @@
 |------|------|-------------|
 | `SKILL.md` | 主管道(Step 1-8) | 改结构要同步 references/ |
 | `style.yaml` | 个人配置(author/brand/persona/topics) | 在 gitignore · 本地修改 |
+| `identity/` | 个人身份档案 · 从 xwrite vendor · write.py 注入 prompt | 在 gitignore · 别手改 · 跑 `scripts/sync-identity-from-xwrite.sh --apply` 同步 |
 | `config.yaml` | API keys + wechat appid/secret | 在 gitignore · 永不 commit |
 | `secrets/keys.env` | 集中密钥存储 | chmod 600 · 在 gitignore |
 | `toolkit/author_card.py` | `:::author-card` 容器 Python 端 | **必须同步** `md2wx/skill/src/preprocessor.ts` · **CSS 严守 WeChat 白名单**(见下) |

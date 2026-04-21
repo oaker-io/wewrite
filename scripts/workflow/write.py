@@ -36,6 +36,74 @@ def slugify(title, maxlen=40):
     return s[:maxlen]
 
 
+_IDENTITY_DIR = ROOT / "identity"
+_IDENTITY_SECTIONS_TO_INJECT = (
+    "0. 基础身份",
+    "1. 一句话定位",
+    "2. 三句话定位",
+    "3. bio 候选",
+    "4. IP 故事",
+)
+
+
+def _extract_identity_sections(md_text: str) -> str:
+    """从 identity.md 抽几个关键 ## section · 拼成 prompt 注入段。"""
+    if not md_text:
+        return ""
+    lines = md_text.splitlines()
+    blocks: list[list[str]] = []
+    current: list[str] | None = None
+    for line in lines:
+        if line.startswith("## "):
+            heading = line[3:].strip()
+            # 是不是要保留的 section?
+            if any(heading.startswith(s) for s in _IDENTITY_SECTIONS_TO_INJECT):
+                current = [line]
+                blocks.append(current)
+            else:
+                current = None
+            continue
+        if current is not None:
+            current.append(line)
+    out = "\n".join("\n".join(b).rstrip() for b in blocks)
+    return out.strip()
+
+
+def _load_identity_block() -> str:
+    """组装 identity 注入段:精选 sections + voice/catchphrases + voice/forbidden。
+
+    若 identity/ 目录或文件不存在,返回空字符串(向后兼容)。
+    """
+    if not _IDENTITY_DIR.is_dir():
+        return ""
+
+    parts: list[str] = []
+
+    identity_md = _IDENTITY_DIR / "identity.md"
+    if identity_md.exists():
+        sections = _extract_identity_sections(identity_md.read_text(encoding="utf-8"))
+        if sections:
+            parts.append("### 你的身份与定位(写作时自然带出 · 不要直接复述)\n\n" + sections)
+
+    catchphrases = _IDENTITY_DIR / "voice" / "catchphrases.md"
+    if catchphrases.exists():
+        parts.append("### 你的口头禅 / 招牌句式(可自然使用)\n\n" + catchphrases.read_text(encoding="utf-8").strip())
+
+    forbidden = _IDENTITY_DIR / "voice" / "forbidden.md"
+    if forbidden.exists():
+        parts.append("### 禁忌词与雷区(命中即重写)\n\n" + forbidden.read_text(encoding="utf-8").strip())
+
+    if not parts:
+        return ""
+
+    return (
+        "\n\n"
+        "**作者人设档案(写作时严格遵守 · 自然代入 · 不要直接引用)**\n\n"
+        + "\n\n---\n\n".join(parts)
+        + "\n"
+    )
+
+
 _COMMON_TAIL_RULES = (
     "**通用必守**:\n"
     "- **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
@@ -68,7 +136,8 @@ def _build_prompt_hotspot(topic, out_path: Path) -> str:
         f"**{topic['title']}**\n(来源:{topic['source']} · 热度 {topic['hot']:.0f})\n\n"
         "**系列定位**:这篇属于「热点观察 / AI 非共识」系列。\n"
         "选用 `references/frameworks.md` 里的框架(痛点型/故事型/观点型/盘点型/对比型)。\n"
-        "persona 推荐:`midnight-friend` / `industry-observer` / `sharp-journalist`。\n\n"
+        "persona 推荐:`midnight-friend` / `industry-observer` / `sharp-journalist`。\n"
+        + _load_identity_block() + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
@@ -87,7 +156,8 @@ def _build_prompt_tutorial(topic, out_path: Path) -> str:
         "**系列定位**:这篇属于「干货 / 教程 / 方法论」系列 · **不是热点观察**。\n"
         "选用 `references/tutorial-frameworks.md` 里的框架(T1 步骤教程 / T2 工具评测 / T3 方法论沉淀 / T4 知识科普 / T5 避坑清单),\n"
         "**默认用 T1 步骤教程型**(80% 干货文用这个),除非主题明显更适合其他。\n\n"
-        "**写作 persona 用 `tutorial-instructor`**(教程讲师 · 步骤明确 · 操作性强 · 见 `personas/tutorial-instructor.yaml`)。\n\n"
+        "**写作 persona 用 `tutorial-instructor`**(教程讲师 · 步骤明确 · 操作性强 · 见 `personas/tutorial-instructor.yaml`)。"
+        + _load_identity_block() + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"

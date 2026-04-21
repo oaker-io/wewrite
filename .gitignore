@@ -11,6 +11,8 @@ history.yaml
 playbook.md
 corpus/
 lessons/
+# 个人身份档案(从 xwrite vendor · 个人数据 · 不入 git)
+identity/
 
 # Optimized writing parameters (user runs loop to generate their own)
 writing-config.yaml
