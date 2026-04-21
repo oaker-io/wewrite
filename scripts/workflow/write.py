@@ -44,7 +44,7 @@ def run_claude_write(topic, date_str, out_path: Path):
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
         "3. **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
-        "4. 第一行直接写 `![](images/cover.png)`(alt **必须留空**,否则会渲染出"封面"二字)\n"
+        "4. 第一行直接写 `![](images/cover.png)`(alt **必须留空**,否则会渲染出「封面」二字)\n"
         "5. 正文 1800-2500 字 · 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
         "6. 按需插入内文 chart 占位符 `![](images/chart-1.png)` ... `chart-4.png`\n"
         "7. 文末**压轴必须**放一张完整的「智辰老师」介绍卡(含嵌入公众号关注卡视觉),格式:\n"
