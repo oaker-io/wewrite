@@ -326,6 +326,17 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     # state=wrote · 文章改稿
     # ============================================================
     if state == "wrote":
+        # === 推进到生图 · 优先于 revise fallback(避免「请你制作配图」被当改稿)===
+        # 触发词:制作配图 / 生图 / 出图 / 画图 / 配图 / 做图 + 各种推进语
+        advance_to_images_kw = [
+            "制作配图", "生成配图", "做配图", "画配图", "配图",
+            "生图", "生成图", "出图", "出配图", "做图", "画图",
+            "进入生图", "进生图", "下一步", "推进", "进入下一步",
+            "可以了", "没问题了", "通过", "通过了",
+        ]
+        if any(kw in raw for kw in advance_to_images_kw):
+            return ("next", {})
+
         # "重写" / "重新写" → 全量换角度
         if re.match(r'^(?:重写|重新写)\b', raw) or t in ("重写", "重新写"):
             return ("revise", {"instruction": "从头重写 · 换角度"})
@@ -345,6 +356,18 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
         # Fallback:state=wrote · 消息 ≥ 4 字 · 不是短确认词 · 当自然语言改稿
         if len(raw) >= 4:
             return ("revise", {"instruction": raw})
+
+    # ============================================================
+    # state=imaged · 推进到 publish · 优先于 revise_image fallback
+    # ============================================================
+    if state == "imaged":
+        advance_to_publish_kw = [
+            "推草稿", "推送草稿", "推送草稿箱", "发草稿", "发布草稿", "推到草稿箱",
+            "进入发布", "进发布", "下一步", "推进", "进入下一步",
+            "可以了", "没问题了", "通过", "通过了", "图片可以", "图都可以",
+        ]
+        if any(kw in raw for kw in advance_to_publish_kw):
+            return ("next", {})
 
     # Unknown → fallback to generic claude -p
     return ("claude_fallback", {})

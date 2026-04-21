@@ -672,5 +672,75 @@ class BotIntentTutorial(unittest.TestCase):
         self.assertIn("claude design", kw["idea"])
 
 
+# -----------------------------------------------------------------
+# 12. bot.py state=wrote/imaged 推进类关键词路由到 next
+#     避免「请你制作配图」被 revise fallback 当改稿(claude -p 跑 600s 超时)
+# -----------------------------------------------------------------
+class BotIntentAdvanceToNext(unittest.TestCase):
+    """state=wrote 时「制作配图/生图/...」 应走 next 而不是 revise。"""
+
+    def _classify(self, text, state):
+        sys.path.insert(0, str(REPO_ROOT / "discord-bot"))
+        import os
+        os.environ.setdefault("DISCORD_BOT_TOKEN", "test-token")
+        if "bot" in sys.modules:
+            del sys.modules["bot"]
+        import bot
+        return bot._classify_intent(text, state)
+
+    def test_wrote_zhipei_keyword_routes_to_next(self):
+        """「请你制作配图」「生图」 等在 state=wrote 应走 next 不走 revise。"""
+        for text in [
+            "请你制作配图",
+            "制作配图",
+            "做配图吧",
+            "可以生图了",
+            "出图",
+            "画图吧",
+            "进入生图阶段",
+            "下一步",
+            "可以了",
+            "通过",
+        ]:
+            action, _ = self._classify(text, "wrote")
+            self.assertEqual(action, "next", f"{text!r} 在 wrote 应走 next · 实际 {action}")
+
+    def test_wrote_revise_keyword_still_routes_to_revise(self):
+        """改稿关键词在 state=wrote 仍然走 revise(不被 next 误吞)。"""
+        for text in [
+            "改开头太硬",
+            "加段说明",
+            "重写",
+            "去掉第三段",
+        ]:
+            action, _ = self._classify(text, "wrote")
+            self.assertEqual(action, "revise", f"{text!r} 应走 revise · 实际 {action}")
+
+    def test_imaged_publish_keyword_routes_to_next(self):
+        """「推草稿」「发布草稿」 等在 state=imaged 应走 next 不走 revise_image。"""
+        for text in [
+            "推草稿吧",
+            "推送草稿箱",
+            "可以发草稿",
+            "图片可以",
+            "下一步",
+            "通过了",
+        ]:
+            action, _ = self._classify(text, "imaged")
+            self.assertEqual(action, "next", f"{text!r} 在 imaged 应走 next · 实际 {action}")
+
+    def test_imaged_image_revise_still_works(self):
+        """图片返工关键词在 state=imaged 仍然走 revise_image。"""
+        action, kw = self._classify("重做 cover", "imaged")
+        self.assertEqual(action, "revise_image")
+        self.assertEqual(kw.get("target"), "cover")
+
+    def test_advance_only_within_wrote_state(self):
+        """「制作配图」在 state=idle 不应误触发 next(因为 idle 没下一步)。"""
+        action, _ = self._classify("制作配图", "idle")
+        # idle 状态下没有特殊匹配 · 应该走 claude_fallback
+        self.assertNotEqual(action, "next")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
