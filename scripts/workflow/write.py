@@ -35,44 +35,102 @@ def slugify(title, maxlen=40):
     return s[:maxlen]
 
 
-def run_claude_write(topic, date_str, out_path: Path):
-    """调 claude -p 让 WeWrite skill 跑 Step 3-5 · 只写文章不生图不发布。"""
-    prompt = (
-        "请使用 wewrite skill 写一篇微信公众号文章,主题是:\n\n"
+_COMMON_TAIL_RULES = (
+    "**通用必守**:\n"
+    "- **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
+    "- 第一行直接写 `![](images/cover.png)`(alt **必须留空**,否则会渲染出「封面」二字)\n"
+    "- 文末**压轴必须**放一张完整的「智辰老师」介绍卡(含嵌入公众号关注卡视觉),格式:\n"
+    "  ```\n"
+    "  :::author-card\n"
+    "  name: 智辰老师\n"
+    "  tagline: 独立开发者 · AI 非共识观察者 · openclaw 武汉创业群群主\n"
+    "  bio: <根据本文主题自然带出 1-2 句 · 含「AI 非共识,掘金看智辰」口号>\n"
+    "  mp_brand: 宸的 AI 掘金笔记\n"
+    "  mp_desc: 记录 AI Agent 与工具的真实使用过程与长期价值。\n"
+    "  mp_meta: 关注获取每日 AI 非共识 · 掘金看智辰\n"
+    "  tags: [AI 非共识, <2-3 个本文相关标签>]\n"
+    "  footer: 扫码加我微信备注「<本文相关关键词>」· 我会拉你进读者群\n"
+    "  :::\n"
+    "  ```\n"
+    "  `mp_brand/mp_desc/mp_meta` 三字段会渲染成嵌入式公众号关注卡视觉。\n"
+    "- author-card **下方**仍要带:两个二维码 `![](images/qr-zhichen.png)` 和 `![](images/qr-openclaw.png)` + aipickgold.com 安利段\n"
+    "- 写完返回一行:'DONE {absolute_path}'\n"
+    "- 即便忘了上述 · publish 阶段会兜底 sanitize · 但写对省一道清理。\n\n"
+    "作者身份:style.yaml 的 author/brand 字段 · 口号「AI 非共识,掘金看智辰」"
+)
+
+
+def _build_prompt_hotspot(topic, out_path: Path) -> str:
+    """热点观察 / 非共识解读 prompt(原 prompt)。"""
+    return (
+        "请使用 wewrite skill 写一篇微信公众号文章(**热点系列 · 非共识解读**),主题:\n\n"
         f"**{topic['title']}**\n(来源:{topic['source']} · 热度 {topic['hot']:.0f})\n\n"
+        "**系列定位**:这篇属于「热点观察 / AI 非共识」系列。\n"
+        "选用 `references/frameworks.md` 里的框架(痛点型/故事型/观点型/盘点型/对比型)。\n"
+        "persona 推荐:`midnight-friend` / `industry-observer` / `sharp-journalist`。\n\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
-        "3. **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
-        "4. 第一行直接写 `![](images/cover.png)`(alt **必须留空**,否则会渲染出「封面」二字)\n"
-        "5. 正文 1800-2500 字 · 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
-        "6. 按需插入内文 chart 占位符 `![](images/chart-1.png)` ... `chart-4.png`\n"
-        "7. 文末**压轴必须**放一张完整的「智辰老师」介绍卡(含嵌入公众号关注卡视觉),格式:\n"
-        "   ```\n"
-        "   :::author-card\n"
-        "   name: 智辰老师\n"
-        "   tagline: 独立开发者 · AI 非共识观察者 · openclaw 武汉创业群群主\n"
-        "   bio: <根据本文主题自然带出 1-2 句 · 含「AI 非共识,掘金看智辰」口号>\n"
-        "   mp_brand: 宸的 AI 掘金笔记\n"
-        "   mp_desc: 记录 AI Agent 与工具的真实使用过程与长期价值。\n"
-        "   mp_meta: 关注获取每日 AI 非共识 · 掘金看智辰\n"
-        "   tags: [AI 非共识, <2-3 个本文相关标签>]\n"
-        "   footer: 扫码加我微信备注「<本文相关关键词>」· 我会拉你进读者群\n"
-        "   :::\n"
-        "   ```\n"
-        "   `mp_brand/mp_desc/mp_meta` 三个字段会渲染成嵌入式公众号关注卡视觉(模仿 WeChat 官方 widget)。\n"
-        "8. author-card **下方**仍要带:两个二维码 `![](images/qr-zhichen.png)` 和 `![](images/qr-openclaw.png)` + aipickgold.com 安利段\n"
-        "9. 写完返回一行:'DONE {absolute_path}'\n\n"
-        "作者身份:style.yaml 的 author/brand 字段 · 口号「AI 非共识,掘金看智辰」\n"
-        "注:即便忘了 #3/#4/#7,publish 阶段会兜底 sanitize · 但写对省一道清理。"
+        "3. 正文 **1800-2500 字** · 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
+        "4. 按需插入内文 chart 占位符 `![](images/chart-1.png)` ... `chart-4.png`\n"
+        "   配图 layout 推荐(信息密度型):dense-modules / dashboard / story-mountain / bento-grid / comparison-matrix\n\n"
+        + _COMMON_TAIL_RULES
     )
+
+
+def _build_prompt_tutorial(topic, out_path: Path) -> str:
+    """干货 / 教程 / 方法论 prompt(2026-04-21 加 · 新系列入口)。"""
+    return (
+        "请使用 wewrite skill 写一篇微信公众号文章(**干货系列 · 教程方法论**),主题:\n\n"
+        f"**{topic['title']}**\n\n"
+        "**系列定位**:这篇属于「干货 / 教程 / 方法论」系列 · **不是热点观察**。\n"
+        "选用 `references/tutorial-frameworks.md` 里的框架(T1 步骤教程 / T2 工具评测 / T3 方法论沉淀 / T4 知识科普 / T5 避坑清单),\n"
+        "**默认用 T1 步骤教程型**(80% 干货文用这个),除非主题明显更适合其他。\n\n"
+        "**写作 persona 用 `tutorial-instructor`**(教程讲师 · 步骤明确 · 操作性强 · 见 `personas/tutorial-instructor.yaml`)。\n\n"
+        "严格要求:\n"
+        f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
+        "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
+        "3. 正文 **2500-4500 字**(教程通常需要更长结构 · 步骤要展开)\n"
+        "4. **结构必须步骤化**:每个核心步骤独立 H2 · 推荐格式「Step N: 一句话目标」\n"
+        "5. 每步带四要素:【目标】→【操作】→【验证】→【常见坑】(可适度合并)\n"
+        "6. 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
+        "7. 按需插入内文 chart 占位符 `![](images/chart-1.png)` ... `chart-4.png`\n"
+        "   配图 layout 推荐(操作流程型):\n"
+        "   - **linear-progression**(★★★★★ 步骤流程 / SOP)\n"
+        "   - **comparison-matrix**(★★★★★ 工具横评 / before-after)\n"
+        "   - **hierarchical-layers**(★★★★★ 知识体系 / 三层递进)\n"
+        "   - funnel(筛选决策)/ tree-branching(选择决策树)/ circular-flow(运行机制)\n"
+        "   - 封面优先用 `bento-grid`(N 个要点速览)+ `ikea-manual` style(说明书风格)\n"
+        "8. **避免热点系列的非共识口吻**:不要用「真相是」「其实没人告诉你」这种钩子;\n"
+        "   要用「读完你能做到 X」「跟着我走一遍」这种承诺式钩子。\n"
+        "9. 标题倾向(选一种):\n"
+        "   - 「手把手:N 分钟用 X 做到 Y」\n"
+        "   - 「X 的 N 个官方文档没说的细节」\n"
+        "   - 「我用 X 半年总结的 N 个坑」\n"
+        "   - 「从 0 到 1 配置 X 的完整 SOP」\n\n"
+        + _COMMON_TAIL_RULES
+    )
+
+
+def run_claude_write(topic, date_str, out_path: Path, style: str = "hotspot"):
+    """调 claude -p 让 WeWrite skill 跑 Step 3-5 · 只写文章不生图不发布。
+
+    style:
+      - "hotspot"  : 热点观察 / 非共识解读(默认 · 走 frameworks.md)
+      - "tutorial" : 干货 / 教程 / 方法论(走 tutorial-frameworks.md + tutorial-instructor)
+    """
+    if style == "tutorial":
+        prompt = _build_prompt_tutorial(topic, out_path)
+        print(f"→ claude -p writing [TUTORIAL]... (可能 5-12 分钟 · 教程文较长)")
+    else:
+        prompt = _build_prompt_hotspot(topic, out_path)
+        print(f"→ claude -p writing [HOTSPOT]... (可能 3-8 分钟)")
 
     args = [
         "claude", "-p", "--output-format", "text",
         "--permission-mode", "bypassPermissions",
         prompt,
     ]
-    print(f"→ claude -p writing... (可能 3-8 分钟)")
     r = subprocess.run(
         args, cwd=str(ROOT),
         capture_output=True, text=True, timeout=900,
@@ -82,14 +140,15 @@ def run_claude_write(topic, date_str, out_path: Path):
     return r.stdout
 
 
-def push_article(md_path: Path, topic):
-    """Push markdown preview to Discord · 分块(Discord 1900 char 上限)."""
+def push_article(md_path: Path, topic, style: str = "hotspot"):
+    """Push markdown preview to Discord · 分块(Discord 1900 char 上限)。"""
     md = md_path.read_text(encoding="utf-8")
     word_count = len(md)
+    style_tag = "🛠️ 干货系列" if style == "tutorial" else "🔥 热点系列"
 
     # Header message
     header = (
-        f"📝 **文章初稿就绪 · {word_count} 字**\n"
+        f"📝 **文章初稿就绪 · {word_count} 字** · {style_tag}\n"
         f"📌 选题:{topic['title']}\n"
         f"📂 路径:`{md_path.relative_to(ROOT)}`\n"
         f"---\n"
@@ -122,24 +181,50 @@ def push_article(md_path: Path, topic):
     )
 
 
-def main():
-    # 两种模式:
-    #   python3 write.py 0                    · 按 session Top N 里的 idx
-    #   python3 write.py --idea "<自定义标题>" · 绕过 brief · 直接用这个 idea 写
+def _parse_argv():
+    """解析命令行 · 返回 (argv_idx, custom_idea, style)。
+
+    支持:
+      python3 write.py 0                                     · idx
+      python3 write.py --idea "<标题>"                        · 自定义 idea
+      python3 write.py 0 --style tutorial                    · idx + style
+      python3 write.py --idea "<标题>" --style tutorial       · idea + style
+      python3 write.py --style tutorial --idea "<标题>"       · 顺序无关
+    """
+    args = sys.argv[1:]
+    style = "hotspot"
     argv_idx = None
     custom_idea = None
-    if len(sys.argv) > 1:
-        if sys.argv[1] == "--idea":
-            if len(sys.argv) < 3:
+
+    # 先抽 --style(无序)
+    if "--style" in args:
+        i = args.index("--style")
+        if i + 1 >= len(args):
+            print("❌ --style 需跟值: hotspot | tutorial", file=sys.stderr); sys.exit(1)
+        style = args[i + 1]
+        if style not in ("hotspot", "tutorial"):
+            print(f"❌ --style 只能是 hotspot 或 tutorial · 收到 {style!r}", file=sys.stderr); sys.exit(1)
+        args = args[:i] + args[i + 2:]
+
+    # 再判 --idea / idx
+    if args:
+        if args[0] == "--idea":
+            if len(args) < 2:
                 print("❌ --idea 需要跟一个 idea 字符串", file=sys.stderr); sys.exit(1)
-            custom_idea = " ".join(sys.argv[2:]).strip()
+            custom_idea = " ".join(args[1:]).strip()
             if not custom_idea:
                 print("❌ idea 不能为空", file=sys.stderr); sys.exit(1)
         else:
             try:
-                argv_idx = int(sys.argv[1])
+                argv_idx = int(args[0])
             except ValueError:
                 print(f"❌ 首参数要么 idx (0-based) 要么 --idea '...'", file=sys.stderr); sys.exit(1)
+
+    return argv_idx, custom_idea, style
+
+
+def main():
+    argv_idx, custom_idea, style = _parse_argv()
 
     if custom_idea:
         # 构造一个虚拟 topic · 绕过 brief 状态检查
@@ -184,7 +269,7 @@ def main():
         )
 
     try:
-        run_claude_write(topic, date_str, out_path)
+        run_claude_write(topic, date_str, out_path, style=style)
     except Exception as e:
         print(f"❌ {e}", file=sys.stderr); sys.exit(2)
 
@@ -192,9 +277,10 @@ def main():
         print(f"❌ claude 跑完但 {out_path} 不存在 · 看 claude stdout 排查", file=sys.stderr)
         sys.exit(3)
 
-    _state.advance(_state.STATE_WROTE, article_md=str(out_path.relative_to(ROOT)))
-    push_article(out_path, topic)
-    print(f"✓ wrote · {out_path}")
+    _state.advance(_state.STATE_WROTE, article_md=str(out_path.relative_to(ROOT)),
+                   style=style)
+    push_article(out_path, topic, style=style)
+    print(f"✓ wrote [{style}] · {out_path}")
     return 0
 
 

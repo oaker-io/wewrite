@@ -602,5 +602,75 @@ class BotIntentCustomIdeaPrefix(unittest.TestCase):
             self.assertEqual(action, "brief", f"{word!r} 应触发 brief")
 
 
+# -----------------------------------------------------------------
+# 11. bot.py 「教程/干货/方法论:XXX」前缀路由到 tutorial_idea
+# -----------------------------------------------------------------
+class BotIntentTutorial(unittest.TestCase):
+    """干货系列入口 · 触发词:教程/干货/方法论/手把手/how to/如何 + 内容。"""
+
+    def _classify(self, text, state="idle"):
+        sys.path.insert(0, str(REPO_ROOT / "discord-bot"))
+        import os
+        os.environ.setdefault("DISCORD_BOT_TOKEN", "test-token")
+        if "bot" in sys.modules:
+            del sys.modules["bot"]
+        import bot
+        return bot._classify_intent(text, state)
+
+    def test_jiaocheng_with_topic(self):
+        action, kw = self._classify("教程: claude design 9 个使用技巧")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("claude design", kw["idea"])
+
+    def test_ganhuo_prefix(self):
+        action, kw = self._classify("干货:Cursor 配置完整 SOP")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertEqual(kw["idea"], "Cursor 配置完整 SOP")
+
+    def test_fangfalun_prefix(self):
+        action, kw = self._classify("方法论: 用 Claude 重构遗留代码的 5 个原则")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("Claude", kw["idea"])
+
+    def test_shoubashou_prefix(self):
+        action, kw = self._classify("手把手: 30 分钟搭一个 RAG demo")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("RAG", kw["idea"])
+
+    def test_howto_english(self):
+        action, kw = self._classify("how to use claude code mcp")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("claude code mcp", kw["idea"])
+
+    def test_howto_no_space(self):
+        action, kw = self._classify("howto 用 cursor 接管代码库")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("cursor", kw["idea"])
+
+    def test_ruhe_prefix(self):
+        action, kw = self._classify("如何 把 claude design 嵌进现有项目")
+        self.assertEqual(action, "tutorial_idea")
+        self.assertIn("claude design", kw["idea"])
+
+    def test_tutorial_priority_over_custom_idea(self):
+        """「教程」+ 内容 应优先于「写」前缀(避免「写教程: XX」误走 hotspot)。"""
+        # 注:用户实际输入「教程: XX」会先匹配 tutorial · 不会到 custom_idea
+        action, _ = self._classify("教程: A")  # 内容太短(<3 字符) · 不应触发
+        self.assertNotEqual(action, "tutorial_idea")
+
+    def test_tutorial_keyword_alone_no_topic(self):
+        """单词「教程」无内容 · 不应误触发(返回 fallback)。"""
+        action, _ = self._classify("教程")
+        # 单纯「教程」会被 r'^(?:教程|...)\s*[::,,、]?\s*(.+)' 匹配但 (.+) 要求至少 1 字符
+        # 所以「教程」(0 字符)不命中 · fallback 到 claude_fallback
+        self.assertNotEqual(action, "tutorial_idea")
+
+    def test_xuanti_still_routes_to_custom_idea(self):
+        """「选题: XX」依然走 hotspot 系列(custom_idea) · 不被 tutorial 截胡。"""
+        action, kw = self._classify("选题: claude design的使用技巧")
+        self.assertEqual(action, "custom_idea")
+        self.assertIn("claude design", kw["idea"])
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

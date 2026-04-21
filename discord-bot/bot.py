@@ -199,6 +199,18 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if t in short_ok:
         return ("next", {})
 
+    # === 干货系列 · tutorial_idea ===
+    # 触发词:教程/干货/方法论/手把手/how to/如何 + 内容
+    # 优先级在 custom_idea 之前 · 避免「教程: XX」被当成普通 custom_idea 走 hotspot 系列
+    m_tut = re.match(
+        r'^(?:教程|干货|方法论|手把手|how\s*to|如何)\s*[::,,、]?\s*(.+)',
+        raw, re.IGNORECASE,
+    )
+    if m_tut:
+        idea = m_tut.group(1).strip()
+        if len(idea) >= 3:
+            return ("tutorial_idea", {"idea": idea})
+
     # Custom idea · "写 XXX" / "选题: XXX" / "主题: XXX" / "话题: XXX"
     # 「选题/主题/话题」+ 内容 → 用户指定具体主题(避免被下面的 brief 关键词截胡)
     m = re.match(
@@ -375,11 +387,28 @@ async def on_message(message: discord.Message):
     if action == "custom_idea":
         idea = kw["idea"]
         status = await message.reply(
-            f"💡 收到自定义 idea:\n**{idea}**\n\n绕过 brief · claude 直接开写(3-8 分钟)..."
+            f"💡 收到自定义 idea(🔥 热点系列):\n**{idea}**\n\n"
+            f"绕过 brief · claude 直接开写(3-8 分钟)..."
         )
         rc, out = await _run_workflow_script("write.py", ["--idea", idea], status)
         await status.edit(
             content=(f"✓ 文章就绪,已推预览 · 回 `ok` 进生图" if rc == 0
+                     else f"❌ 写作失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "tutorial_idea":
+        idea = kw["idea"]
+        status = await message.reply(
+            f"🛠️ 收到干货 idea(🛠️ 干货系列 · tutorial-instructor 人格):\n"
+            f"**{idea}**\n\n"
+            f"走 `tutorial-frameworks.md`(T1-T5)+ 步骤化结构(2500-4500 字 · 5-12 分钟)..."
+        )
+        rc, out = await _run_workflow_script(
+            "write.py", ["--idea", idea, "--style", "tutorial"], status,
+        )
+        await status.edit(
+            content=(f"✓ 干货初稿就绪,已推预览 · 回 `ok` 进生图" if rc == 0
                      else f"❌ 写作失败\n```\n{out[-600:]}\n```")
         )
         return
