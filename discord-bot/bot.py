@@ -279,9 +279,10 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if t in ("选题", "选题吧", "看看选题", "今天选题", "选个题", "选题呢"):
         return ("brief", {})
 
-    # Number pick (only valid after brief) · 支持 1-5
+    # Number pick (only valid after brief) · 支持 1-9
+    # 阶段 D · 放宽到 9 · 支持热点 N + idea 库 M 混合(默认 5+3=8 · 留 1 余量)
     if state == "briefed":
-        for i, num_kw in enumerate(["1", "2", "3", "4", "5"]):
+        for i, num_kw in enumerate(["1", "2", "3", "4", "5", "6", "7", "8", "9"]):
             if t == num_kw or t == f"选{num_kw}" or t == f"第{num_kw}" or f"选 {num_kw}" in t or f"第{num_kw}个" in t:
                 return ("write_idx", {"idx": i})
 

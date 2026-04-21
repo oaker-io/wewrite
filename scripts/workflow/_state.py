@@ -10,8 +10,13 @@ State transitions:
 Field schema:
     state: str            当前状态
     article_date: str     YYYY-MM-DD
-    topics: list          brief 产出的 Top 3 选题
-    selected_idx: int     用户选的序号(0/1/2)
+    topics: list          brief 产出的混合选题(热点 Top N + idea 库 Top M)
+                          每个 topic 是 dict · 关键字段:
+                            title / source / hot / score / ai_kw / url
+                            from: "hotspot" | "idea"   ← 阶段 D 加 · 来源标识
+                            idea_id: int | null        ← 阶段 D 加 · idea 库 id(hotspot 为 null)
+                            category: str (idea 才有)  ← tutorial / hotspot / flexible
+    selected_idx: int     用户选的序号(0/1/2/...)
     selected_topic: dict  等于 topics[selected_idx]
     article_md: str       写出的文章路径(相对 repo)
     images_dir: str       output/images/

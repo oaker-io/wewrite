@@ -14,6 +14,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _state
+import _idea_bank
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PUSH = ROOT / "discord-bot" / "push.py"
@@ -223,8 +224,32 @@ def _parse_argv():
     return argv_idx, custom_idea, style
 
 
+def _auto_style_from_topic(topic: dict, cli_style: str) -> str:
+    """阶段 D · idx 模式下根据 topic 来源 / category 推断 style。
+
+    规则:
+      - from == "hotspot"   → 用 cli_style(默认 hotspot)
+      - from == "idea":
+          category == "tutorial"  → 强制 tutorial
+          category == "hotspot"   → 强制 hotspot
+          category == "flexible"  → 用 cli_style
+      - 缺字段(老 session 兼容)→ 用 cli_style
+    """
+    src = topic.get("from")
+    if src == "idea":
+        cat = topic.get("category", "flexible")
+        if cat == "tutorial":
+            return "tutorial"
+        if cat == "hotspot":
+            return "hotspot"
+        return cli_style
+    return cli_style
+
+
 def main():
-    argv_idx, custom_idea, style = _parse_argv()
+    argv_idx, custom_idea, cli_style = _parse_argv()
+    style = cli_style  # 默认 = 命令行 · 走 idx 路径时可能被 idea category 覆盖
+    idea_id_to_mark = None  # 写完成功后调 mark_used 的 id
 
     if custom_idea:
         # 构造一个虚拟 topic · 绕过 brief 状态检查
@@ -262,6 +287,11 @@ def main():
         slug = slugify(topic["title"])
         out_path = ROOT / "output" / f"{date_str}-{slug}.md"
 
+        # 阶段 D · 按 from/category 自动推断 style · 记 idea_id 等写完后标 used
+        style = _auto_style_from_topic(topic, cli_style)
+        if topic.get("from") == "idea" and topic.get("idea_id") is not None:
+            idea_id_to_mark = topic.get("idea_id")
+
         _state.advance(
             "writing",
             selected_idx=idx, selected_topic=topic,
@@ -279,8 +309,21 @@ def main():
 
     _state.advance(_state.STATE_WROTE, article_md=str(out_path.relative_to(ROOT)),
                    style=style)
+
+    # 阶段 D · idea 库选题写完 · 自动标 used
+    src_tag = ""
+    if idea_id_to_mark is not None:
+        try:
+            _idea_bank.mark_used(
+                idea_id_to_mark,
+                article_md=str(out_path.relative_to(ROOT)),
+            )
+            src_tag = f" · from idea #{idea_id_to_mark}"
+        except Exception as e:
+            print(f"⚠ mark_used idea #{idea_id_to_mark} 失败: {e}", file=sys.stderr)
+
     push_article(out_path, topic, style=style)
-    print(f"✓ wrote [{style}] · {out_path}")
+    print(f"✓ wrote [{style}{src_tag}] · {out_path}")
     return 0
 
 

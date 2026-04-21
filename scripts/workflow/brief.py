@@ -11,6 +11,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _state
+import _idea_bank
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 PUSH = ROOT / "discord-bot" / "push.py"
@@ -138,6 +139,8 @@ def pick_top_ai(items, focus_topics, max_n=5, robot_cap=2):
             "ai_kw": kw,
             "is_robot": kw in ROBOT_KWS,
             "url": item.get("url", ""),
+            "from": "hotspot",
+            "idea_id": None,
         })
     scored.sort(key=lambda x: x["score"], reverse=True)
 
@@ -158,28 +161,84 @@ def pick_top_ai(items, focus_topics, max_n=5, robot_cap=2):
     return out, stats
 
 
-def format_message(topics, stats):
+def fetch_idea_topics(limit=3):
+    """从 idea 库取未用 Top N · 转成跟 hotspot topic 同结构。
+
+    返回 list[dict] · 每项含 from='idea' · idea_id · category。
+    idea 库为空时返回 []。
+    """
+    try:
+        ideas = _idea_bank.list_ideas(only_unused=True, limit=limit) or []
+    except Exception:
+        return []
+    out = []
+    for it in ideas:
+        out.append({
+            "title": it.get("title", ""),
+            "source": "idea 库",
+            "hot": 0,
+            "score": float(it.get("priority", 0) or 0),
+            "ai_kw": "idea",
+            "is_robot": False,
+            "url": "",
+            "from": "idea",
+            "idea_id": it.get("id"),
+            "category": it.get("category", "flexible"),
+        })
+    return out
+
+
+def format_message(topics, stats, idea_count=0):
+    """格式化 Discord 推送消息 · 热点 + idea 分两段。
+
+    topics 是合并后的列表(热点在前 · idea 在后)。
+    idea_count 表示 topics 末尾连续 idea 项数(0 时不显示 idea 段)。
+    """
     date = datetime.now().strftime("%m-%d")
     n = len(topics)
-    head = [
+    hotspot_n = n - idea_count
+
+    if n == 0:
+        head = [
+            f"📰 **{date} · 今日 AI 选题 Top 0**",
+            f"_AI 白名单过滤 · {stats['ai_matched']}/{stats['total']} 命中 · 综合分排序_",
+            "",
+            "⚠️ 今日热点榜全是非 AI 内容 · 无可选题。",
+            "可回 `pass` 跳过今天,或等晚些再 `brief`。",
+            "(考虑加 36kr / IT 之家等 AI 专门源以改善)",
+        ]
+        return "\n".join(head)
+
+    lines = [
         f"📰 **{date} · 今日 AI 选题 Top {n}**",
         f"_AI 白名单过滤 · {stats['ai_matched']}/{stats['total']} 命中 · 综合分排序_",
         "",
     ]
-    if n == 0:
-        return "\n".join(head + [
-            "⚠️ 今日热点榜全是非 AI 内容 · 无可选题。",
-            "可回 `pass` 跳过今天,或等晚些再 `brief`。",
-            "(考虑加 36kr / IT 之家等 AI 专门源以改善)",
-        ])
 
-    lines = head[:]
-    for i, t in enumerate(topics, 1):
-        lines.append(f"**{i}.** {t['title']}")
-        lines.append(
-            f"    📊 {t['score']} · 🔥 {t['source']} · 热度 {t['hot']:.0f} · 🎯 `{t['ai_kw']}`"
-        )
+    # 热点段
+    if hotspot_n > 0:
+        lines.append(f"🔥 **今日热点 Top {hotspot_n}**")
+        for i in range(hotspot_n):
+            t = topics[i]
+            lines.append(f"**{i+1}.** {t['title']}")
+            lines.append(
+                f"    📊 {t['score']} · 🔥 {t['source']} · 热度 {t['hot']:.0f} · 🎯 `{t['ai_kw']}`"
+            )
         lines.append("")
+
+    # idea 段
+    if idea_count > 0:
+        lines.append(f"📌 **你的 idea 库 Top {idea_count}**")
+        for j in range(idea_count):
+            i = hotspot_n + j
+            t = topics[i]
+            cat = t.get("category", "flexible")
+            iid = t.get("idea_id")
+            id_tag = f"#idea_id_{iid}" if iid is not None else ""
+            lines.append(f"**{i+1}.** {t['title']}")
+            lines.append(f"    📌 {cat} · {id_tag}")
+        lines.append("")
+
     lines.append("---")
     pick_nums = " / ".join(f"`{i}`" for i in range(1, n + 1))
     lines.append(f"👉 回复 {pick_nums} 选一个 · 或 `pass` 今天跳过")
@@ -199,13 +258,20 @@ def main():
     print("→ fetching hotspots...")
     items = fetch_hotspots(60)
     print(f"  got {len(items)} items")
-    topics, stats = pick_top_ai(items, load_style_topics(), max_n=5)
-    print(f"  AI-matched: {stats['ai_matched']}/{stats['total']} · picked {len(topics)}")
+    hot_topics, stats = pick_top_ai(items, load_style_topics(), max_n=5)
+    print(f"  AI-matched: {stats['ai_matched']}/{stats['total']} · picked {len(hot_topics)}")
+
+    # 阶段 D · 追加 idea 库 Top 3 未用 idea
+    idea_topics = fetch_idea_topics(limit=3)
+    print(f"  idea bank: {len(idea_topics)} unused appended")
+
+    topics = list(hot_topics) + list(idea_topics)
+    idea_count = len(idea_topics)
 
     if not topics:
-        # 没有 AI 热点也推消息告知用户 · 但不进 briefed 状态,免得用户没料可选
-        push(format_message([], stats))
-        print("⚠ no AI hotspots · kept state=idle · user notified", file=sys.stderr)
+        # 既无 AI 热点也无 idea · 推消息告知用户 · 不进 briefed 状态
+        push(format_message([], stats, idea_count=0))
+        print("⚠ no hotspots & no ideas · kept state=idle · user notified", file=sys.stderr)
         return 0
 
     _state.advance(
@@ -217,9 +283,9 @@ def main():
         images_dir=None,
         draft_media_id=None,
     )
-    msg = format_message(topics, stats)
+    msg = format_message(topics, stats, idea_count=idea_count)
     push(msg)
-    print(f"✓ briefed · top {len(topics)} pushed · awaiting user pick")
+    print(f"✓ briefed · {len(hot_topics)} hotspots + {idea_count} ideas pushed · awaiting user pick")
     return 0
 
 
