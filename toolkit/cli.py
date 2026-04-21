@@ -88,8 +88,18 @@ def cmd_publish(args):
         print("Error: --appid and --secret required (or set in config.yaml)", file=sys.stderr)
         sys.exit(1)
 
+    # 发布前 sanitize · 默认开 · `--no-sanitize` 关。
+    # 修复 republish/直接调 cli 时绕过 sanitize 导致 author-card 不渲染。
+    input_path = Path(args.input)
+    if not getattr(args, "no_sanitize", False):
+        from sanitize import prepare_for_publish
+        sanitized = prepare_for_publish(input_path)
+        if sanitized != input_path:
+            print(f"Sanitized: {sanitized.name}")
+        input_path = sanitized
+
     converter, _theme = _build_converter(args.engine, theme_name, getattr(args, "font_size", None))
-    result = converter.convert_file(args.input)
+    result = converter.convert_file(str(input_path))
 
     print(f"Title: {result.title}")
     print(f"Digest: {result.digest}")
@@ -102,7 +112,7 @@ def cmd_publish(args):
 
     # Upload images referenced in article and replace src
     # Resolve relative paths against the markdown file's directory
-    md_dir = Path(args.input).resolve().parent
+    md_dir = input_path.resolve().parent
     html = result.html
     for img_src in result.images:
         if img_src.startswith(("http://", "https://")):
@@ -131,7 +141,7 @@ def cmd_publish(args):
         print(f"  -> media_id: {thumb_media_id}")
 
     # Create draft
-    title = args.title or result.title or Path(args.input).stem
+    title = args.title or result.title or input_path.stem
     digest = args.digest or result.digest
     draft = create_draft(
         access_token=token,
@@ -407,6 +417,8 @@ def main():
     p_publish.add_argument("--engine", choices=["native", "md2wx"], default="native",
                            help="Rendering engine: 'native' (16 themes) or 'md2wx' (40 themes)")
     p_publish.add_argument("--font-size", default=None, help="Font size (md2wx only, e.g. 16px)")
+    p_publish.add_argument("--no-sanitize", action="store_true",
+                           help="Skip H1/cover-alt/author-card auto-sanitize (default off)")
 
     # themes
     sub.add_parser("themes", help="List available themes")

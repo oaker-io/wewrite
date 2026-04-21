@@ -81,9 +81,16 @@ def _extract_title(markdown):
 
 
 def _extract_digest(markdown, max_bytes=120):
+    """提取摘要 · 兼容有/无 H1 两种文章。
+
+    旧版要求 H1 作为正文起点;新管线 sanitize 会去 H1,所以这里改为
+    无 H1 时从首行非元数据正文起算。
+    """
+    raw_lines = markdown.splitlines()
+    has_h1 = any(re.match(r"^\s*#\s+", l) for l in raw_lines[:10])
+    in_body = not has_h1
     lines = []
-    in_body = False
-    for line in markdown.splitlines():
+    for line in raw_lines:
         if re.match(r"^\s*#\s+", line):
             in_body = True
             continue

@@ -12,6 +12,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _state
 
 ROOT = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(ROOT / "toolkit"))
+from sanitize import prepare_for_publish
 PUSH = ROOT / "discord-bot" / "push.py"
 CLI = ROOT / "toolkit" / "cli.py"
 PY = ROOT / "venv" / "bin" / "python3"
@@ -49,12 +51,14 @@ def push_done(media_id: str, title: str):
         f"🚀 **草稿已推送到微信草稿箱**\n"
         f"📝 {title}\n"
         f"🆔 `{media_id}`\n\n"
+        f"📦 **已自动**:H1 去重 · 封面 alt 清空 · 末尾「智辰老师」介绍卡片(含 mp 嵌入卡视觉)\n\n"
         f"---\n"
-        f"**⚠️ 最后一步**(2 分钟手机也能做):\n"
-        f"1. `mp.weixin.qq.com` → 草稿箱 → 找最新这篇\n"
-        f"2. 「编辑」\n"
-        f"3. author-card 和二维码之间,工具栏「资源引用」→「公众号」→ 选 **宸的 AI 掘金笔记**\n"
-        f"4. 通读 → 发表\n\n"
+        f"**⚠️ 唯一手动步骤**(WeChat 平台限制 · 关注卡是 UI-only widget):\n"
+        f"1. `mp.weixin.qq.com` → 草稿箱 → 编辑\n"
+        f"2. 在文末「智辰老师」卡片里那个白底 mp 占位上方,\n"
+        f"   工具栏「资源引用」→「公众号」→ 选 **宸的 AI 掘金笔记**\n"
+        f"3. 通读 → 发表\n\n"
+        f"💡 那张静态 mp 占位卡是视觉等价物 · 不会真跳关注 · 必须草稿箱手插一次。\n\n"
         f"下一篇可回 `brief` 触发选题 · 或等明早 08:30 自动 brief。"
     )
     subprocess.run(
@@ -65,7 +69,7 @@ def push_done(media_id: str, title: str):
 
 def main():
     s = _state.load()
-    if s["state"] != _state.STATE_IMAGED:
+    if s["state"] not in (_state.STATE_IMAGED, _state.STATE_DONE):
         print(f"❌ state={s['state']} · 要先 write → images", file=sys.stderr); sys.exit(1)
 
     article_md = s.get("article_md")
@@ -79,8 +83,15 @@ def main():
 
     title = (topic.get("title") or "")[:60] or "(untitled)"
 
+    # 发布前 sanitize:去 H1 / 清 cover alt / 兜底 author-card
+    md_abs = (ROOT / article_md).resolve()
+    publish_md = prepare_for_publish(md_abs)
+    if publish_md != md_abs:
+        print(f"→ sanitized: {publish_md.name}")
+    publish_md_rel = str(publish_md.relative_to(ROOT))
+
     media_id, _out = run_publish(
-        md_path=article_md,
+        md_path=publish_md_rel,
         cover=str(cover.relative_to(ROOT)),
         title=title,
     )

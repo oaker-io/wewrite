@@ -199,15 +199,23 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if t in short_ok:
         return ("next", {})
 
-    # Custom idea · "写 XXX" / "写一篇 XXX" / "帮我写 XXX" / "来一篇 XXX"
-    m = re.match(r'^(?:写一篇|写篇|帮我写|来一篇|来篇|写)\s*[::,,、]?\s*(.+)', raw)
+    # Custom idea · "写 XXX" / "选题: XXX" / "主题: XXX" / "话题: XXX"
+    # 「选题/主题/话题」+ 内容 → 用户指定具体主题(避免被下面的 brief 关键词截胡)
+    m = re.match(
+        r'^(?:写一篇|写篇|帮我写|来一篇|来篇|写|选题|主题|话题)\s*[::,,、]?\s*(.+)',
+        raw,
+    )
     if m:
         idea = m.group(1).strip()
         if len(idea) >= 3 and idea not in ("今天", "今日", "一下", "点东西"):
             return ("custom_idea", {"idea": idea})
 
-    # Trigger brief
-    if any(kw in t for kw in ["brief", "今日热点", "今天写", "开始", "选题", "看看有什么写"]):
+    # Trigger brief · 主动看热搜
+    # 注意:「选题」从这里**移除**,避免「选题:XXX」被错路由(已在上方 custom_idea 处理)
+    if any(kw in t for kw in ["brief", "今日热点", "今天写", "开始", "看看有什么写"]):
+        return ("brief", {})
+    # 「选题」单独成词(无内容) · 仍触发 brief
+    if t in ("选题", "选题吧", "看看选题", "今天选题", "选个题", "选题呢"):
         return ("brief", {})
 
     # Number pick (only valid after brief) · 支持 1-5
@@ -215,6 +223,16 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
         for i, num_kw in enumerate(["1", "2", "3", "4", "5"]):
             if t == num_kw or t == f"选{num_kw}" or t == f"第{num_kw}" or f"选 {num_kw}" in t or f"第{num_kw}个" in t:
                 return ("write_idx", {"idx": i})
+
+    # ============================================================
+    # state=done · republish(重新 sanitize + 推草稿箱)
+    # 关键词必须含「重新」/「再」/「republish」 · 避免误触发
+    # ============================================================
+    if state == "done":
+        rep_kw = ["重新排版", "重新发布", "重新推", "重新推送", "重发",
+                  "再发一次", "再排一次", "再推一次", "重排", "republish"]
+        if any(kw in raw for kw in rep_kw):
+            return ("republish", {})
 
     # ============================================================
     # state=imaged · 图片返工(比 revise 文本优先,避免 "chart-3 太密" 走错路)
@@ -386,6 +404,16 @@ async def on_message(message: discord.Message):
                 f"🤷 当前状态 **{state}** · 没下一步可走。\n"
                 f"想开新流程回复「今日热点」或「brief」。"
             )
+        return
+
+    if action == "republish":
+        status = await message.reply("🔁 重新 sanitize + 推草稿箱(几十秒)...")
+        rc, out = await _run_workflow_script("publish.py", [], status)
+        await status.edit(
+            content=(f"✓ 已重推草稿箱 · 带最新 sanitize(H1/cover-alt/author-card)"
+                     if rc == 0
+                     else f"❌ republish 失败\n```\n{out[-600:]}\n```")
+        )
         return
 
     if action == "revise":

@@ -175,6 +175,15 @@ def _resolve_style(override=None, theme_id=None):
 
 
 def _build_tokens(s):
+    """WeChat-safe CSS tokens · table 布局 · 渐变背景 · 零 flex / shadow / -webkit-*。
+
+    WeChat 公众号 CSS 白名单实测:
+      ❌ 必死:display: flex / gap / align-items / justify-content / -webkit-* / object-fit
+      ✅ 实测支持:linear-gradient(135deg/90deg) · border-radius · padding · margin · table
+      ⚠️ 不确定:box-shadow(暂不用,稳)
+
+    所以:横排用 <table>,背景用 linear-gradient 跟主题色彩适配,头像也渐变。
+    """
     bg = f"linear-gradient(135deg, {s['bg_start']} 0%, {s['bg_end']} 100%)"
     strip = (
         f"linear-gradient(90deg, {s['strip_start']} 0%, "
@@ -184,37 +193,44 @@ def _build_tokens(s):
         f"linear-gradient(135deg, {s['avatar_start']} 0%, "
         f"{s['avatar_end']} 100%)"
     )
-    shadow = f"0 2px 8px rgba({s['shadow_rgba']}, 0.15)"
     return {
         "card": "; ".join([
             "margin: 32px 0",
             f"background: {bg}",
             f"border: 1px solid {s['border']}",
-            "border-radius: 16px",
+            "border-radius: 12px",
             f"font-family: {_FONT_STACK}",
             f"color: {s['text_secondary']}",
             "line-height: 1.6",
-            "overflow: hidden",
         ]),
-        "brand_strip": f"height: 3px; background: {strip}",
-        "content": "padding: 24px",
-        "header": "display: flex; align-items: center; gap: 16px",
-        "avatar": "; ".join([
+        "brand_strip": "; ".join([
+            "height: 3px",
+            f"background: {strip}",
+        ]),
+        "content": "padding: 22px 20px",
+        # header 用 <table> 横排:左 avatar / 右 name+tagline
+        "header_table": "; ".join([
+            "width: 100%", "border-collapse: collapse", "border: 0",
+        ]),
+        "avatar_cell": "; ".join([
+            "width: 56px", "vertical-align: middle", "padding: 0 14px 0 0",
+        ]),
+        "avatar_img": "; ".join([
             "width: 56px", "height: 56px", "border-radius: 50%",
-            "object-fit: cover",
-            f"border: 1px solid {s['border']}",
-            "flex-shrink: 0",
+            "display: block",
         ]),
         "avatar_fallback": "; ".join([
-            "width: 56px", "height: 56px", "border-radius: 50%",
+            "width: 56px", "height: 56px", "line-height: 56px",
+            "border-radius: 50%",
             f"background: {avatar_grad}",
             f"color: {s['avatar_text']}",
-            "display: inline-flex", "align-items: center", "justify-content: center",
-            "font-size: 22px", "font-weight: 600", "flex-shrink: 0",
-            f"box-shadow: {shadow}",
+            "text-align: center",
+            "font-size: 22px", "font-weight: 700",
+            "display: block",
         ]),
+        "name_cell": "vertical-align: middle",
         "name": "; ".join([
-            "margin: 0 0 4px 0", "font-size: 18px", "font-weight: 700",
+            "margin: 0 0 3px 0", "font-size: 17px", "font-weight: 700",
             f"color: {s['text_primary']}", "line-height: 1.3",
         ]),
         "tagline": "; ".join([
@@ -222,25 +238,68 @@ def _build_tokens(s):
             f"color: {s['text_tertiary']}", "line-height: 1.5",
         ]),
         "bio": "; ".join([
-            "margin: 20px 0 16px 0", "font-size: 15px",
+            "margin: 18px 0 14px 0", "font-size: 15px",
             f"color: {s['text_secondary']}", "line-height: 1.75",
         ]),
         "tags_wrap": "margin: 12px 0 0 0; line-height: 2.2",
         "chip": "; ".join([
-            "display: inline-block", "margin: 0 8px 8px 0", "padding: 4px 14px",
+            "display: inline-block", "margin: 0 8px 8px 0", "padding: 3px 12px",
             f"background: {s['chip_bg']}",
             f"color: {s['chip_text']}",
-            "border-radius: 999px",
-            "font-size: 13px", "font-weight: 500", "letter-spacing: 0.2px",
+            "border-radius: 4px",
+            "font-size: 13px",
         ]),
         "divider": "; ".join([
-            "margin: 20px 0 16px 0", "height: 1px",
+            "margin: 18px 0 14px 0", "height: 1px",
             f"background: {s['border']}",
-            "border: 0",
+            "border: 0", "line-height: 0",
         ]),
         "footer": "; ".join([
             "margin: 0", "font-size: 13px",
             f"color: {s['text_tertiary']}", "line-height: 1.6",
+        ]),
+        # 公众号嵌入卡:WeChat-safe table 布局 · 零 flex / gradient / shadow
+        "mp_card_wrap": "; ".join([
+            "margin: 14px 0 4px 0", "padding: 12px 14px",
+            "background: #ffffff",
+            f"border: 1px solid {s['border']}",
+            "border-radius: 6px",
+        ]),
+        "mp_table": "; ".join([
+            "width: 100%", "border-collapse: collapse", "border: 0",
+        ]),
+        "mp_avatar_cell": "; ".join([
+            "width: 44px", "vertical-align: middle", "padding: 0 12px 0 0",
+        ]),
+        "mp_avatar_img": "; ".join([
+            "width: 44px", "height: 44px", "border-radius: 6px",
+            "display: block",
+        ]),
+        "mp_avatar_fb": "; ".join([
+            "width: 44px", "height: 44px", "line-height: 44px",
+            "border-radius: 6px",
+            f"background: {avatar_grad}",
+            f"color: {s['avatar_text']}",
+            "text-align: center",
+            "font-size: 18px", "font-weight: 700",
+            "display: block",
+        ]),
+        "mp_text_cell": "vertical-align: middle",
+        "mp_arrow_cell": "; ".join([
+            "width: 16px", "vertical-align: middle", "text-align: right",
+            f"color: {s['text_tertiary']}", "font-size: 18px",
+        ]),
+        "mp_brand": "; ".join([
+            "margin: 0 0 2px 0", "font-size: 15px", "font-weight: 600",
+            f"color: {s['text_primary']}", "line-height: 1.3",
+        ]),
+        "mp_desc": "; ".join([
+            "margin: 0", "font-size: 12px",
+            f"color: {s['text_tertiary']}", "line-height: 1.5",
+        ]),
+        "mp_meta": "; ".join([
+            "margin: 4px 0 0 0", "font-size: 11px",
+            f"color: {s['text_tertiary']}",
         ]),
     }
 
@@ -253,7 +312,8 @@ def _parse_block(raw):
     out = {}
     for line in raw.split("\n"):
         m = re.match(
-            r"^\s*(name|avatar|tagline|bio|tags|footer|style)\s*:\s*(.*?)\s*$",
+            r"^\s*(name|avatar|tagline|bio|tags|footer|style"
+            r"|mp_brand|mp_desc|mp_meta|mp_avatar|mp_id)\s*:\s*(.*?)\s*$",
             line, re.IGNORECASE,
         )
         if not m:
@@ -282,6 +342,14 @@ def _parse_block(raw):
 
 
 def _render(fields, theme_id=None):
+    """渲染 author-card 为 WeChat-safe HTML。
+
+    设计要点(避免 WeChat 公众号编辑器静默剥块):
+      - 横排用 <table> 而非 flex
+      - 背景纯色而非 linear-gradient
+      - 零 box-shadow / -webkit-* / object-fit / overflow:hidden
+      - 嵌套深度尽量浅
+    """
     style = _resolve_style(fields.get("style"), theme_id)
     T = _build_tokens(style)
 
@@ -292,36 +360,90 @@ def _render(fields, theme_id=None):
     footer = html.escape(fields.get("footer") or "")
     tags = [html.escape(t) for t in (fields.get("tags") or [])]
 
+    # === Header:<table> 横排 avatar + name/tagline ===
     if avatar:
         avatar_html = (
             f'<img src="{html.escape(avatar)}" alt="{name}" '
-            f'style="{T["avatar"]}"/>'
+            f'style="{T["avatar_img"]}"/>'
         )
     else:
         avatar_html = (
             f'<span style="{T["avatar_fallback"]}">{name[:1]}</span>'
         )
 
+    header_right = f'<p style="{T["name"]}">{name}</p>'
+    if tagline:
+        header_right += f'<p style="{T["tagline"]}">{tagline}</p>'
+
     header = (
-        f'<section style="{T["header"]}">'
-        f'{avatar_html}'
-        f'<section style="min-width:0">'
-        f'<p style="{T["name"]}">{name}</p>'
-        + (f'<p style="{T["tagline"]}">{tagline}</p>' if tagline else "")
-        + f'</section></section>'
+        f'<table style="{T["header_table"]}" cellpadding="0" cellspacing="0">'
+        f'<tr>'
+        f'<td style="{T["avatar_cell"]}">{avatar_html}</td>'
+        f'<td style="{T["name_cell"]}">{header_right}</td>'
+        f'</tr>'
+        f'</table>'
     )
 
     bio_html = f'<p style="{T["bio"]}">{bio}</p>' if bio else ""
 
+    # === 公众号嵌入卡:<table> 横排 avatar + brand/desc/meta + 箭头 ===
+    mp_brand = html.escape(fields.get("mp_brand") or "")
+    mp_html = ""
+    if mp_brand:
+        mp_desc = html.escape(fields.get("mp_desc") or "")
+        mp_meta = html.escape(fields.get("mp_meta") or "")
+        mp_avatar = (fields.get("mp_avatar") or "").strip()
+        mp_id = (fields.get("mp_id") or "").strip()
+
+        if mp_avatar:
+            mp_av_html = (
+                f'<img src="{html.escape(mp_avatar)}" alt="{mp_brand}" '
+                f'style="{T["mp_avatar_img"]}"/>'
+            )
+        else:
+            mp_av_html = (
+                f'<span style="{T["mp_avatar_fb"]}">{mp_brand[:1]}</span>'
+            )
+
+        mp_text_cell = f'<p style="{T["mp_brand"]}">{mp_brand}</p>'
+        if mp_desc:
+            mp_text_cell += f'<p style="{T["mp_desc"]}">{mp_desc}</p>'
+        if mp_meta:
+            mp_text_cell += f'<p style="{T["mp_meta"]}">{mp_meta}</p>'
+
+        # mp-common-profile 占位标签 · WeChat 渲染器若识别会替换成真关注卡
+        mp_profile_tag = ""
+        if mp_id:
+            mp_profile_tag = (
+                f'<mp-common-profile data-pluginname="mpprofile" '
+                f'data-id="{html.escape(mp_id)}" '
+                f'data-nickname="{mp_brand}" '
+                f'data-signature="{mp_desc}" '
+                f'data-from="0"></mp-common-profile>'
+            )
+
+        mp_html = (
+            mp_profile_tag
+            + f'<section style="{T["mp_card_wrap"]}">'
+            + f'<table style="{T["mp_table"]}" cellpadding="0" cellspacing="0">'
+            + f'<tr>'
+            + f'<td style="{T["mp_avatar_cell"]}">{mp_av_html}</td>'
+            + f'<td style="{T["mp_text_cell"]}">{mp_text_cell}</td>'
+            + f'<td style="{T["mp_arrow_cell"]}">›</td>'
+            + f'</tr>'
+            + f'</table>'
+            + f'</section>'
+        )
+
     if tags:
         chips = "".join(f'<span style="{T["chip"]}">{t}</span>' for t in tags)
-        tags_html = f'<section style="{T["tags_wrap"]}">{chips}</section>'
+        tags_html = f'<p style="{T["tags_wrap"]}">{chips}</p>'
     else:
         tags_html = ""
 
     if footer:
         footer_html = (
-            f'<hr style="{T["divider"]}"/>'
+            f'<p style="{T["divider"]}">&nbsp;</p>'
             f'<p style="{T["footer"]}">{footer}</p>'
         )
     else:
@@ -329,9 +451,9 @@ def _render(fields, theme_id=None):
 
     return (
         f'<section style="{T["card"]}">'
-        f'<section style="{T["brand_strip"]}"></section>'
+        f'<section style="{T["brand_strip"]}">&nbsp;</section>'
         f'<section style="{T["content"]}">'
-        f'{header}{bio_html}{tags_html}{footer_html}'
+        f'{header}{bio_html}{mp_html}{tags_html}{footer_html}'
         f'</section></section>'
     )
 
@@ -346,8 +468,13 @@ def preprocess_author_card(markdown, theme_id=None):
     """Replace :::author-card blocks with inline HTML.
 
     :param theme_id: optional server/native theme id; auto-maps to a card style.
+
+    重要:CommonMark 规范下,block-level HTML 必须前后各空一行,markdown 解析器
+    才会原样保留 <section> 标签。md2wx 服务端遇到紧贴段落的 <section>...</section>
+    会被当成 inline HTML 折腾掉(实测会被 server 端剥成空白)。
+    所以这里输出的 HTML 前后强制加 \n\n。
     """
     def sub(match):
         fields = _parse_block(match.group(1))
-        return _render(fields, theme_id)
+        return "\n\n" + _render(fields, theme_id) + "\n\n"
     return _RE_CONTAINER.sub(sub, markdown)
