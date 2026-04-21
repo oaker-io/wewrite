@@ -312,8 +312,10 @@ state 必须 = `done`(已发布过一次)。
 | `idea_done` | 「idea N 用了」「标 idea N」「done idea N」 | 任意 |
 | `idea_remove` | 「删 idea N」「rm idea N」 | 任意 |
 | `write_idx` | 1-9 (单个数字) | state=briefed |
-| `next` | 「ok」「继续」「好」「行」「next」 | state=wrote/imaged 走对应下一步 |
-| `revise` | 「改 XX」「加段 XX」「重写」 | state=wrote |
+| `next`(确认词) | 「ok」「继续」「好」「行」「next」 | 任意 |
+| `next`(wrote 推进语) | 「制作配图」「生图」「出图」「画图」「配图」「做图」「下一步」「可以了」「通过」 | state=wrote → images.py |
+| `next`(imaged 推进语) | 「推草稿」「推送草稿箱」「发草稿」「发布草稿」「图片可以」「通过了」 | state=imaged → publish.py |
+| `revise` | 「改 XX」「加段 XX」「重写」「去掉 XX」 | state=wrote |
 | `revise_image` | 「重做 cover」「换 chart-3」 | state=imaged |
 | `republish` | 「重新排版」「重新发布」「重发」「重排」 | state=done |
 | `reset` | 「pass」「跳过」「放弃」「reset」 | 任意 |
