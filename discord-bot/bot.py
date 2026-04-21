@@ -199,6 +199,55 @@ def _classify_intent(text: str, state: str) -> tuple[str, dict]:
     if t in short_ok:
         return ("next", {})
 
+    # ============================================================
+    # === Idea 库管理(优先级高于 tutorial_idea / custom_idea) ===
+    # 让「存 idea: XX」不被「写 XX」截胡
+    # ============================================================
+
+    # idea_done · 标已用 ── 优先于 idea_save / idea_remove(精确匹配)
+    m_done = re.search(r'(?:^|\b)(?:done\s*idea|标\s*idea|idea)\s+(\d+)\s*(?:用了?)?$', raw, re.IGNORECASE)
+    if m_done:
+        # 进一步细分:idea\s+\d+\s*用了 / 标 idea N / done idea N
+        m1 = re.match(r'^idea\s+(\d+)\s*用了?\s*$', raw, re.IGNORECASE)
+        m2 = re.match(r'^标\s*idea\s+(\d+)\s*$', raw, re.IGNORECASE)
+        m3 = re.match(r'^done\s*idea\s+(\d+)\s*$', raw, re.IGNORECASE)
+        for mm in (m1, m2, m3):
+            if mm:
+                return ("idea_done", {"id": int(mm.group(1))})
+
+    # idea_remove · 删
+    m_rm = re.match(r'^(?:删除|删|rm)\s*idea\s+(\d+)\s*$', raw, re.IGNORECASE)
+    if m_rm:
+        return ("idea_remove", {"id": int(m_rm.group(1))})
+
+    # idea_list · 列 idea 库
+    list_kw = ["我的 idea", "我的idea", "今日 idea", "今日idea", "idea 库", "idea库",
+               "有什么 idea", "有什么idea", "看看 idea", "看看idea",
+               "idea list", "列 idea", "列idea"]
+    if any(kw in t for kw in list_kw):
+        return ("idea_list", {})
+
+    # idea_save (主) · 显式带 idea 关键词
+    m_save = re.match(r'^(?:存|记|保存)\s*(?:个)?\s*idea\s*[::,,、]?\s*(.+)', raw, re.IGNORECASE)
+    if m_save:
+        title = m_save.group(1).strip()
+        if title:
+            cat = "tutorial" if any(k in title for k in ["教程", "干货", "方法论", "手把手"]) \
+                else "hotspot" if any(k in title for k in ["热点", "反共识", "吐槽"]) \
+                else "flexible"
+            return ("idea_save", {"title": title, "category": cat})
+
+    # idea_save (后备) · 「存/记下/记录 XXX」 + 暗示词 + 长度 ≥ 4
+    m_save2 = re.match(r'^(?:存|记下|记录)\s*[::,,、]?\s*(.+?)$', raw)
+    if m_save2:
+        body = m_save2.group(1).strip()
+        hint_kw = ["想写", "以后写", "值得写", "可以写", "要写", "得写"]
+        if len(body) >= 4 and any(h in body for h in hint_kw):
+            cat = "tutorial" if any(k in body for k in ["教程", "干货", "方法论", "手把手"]) \
+                else "hotspot" if any(k in body for k in ["热点", "反共识", "吐槽"]) \
+                else "flexible"
+            return ("idea_save", {"title": body, "category": cat})
+
     # === 干货系列 · tutorial_idea ===
     # 触发词:教程/干货/方法论/手把手/how to/如何 + 内容
     # 优先级在 custom_idea 之前 · 避免「教程: XX」被当成普通 custom_idea 走 hotspot 系列
@@ -394,6 +443,48 @@ async def on_message(message: discord.Message):
         await status.edit(
             content=(f"✓ 文章就绪,已推预览 · 回 `ok` 进生图" if rc == 0
                      else f"❌ 写作失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "idea_save":
+        title = kw["title"]
+        category = kw.get("category", "flexible")
+        status = await message.reply(f"💾 存 idea(分类:{category})...")
+        rc, out = await _run_workflow_script(
+            "idea.py", ["add", title, "--category", category], status,
+        )
+        await status.edit(
+            content=(out.strip()[-1800:] if rc == 0
+                     else f"❌ 存 idea 失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "idea_list":
+        status = await message.reply("📋 列 idea 库...")
+        rc, out = await _run_workflow_script("idea.py", ["list"], status)
+        await status.edit(
+            content=(out.strip()[-1800:] if rc == 0
+                     else f"❌ 列 idea 失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "idea_done":
+        idea_id = kw["id"]
+        status = await message.reply(f"✓ 标 idea {idea_id} 已用...")
+        rc, out = await _run_workflow_script("idea.py", ["done", str(idea_id)], status)
+        await status.edit(
+            content=(out.strip()[-1800:] if rc == 0
+                     else f"❌ 标已用失败\n```\n{out[-600:]}\n```")
+        )
+        return
+
+    if action == "idea_remove":
+        idea_id = kw["id"]
+        status = await message.reply(f"🗑️ 删 idea {idea_id}...")
+        rc, out = await _run_workflow_script("idea.py", ["rm", str(idea_id)], status)
+        await status.edit(
+            content=(out.strip()[-1800:] if rc == 0
+                     else f"❌ 删除失败\n```\n{out[-600:]}\n```")
         )
         return
 
