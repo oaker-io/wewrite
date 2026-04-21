@@ -54,7 +54,7 @@
 | | `story-mountain` | 故事山(起伏) | ★★★ |
 | | `comic-strip` | 连环漫画 | ★★ |
 
-## Style 完整菜单(20 种)
+## Style 完整菜单(24 种)
 
 按**调性**分组:
 
@@ -80,6 +80,10 @@
 | | `origami` | 折纸 | ★★ |
 | | `craft-handmade` | 手工质感 | ★★ |
 | | `subway-map` | 地铁图 | ★★★ |
+| **Mockup(干货系列首选)** | `mockup-macos-app` | macOS app 窗口截图(traffic-light + 工具栏) | ★★★★★ |
+| | `mockup-ios-mobile` | iOS 手机 UI 截图(状态栏 + Dynamic Island) | ★★★★★ |
+| | `mockup-terminal` | 终端窗口截图(iTerm/Warp 风) | ★★★★★ |
+| | `mockup-code-editor` | VSCode/Cursor 编辑器截图(file tree + 代码) | ★★★★★ |
 
 ## 推荐搭配(WeWrite 场景)
 

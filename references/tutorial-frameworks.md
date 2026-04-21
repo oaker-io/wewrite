@@ -233,7 +233,14 @@
 
 封面**主标题就是文章标题**,不要副标题缩写。
 - 推荐 layout:`bento-grid`(N 个要点速览)/ `dashboard`(评分卡)/ `comparison-matrix`(对比表)
-- 推荐 style:`ikea-manual`(说明书风格 · 教程感强)/ `chalkboard`(黑板风 · 教学感)/ `corporate-memphis`(简洁专业)
+- 推荐 style(优先 mockup 系列 · 教程感最强):
+  - `mockup-macos-app`(macOS 工具评测 / 桌面 app 教程 · 一眼是真实软件)
+  - `mockup-ios-mobile`(移动 app 教程 / iOS 体验 · 状态栏 + Dynamic Island 辨识度高)
+  - `mockup-terminal`(CLI / DevOps / shell 脚本类 · 深色等宽字体硬核感)
+  - `mockup-code-editor`(AI Coding / Cursor / VSCode 类 · file tree + 代码场景)
+  - `ikea-manual`(说明书风格 · 通用步骤教程)
+  - `chalkboard`(黑板风 · 教学/方法论沉淀)
+  - `corporate-memphis`(简洁专业 · 工具评测兜底)
 - 避免 style:`kawaii` / `claymation` / `cyberpunk-neon`(干货系列要严肃感)
 
 ---
