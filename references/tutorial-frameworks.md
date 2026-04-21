@@ -1,7 +1,14 @@
-# 干货 / 教程 / 方法论 系列写作框架库
+# 干货 / 教程 / 方法论 系列写作框架库(微信公众号长文版)
 
 > 与 `frameworks.md`(热点观察 / 非共识解读)互补 —— 这份专门给**干货系列**用。
 > 由 `write.py --style tutorial` 调用,bot 触发词:「教程: XX / 干货: XX / 方法论: XX / how to XX / 如何 XX / 手把手 XX」。
+>
+> **跨平台对应**(单向 vendor + 平台转化):
+> - 本文(wewrite)= 微信公众号长文版 · T1-T5 · 2500-4500 字
+> - `~/xwrite/references/frameworks/tutorial-thread.md` = X thread 版 · T1-T5(命名一致 · 转化 thread 节奏)
+> - `~/xwrite/personas/tutorial-instructor.yaml` = X 平台 persona · 从本仓 `personas/tutorial-instructor.yaml` 适配
+>
+> 大主题建议**先公众号后 X thread**,引流互通(详见 xwrite 那边末尾「跟 wewrite 长文版的连接」)。
 
 ## 干货 vs 热点 · 一图看懂区别
 
