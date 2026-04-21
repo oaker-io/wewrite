@@ -34,8 +34,8 @@
 - ✅ **视觉工作流**:T0/T1/T2 三档 · 高密度 infographic-dense 模板 · 21 layout × 20 style(vendor 自 baoyu-infographic)
 - ✅ **图像生成**:Poe nano-banana-2 主 · Gemini API 备 · quota-aware fallback · overlay_text.py 中文叠字兜底
 - ✅ **排版双引擎**:native(自带 16 主题,零依赖)+ md2wx(50 主题,`--engine md2wx` 切换)
-- ✅ **`:::author-card` 容器**:8 style preset · 61 theme 自动映射(50 md2wx + 16 native + 1 default)· 渐变 + 顶部品牌色条
-- ✅ **微信草稿箱发布**:`cli.py publish` 自动上传图片 + src 重写 · AppID/AppSecret + IP 白名单已配
+- ✅ **`:::author-card` 容器**:8 style preset · 66 theme 自动映射(50 md2wx + 16 native)· **table 布局**(WeChat-safe)+ linear-gradient 渐变 + 嵌入公众号关注卡视觉(`mp_brand` 字段)
+- ✅ **微信草稿箱发布**:`cli.py publish` 自动上传图片 + src 重写 · 默认接 `sanitize` 中间件(去 H1 / 清 cover alt / 兜底 author-card / 补 mp_brand)· AppID/AppSecret + IP 白名单已配
 - ✅ **routine 已上线**:launchd 每日 08:30 · `daily-brief.sh` → `brief.py` → AI 白名单过滤 → Discord Top N · Bark/ntfy 仅作异常降级
 - ✅ **Discord bot**:入站 `bot.py` daemon · ACL 白名单 · 出站 `push.py` CLI(主动推送 + DM/channel fallback + 图片附件)
 - ✅ **个人 IP 化**:author=智辰 · brand=宸的 AI 掘金笔记 · 私域二维码 + aipickgold 推广固定在文末
@@ -43,13 +43,13 @@
 ### ✅ **阶段 B 已完成** · 手机审阅驱动的分步流程
 - `scripts/workflow/{brief,write,images,publish,revise,revise_image}.py` 6 个子脚本
 - `output/session.yaml` 状态机(`_state.py` 维护 · idle/briefed/wrote/imaged/done)
-- `bot.py` · `_classify_intent()` 7 种 action 自然语言路由:
-  - brief(今日热点/开始)· custom_idea(写 XXX)· write_idx(1-5)
-  - revise(state=wrote · 改 XX / 加段 XX / 重写)
-  - revise_image(state=imaged · 重做 cover / 换 chart-3)
+- `bot.py` · `_classify_intent()` 8 种 action 自然语言路由:
+  - brief(今日热点/开始/「选题」单独成词)· custom_idea(写 XXX / **选题:XXX** / **主题:XXX** / **话题:XXX**)
+  - write_idx(1-5)· revise(state=wrote · 改 XX / 加段 XX / 重写)
+  - revise_image(state=imaged · 重做 cover / 换 chart-3)· **republish**(state=done · 重新排版/重新发布)
   - next(ok/继续)· reset(pass/跳过)
 - `routine/daily-brief.sh` · 08:30 调 brief.py · AI 白名单过滤 · Top N 推 Discord
-- `tests/test_revise.py` · 34 条 smoke + intent 路由 + 字数警告测试(全绿)
+- `tests/test_revise.py` · 34 条 + `tests/test_sanitize.py` · 81 条(全绿)
 
 ## 关键文件地图
 
@@ -59,8 +59,9 @@
 | `style.yaml` | 个人配置(author/brand/persona/topics) | 在 gitignore · 本地修改 |
 | `config.yaml` | API keys + wechat appid/secret | 在 gitignore · 永不 commit |
 | `secrets/keys.env` | 集中密钥存储 | chmod 600 · 在 gitignore |
-| `toolkit/author_card.py` | `:::author-card` 容器 Python 端 | **必须同步** `md2wx/skill/src/preprocessor.ts`(色板 + 映射) |
-| `toolkit/cli.py` | CLI 入口(preview / publish / themes) | 加新命令从这里开始 |
+| `toolkit/author_card.py` | `:::author-card` 容器 Python 端 | **必须同步** `md2wx/skill/src/preprocessor.ts` · **CSS 严守 WeChat 白名单**(见下) |
+| `toolkit/sanitize.py` | 发布前四件套兜底(H1/cover-alt/author-card/mp_brand) | 纯函数幂等 · cli.py + workflow.publish.py 双接入 |
+| `toolkit/cli.py` | CLI 入口(preview / publish / themes) | `publish` 默认开 sanitize · `--no-sanitize` opt-out |
 | `discord-bot/bot.py` | 入站 daemon(常驻) | launchctl 管理 · 修改后 `unload + load` 重启 |
 | `discord-bot/push.py` | 出站 CLI(一次性) | routine + hook + shell 都能调 |
 | `routine/daily-brief.sh` | 每日 08:30 推送 | 阶段 B 要改这个串起全流程 |
@@ -116,6 +117,34 @@ tail -f discord-bot/logs/bot.out.log
 4. 改 `:::author-card` 或 `author_card.py` 时**必须同步** `md2wx/skill/src/preprocessor.ts` — 两边色板/映射表要一致
 5. 改代码前 `git status` 确认 clean · 改完 commit 习惯中英文都有(代码改动用英文,中文写业务决策)
 6. 密钥永远不在对话里出现完整值 — 只说"已填好"
+
+## WeChat 公众号 CSS 白名单(2026-04-20 踩坑实战)
+
+WeChat 公众号编辑器对**草稿写入的内联 HTML** 应用严格 CSS 白名单。**不在白名单**的属性
+会让渲染器**静默丢弃整个块**——`draft/get` API 拉的 HTML 完整存在,但用户在草稿箱/预览/手机端
+都看不到。改 `:::author-card` 或新增任何**自定义内联 HTML 块**时严格遵守:
+
+**❌ 必死(整块消失)**:
+- `display: flex` / `gap` / `align-items` / `justify-content` 任何 flex 属性
+- `-webkit-line-clamp` / `-webkit-box` / `object-fit` 任何 -webkit-* 前缀
+- `text-overflow: ellipsis`
+- `position: absolute/fixed/relative`
+
+**✅ 实测安全**:
+- `linear-gradient(135deg/90deg, ...)` 渐变(背景 / 头像 / 品牌条)
+- `<table cellpadding=0 cellspacing=0>` + `<tr>` + `<td vertical-align: middle>` 横排布局
+- `border-radius` / `padding` / `margin` / `border` / `background-color` / 字体 / 行高 / 颜色
+
+**⚠️ 不确定**:`box-shadow`(暂不用,稳)
+
+**调试 WeChat 渲染问题的方法论**:
+1. 永远用 `publisher.get_draft(token, media_id)` 拉**真实 HTML**对比,别只信本地浏览器渲染
+2. HTML 在 ≠ 渲染出来——WeChat 可能静默剥块
+3. 用户报「看不到」连续 2 次以上,先怀疑自己的修复假设而非用户位置感
+4. 详见 `~/.claude/projects/-Users-mahaochen-wechatgzh-wewrite/memory/` 下两条 memory
+
+`toolkit/author_card.py:_build_tokens` 是 WeChat-safe 范本(table 布局 + 渐变 + 零 shadow)。
+新加内联 HTML 块前**先看那里**。
 
 ## 个人 IP 体系(固化,不要乱改)
 

@@ -19,6 +19,8 @@ optimization-results.tsv
 # Generated output
 output/
 !output/.gitkeep
+# Sanitize 临时副本(publish.py 写入 · 完成后自动清理 · 双保险)
+*._publish.md
 
 # Exemplar library (user-specific content)
 references/exemplars/*.md

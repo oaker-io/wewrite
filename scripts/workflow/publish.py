@@ -90,11 +90,18 @@ def main():
         print(f"→ sanitized: {publish_md.name}")
     publish_md_rel = str(publish_md.relative_to(ROOT))
 
-    media_id, _out = run_publish(
-        md_path=publish_md_rel,
-        cover=str(cover.relative_to(ROOT)),
-        title=title,
-    )
+    try:
+        media_id, _out = run_publish(
+            md_path=publish_md_rel,
+            cover=str(cover.relative_to(ROOT)),
+            title=title,
+        )
+    finally:
+        # 清掉 sanitize 临时副本(避免 output/ 堆积冗余文件)
+        if publish_md != md_abs and publish_md.exists():
+            try: publish_md.unlink()
+            except OSError: pass
+
     _state.advance(_state.STATE_DONE, draft_media_id=media_id)
     push_done(media_id, title)
     print(f"✓ published · media_id={media_id}")
