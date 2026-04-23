@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+from datetime import datetime
 from pathlib import Path
 
 # 末尾压轴卡片 · style.yaml 的 brand 字段 = 宸的 AI 掘金笔记
@@ -31,6 +32,19 @@ mp_desc: 记录 AI Agent 与工具的真实使用过程与长期价值。
 mp_meta: 关注获取每日 AI 非共识 · 掘金看智辰
 tags: [AI 非共识, AI Coding, 武汉创业, Skill 开发]
 footer: 扫码加我微信备注「AI Coding」· 我会拉你进读者群 · 武汉朋友可扫下方 openclaw 群码
+:::
+""".strip()
+
+# 短文(副推位)mini 版 · 不带 bio + 复杂 tags · 只 mp_brand + 1 行 footer
+# 给 sanitize_for_publish(..., shortform=True) 用
+DEFAULT_BOTTOM_CARD_SHORTFORM = """
+:::author-card
+name: 智辰老师
+tagline: AI 非共识 · 掘金看智辰
+mp_brand: 宸的 AI 掘金笔记
+mp_desc: 每天 1 篇 AI 真信号 + 1-2 篇副推。
+mp_meta: 关注 · 掘金看智辰
+footer: 扫码加我微信备注「AI」· 拉你进读者群
 :::
 """.strip()
 
@@ -107,23 +121,76 @@ def _ensure_mp_brand_in_last_card(
     return text[:last.start(2)] + new_body + text[last.end(2):]
 
 
-def sanitize_for_publish(md: str, *, bottom_card: str = DEFAULT_BOTTOM_CARD) -> str:
-    """四件套清理 · 幂等。"""
+# aipickgold UTM tracking · 用户从公众号点过来的流量统计
+# 加 ?utm_source=mp&utm_date=YYYY-MM-DD 到 aipickgold.com 链接
+# 末尾 nginx log 看 referer + query 即可
+_RE_AIPICKGOLD_LINK = re.compile(
+    r'(https?://(?:www\.)?aipickgold\.com[^\s\)\]"\']*)'
+)
+
+
+def _add_utm_to_aipickgold(md: str, *, date_str: str | None = None) -> str:
+    """给所有 aipickgold.com 链接加 UTM 参数 · 已有 utm 的不重加。"""
+    if date_str is None:
+        date_str = datetime.now().strftime("%Y-%m-%d")
+    utm = f"utm_source=mp&utm_date={date_str}"
+
+    def _add(m: re.Match) -> str:
+        url = m.group(1)
+        # 已经有 utm_source · 不动
+        if "utm_source=" in url:
+            return url
+        sep = "&" if "?" in url else "?"
+        return f"{url}{sep}{utm}"
+
+    return _RE_AIPICKGOLD_LINK.sub(_add, md)
+
+
+def sanitize_for_publish(
+    md: str,
+    *,
+    bottom_card: str | None = None,
+    shortform: bool = False,
+) -> str:
+    """四件套清理 · 幂等。
+
+    四件套 + 涨粉漏斗 UTM:
+      1. _strip_leading_h1
+      2. _clear_cover_alt
+      3. _ensure_bottom_card
+      4. _ensure_mp_brand_in_last_card
+      5. _add_utm_to_aipickgold(2026-04-23 加 · 涨粉追踪)
+
+    Args:
+        bottom_card: 自定义末尾卡片 · None 时按 shortform 决定走 DEFAULT 还是 SHORTFORM
+        shortform: True 时走短文 mini 版 author-card(2026-04-23 加)
+    """
+    if bottom_card is None:
+        bottom_card = DEFAULT_BOTTOM_CARD_SHORTFORM if shortform else DEFAULT_BOTTOM_CARD
     md = _strip_leading_h1(md)
     md = _clear_cover_alt(md)
     md = _ensure_bottom_card(md, bottom_card)
     md = _ensure_mp_brand_in_last_card(md)
+    md = _add_utm_to_aipickgold(md)
     return md
 
 
-def prepare_for_publish(md_path: Path, *, suffix: str = "._publish.md") -> Path:
+def prepare_for_publish(
+    md_path: Path,
+    *,
+    suffix: str = "._publish.md",
+    shortform: bool = False,
+) -> Path:
     """读取 md_path · sanitize · 写到同目录的 <stem>._publish.md · 返回新路径。
 
     如果清理后内容与原文件一致,直接返回原路径(不写临时文件)。
     临时文件与原文件同目录,确保 markdown 内的相对图片路径仍可解析。
+
+    Args:
+        shortform: True 时用短文 mini author-card 兜底(2026-04-23 加)
     """
     src = md_path.read_text(encoding="utf-8")
-    cleaned = sanitize_for_publish(src)
+    cleaned = sanitize_for_publish(src, shortform=shortform)
     if cleaned == src:
         return md_path
     out = md_path.with_name(md_path.stem + suffix)

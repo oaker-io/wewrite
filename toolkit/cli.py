@@ -7,6 +7,7 @@ Usage:
     python cli.py publish article.md --appid wx123 --secret abc123
     python cli.py themes
 """
+from __future__ import annotations
 
 import argparse
 import sys
@@ -18,7 +19,7 @@ import yaml
 from converter import WeChatConverter, preview_html
 from theme import load_theme, list_themes
 from wechat_api import get_access_token, upload_image, upload_thumb
-from publisher import create_draft, create_image_post
+from publisher import create_draft, create_draft_bundle, create_image_post
 
 # Config file search order
 CONFIG_PATHS = [
@@ -133,12 +134,24 @@ def cmd_publish(args):
         else:
             print(f"Warning: image not found: {img_src} (searched {md_dir})")
 
-    # Upload cover image if provided
+    # Upload cover / thumb
+    # 优先级:--thumb (1:1 看一看小图) > --cover (2.35:1 大封面)
+    # 看一看 feed 用 thumb_media_id 显示右侧 80×80 缩略 · 1:1 cover-square 在小尺寸下文字更清晰
+    # 没传 --thumb 但传了 --cover 时 · 用 cover 当 thumb(向后兼容)
     thumb_media_id = None
-    if args.cover:
-        print(f"Uploading cover: {args.cover}")
+    thumb_path = getattr(args, "thumb", None)
+    if thumb_path:
+        print(f"Uploading thumb (1:1 看一看小图): {thumb_path}")
+        thumb_media_id = upload_thumb(token, thumb_path)
+        print(f"  -> media_id: {thumb_media_id}")
+    elif args.cover:
+        print(f"Uploading cover (作 thumb): {args.cover}")
         thumb_media_id = upload_thumb(token, args.cover)
         print(f"  -> media_id: {thumb_media_id}")
+
+    # 评论开关(默认开 · --no-comments 关 · --fans-only-comments 只允许粉丝评论)
+    open_comment = not getattr(args, "no_comments", False)
+    fans_only_comment = getattr(args, "fans_only_comments", False)
 
     # Create draft
     title = args.title or result.title or input_path.stem
@@ -150,9 +163,160 @@ def cmd_publish(args):
         digest=digest,
         thumb_media_id=thumb_media_id,
         author=author,
+        open_comment=open_comment,
+        fans_only_comment=fans_only_comment,
     )
 
     print(f"\nDraft created! media_id: {draft.media_id}")
+    print(f"  comments: {'开' if open_comment else '关'} · fans_only: {'是' if fans_only_comment else '否'}")
+
+
+def _process_one_article(
+    md_path: Path,
+    *,
+    engine: str,
+    theme_name: str,
+    font_size,
+    cover: str | None,
+    thumb: str | None,
+    title: str | None,
+    digest: str | None,
+    author: str | None,
+    no_sanitize: bool,
+    shortform: bool,
+    token: str,
+) -> dict:
+    """处理单篇 md(sanitize → convert → 上传图 → 上传 cover/thumb)· 返回 article dict for create_draft_bundle。
+
+    bundle 流程的子函数 · 不直接调 API。
+    """
+    if not no_sanitize:
+        from sanitize import prepare_for_publish
+        sanitized = prepare_for_publish(md_path, shortform=shortform)
+        if sanitized != md_path:
+            print(f"  Sanitized [{md_path.name}]: -> {sanitized.name}")
+        md_path = sanitized
+
+    converter, _theme = _build_converter(engine, theme_name, font_size)
+    result = converter.convert_file(str(md_path))
+    print(f"  Title: {result.title}")
+    print(f"  Digest: {result.digest}")
+    print(f"  Images: {len(result.images)} · Engine: {engine}")
+
+    md_dir = md_path.resolve().parent
+    html = result.html
+    for img_src in result.images:
+        if img_src.startswith(("http://", "https://")):
+            continue
+        img_path = Path(img_src)
+        if not img_path.is_absolute() and not img_path.exists():
+            img_path = md_dir / img_src
+        if img_path.exists():
+            wechat_url = upload_image(token, str(img_path))
+            html = html.replace(img_src, wechat_url)
+        else:
+            print(f"  Warning: image not found: {img_src}")
+
+    thumb_media_id = None
+    if thumb:
+        print(f"  Uploading thumb (1:1): {thumb}")
+        thumb_media_id = upload_thumb(token, thumb)
+    elif cover:
+        print(f"  Uploading cover (作 thumb): {cover}")
+        thumb_media_id = upload_thumb(token, cover)
+
+    return {
+        "title": (title or result.title or md_path.stem)[:64],
+        "html": html,
+        "digest": (digest or result.digest)[:120],
+        "thumb_media_id": thumb_media_id,
+        "author": author,
+    }
+
+
+def cmd_publish_bundle(args):
+    """一次推 1-8 篇 (主推 + N 副推) · 占同一次群发配额。
+
+    用法:
+      cli.py publish-bundle \\
+        --main output/2026-04-23-cursor.md --main-cover output/images/cover.png \\
+                                           --main-thumb output/images/cover-square.png \\
+        --companion output/2026-04-23-cursor-quick.md --companion-thumb output/images/cover-square.png \\
+        --companion output/2026-04-23-cursor-pitfall.md --companion-thumb output/images/cover-square2.png \\
+        --engine md2wx --theme focus-navy
+
+    默认评论开 · 全部允许非粉丝评论(涨粉漏斗)。
+    """
+    cfg = load_config()
+    wechat_cfg = cfg.get("wechat", {})
+
+    appid = args.appid or wechat_cfg.get("appid")
+    secret = args.secret or wechat_cfg.get("secret")
+    theme_name = args.theme or cfg.get("theme", "professional-clean")
+    author = args.author or wechat_cfg.get("author")
+
+    if not appid or not secret:
+        print("Error: --appid and --secret required (or set in config.yaml)", file=sys.stderr)
+        sys.exit(1)
+
+    if not args.main:
+        print("Error: --main 必填(主推 md 路径)", file=sys.stderr)
+        sys.exit(1)
+
+    # 副推数组(--companion 可重复)
+    companions = args.companion or []
+    if len(companions) > 7:
+        print(f"Error: 副推最多 7 篇(微信总数限 8)· 收到 {len(companions)} 篇", file=sys.stderr)
+        sys.exit(1)
+
+    # thumb / cover 副推数组(必须跟 --companion 一一对应)
+    companion_thumbs = args.companion_thumb or []
+    companion_covers = args.companion_cover or []
+    if companion_thumbs and len(companion_thumbs) != len(companions):
+        print(f"Error: --companion-thumb 数 {len(companion_thumbs)} 跟 --companion 数 {len(companions)} 不匹配", file=sys.stderr)
+        sys.exit(1)
+    if companion_covers and len(companion_covers) != len(companions):
+        print(f"Error: --companion-cover 数 {len(companion_covers)} 跟 --companion 数 {len(companions)} 不匹配", file=sys.stderr)
+        sys.exit(1)
+
+    token = get_access_token(appid, secret)
+    print(f"Access token obtained · 准备 publish-bundle (1 主 + {len(companions)} 副)")
+
+    # 主推
+    print(f"\n[main] {args.main}")
+    main_article = _process_one_article(
+        Path(args.main),
+        engine=args.engine, theme_name=theme_name, font_size=getattr(args, "font_size", None),
+        cover=args.main_cover, thumb=args.main_thumb,
+        title=args.main_title, digest=args.main_digest,
+        author=author, no_sanitize=args.no_sanitize,
+        shortform=False,  # 主推用完整 author-card
+        token=token,
+    )
+
+    # 副推(全部当短文 sanitize · mini author-card)
+    bundle_articles = [main_article]
+    for i, comp_md in enumerate(companions):
+        thumb = companion_thumbs[i] if companion_thumbs else None
+        cover = companion_covers[i] if companion_covers else None
+        print(f"\n[companion-{i+1}] {comp_md}")
+        comp_article = _process_one_article(
+            Path(comp_md),
+            engine=args.engine, theme_name=theme_name, font_size=getattr(args, "font_size", None),
+            cover=cover, thumb=thumb,
+            title=None, digest=None,
+            author=author, no_sanitize=args.no_sanitize,
+            shortform=True,  # 副推用 mini author-card
+            token=token,
+        )
+        bundle_articles.append(comp_article)
+
+    print(f"\n→ create_draft_bundle ({len(bundle_articles)} 篇)...")
+    draft = create_draft_bundle(token, bundle_articles)
+    print(f"\nBundle draft created! media_id: {draft.media_id}")
+    print(f"  共 {len(bundle_articles)} 篇 (1 main + {len(companions)} companions)")
+    print(f"  评论:全部默认开 · 允许非粉丝评论")
+    print(f"  这 1 个 media_id 占用 1 次群发配额(订阅号每日 1 次)")
 
 
 def cmd_themes(args):
@@ -419,6 +583,36 @@ def main():
     p_publish.add_argument("--font-size", default=None, help="Font size (md2wx only, e.g. 16px)")
     p_publish.add_argument("--no-sanitize", action="store_true",
                            help="Skip H1/cover-alt/author-card auto-sanitize (default off)")
+    p_publish.add_argument("--thumb", default=None,
+                           help="1:1 看一看小图(优先 · 用作 thumb_media_id · 推荐 1080×1080)")
+    p_publish.add_argument("--no-comments", action="store_true",
+                           help="关闭评论(默认开评论)")
+    p_publish.add_argument("--fans-only-comments", action="store_true",
+                           help="只允许粉丝评论(默认允许所有人 · 拉路过转化)")
+
+    # publish-bundle (主推 + 0-7 副推 · 占 1 次群发配额)
+    p_bundle = sub.add_parser("publish-bundle",
+                              help="一次推 1 主 + 0-7 副 · 占 1 次群发配额(订阅号每日 1 次)")
+    p_bundle.add_argument("--main", required=True, help="主推 md 路径")
+    p_bundle.add_argument("--main-cover", help="主推大封面 (2.35:1)")
+    p_bundle.add_argument("--main-thumb", help="主推 1:1 看一看小图(优先于 main-cover)")
+    p_bundle.add_argument("--main-title", help="主推标题(覆盖 H1)")
+    p_bundle.add_argument("--main-digest", help="主推摘要")
+    p_bundle.add_argument("--companion", action="append", default=[],
+                          help="副推 md 路径(可多次 · 最多 7 篇)")
+    p_bundle.add_argument("--companion-thumb", action="append", default=[],
+                          help="副推 1:1 thumb(必须跟 --companion 数对齐)")
+    p_bundle.add_argument("--companion-cover", action="append", default=[],
+                          help="副推大封面(可选 · 一般用 thumb)")
+    p_bundle.add_argument("-t", "--theme", default=None, help="主题名")
+    p_bundle.add_argument("--engine", choices=["native", "md2wx"], default="md2wx",
+                          help="渲染引擎")
+    p_bundle.add_argument("--font-size", default=None)
+    p_bundle.add_argument("--appid", default=None)
+    p_bundle.add_argument("--secret", default=None)
+    p_bundle.add_argument("--author", default=None)
+    p_bundle.add_argument("--no-sanitize", action="store_true",
+                          help="跳过 sanitize(默认开 · 主推完整 card · 副推 mini card)")
 
     # themes
     sub.add_parser("themes", help="List available themes")
@@ -449,6 +643,8 @@ def main():
             cmd_preview(args)
         elif args.command == "publish":
             cmd_publish(args)
+        elif args.command == "publish-bundle":
+            cmd_publish_bundle(args)
         elif args.command == "themes":
             cmd_themes(args)
         elif args.command == "image-post":

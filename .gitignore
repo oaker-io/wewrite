@@ -14,6 +14,9 @@ lessons/
 # 个人身份档案(从 xwrite vendor · 个人数据 · 不入 git)
 identity/
 
+# 用户上传的参考截图(数 MB · 仅本地参考用 · 不入 git)
+公众号截图/
+
 # Optimized writing parameters (user runs loop to generate their own)
 writing-config.yaml
 optimization-results.tsv

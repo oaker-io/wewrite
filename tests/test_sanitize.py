@@ -465,13 +465,15 @@ class PublishWorkflowStateGating(unittest.TestCase):
 
     def _run_main_with_state(self, state):
         """mock _state.load() · 调 publish.main · 返回 (exit_code, stderr)。"""
-        import io, contextlib
+        import io, contextlib, sys as _sys
         import unittest.mock as mock
         publish = self._import_publish()
 
         # mock _state.load 返回指定 state · 没 article_md 故第二关 sys.exit(1)
+        # mock sys.argv 防 publish.main 的 argparse 误吃 unittest 的 argv
         with mock.patch.object(publish._state, "load",
-                               return_value={"state": state, "article_md": None}):
+                               return_value={"state": state, "article_md": None}), \
+             mock.patch.object(_sys, "argv", ["publish.py"]):
             buf = io.StringIO()
             try:
                 with contextlib.redirect_stderr(buf):

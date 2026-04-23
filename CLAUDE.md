@@ -51,6 +51,21 @@
 - `routine/daily-brief.sh` · 08:30 调 brief.py · AI 白名单过滤 · Top N 推 Discord
 - `tests/test_revise.py` · 34 条 + `tests/test_sanitize.py` · 81 条(全绿)
 
+### ✅ **阶段 E 已完成** · 全自动 1 篇/天 + 7 天内容轮播(2026-04-23)
+- `config/auto-schedule.yaml` 7 天 category 轮播(周一 AI 使用手册 / 周二干货 / 周三 ★案例 / 周四评测 / 周五热点 / 周六轻量 / 周日合集)
+- `scripts/workflow/auto_pick.py` LLM-free 选题(weekday → category → idea_bank Top 1 主+1 备)
+- `scripts/workflow/auto_review.py` 5+1 维度自审(钩子/字数/图数/口头禅/禁忌词 + 案例真实感)
+- `references/visuals/styles/case-realistic.md` ★ 案例配图拟真套件(5 张图 prompt + negative + 信任三件套)
+- `write.py` `_build_prompt_case()` · 案例类强制要求具体数字 + 5 张拟真截图占位符
+- `images.py --auto --style case` · 案例类走 case-realistic 套件 · 取消 ok gate
+- `publish.py --auto` · 全自动推草稿 · push Discord 通知 · 不等用户回复
+- `sanitize.py` · aipickgold 链接自动加 UTM(utm_source=mp&utm_date=YYYY-MM-DD)
+- 7 个 launchd plist:`com.wewrite.auto-{pick,write,images,review,publish,notify,stats}.plist`
+- 时间表:07:00 pick → 08:00 write → 10:00 images → 11:00 review → 12:00 publish → 19:30 群发提醒 → 周日 02:00 回填
+- `routine/install-auto.sh` · 一键装/卸/列(替换 __REPO_ROOT__ + launchctl load -w)
+- 群发限制:订阅号每日 1 次 · 没实现 masssend API · 用户每晚 1 tap 即可(决策 3)
+- `tests/test_auto_pick.py` 7 + `test_auto_review.py` 7 + `test_case_prompt.py` 7 + `test_sanitize_utm.py` 6 = 27 新条 · 总 181 条全绿
+
 ## 关键文件地图
 
 | 文件 | 作用 | 改它时要注意 |
@@ -65,7 +80,13 @@
 | `toolkit/cli.py` | CLI 入口(preview / publish / themes) | `publish` 默认开 sanitize · `--no-sanitize` opt-out |
 | `discord-bot/bot.py` | 入站 daemon(常驻) | launchctl 管理 · 修改后 `unload + load` 重启 |
 | `discord-bot/push.py` | 出站 CLI(一次性) | routine + hook + shell 都能调 |
-| `routine/daily-brief.sh` | 每日 08:30 推送 | 阶段 B 要改这个串起全流程 |
+| `routine/daily-brief.sh` | 每日 08:30 推送(brief 半自动 · 仍保留) | 阶段 B 要改这个串起全流程 |
+| `config/auto-schedule.yaml` | **阶段 E** 全自动 7 天轮播 + 各 step 开关 + review 阈值 | 改 schedule 立即生效 · 全停用 enabled: false |
+| `scripts/workflow/auto_pick.py` | 07:00 LLM-free 选题(weekday → category → idea_bank) | 周三必选 case · 不要改 weekday=2 那条 |
+| `scripts/workflow/auto_review.py` | 11:00 LLM 自审 5+1 维度 · skip-llm 模式给测试用 | LLM 维度失败不阻断 · 阈值在 yaml 改 |
+| `references/visuals/styles/case-realistic.md` | ★ 案例配图拟真套件 prompt 模板 | 改了等于改了周三所有案例文的视觉 · 慎重 |
+| `scripts/auto/*.sh` | 7 个 cron 包装(_common.sh + auto-{pick,write,images,review,publish,notify,stats}.sh) | step_check_enabled 读 yaml · 失败 push Discord |
+| `routine/install-auto.sh` | 一键装/卸/列 7 个 launchd plist | 装完看 launchctl list · 用 --uninstall 卸 |
 
 ## 跨仓关系
 

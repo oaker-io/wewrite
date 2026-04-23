@@ -1,0 +1,186 @@
+# 全自动发文 · 7 天主推 + 副推 + 评论运营 完整轮播表
+# 由以下 script 读取:
+#   scripts/workflow/auto_pick.py        · 选今日 idea (1 主 + N 副)
+#   scripts/auto/auto-write.sh           · 跑 1+N 次 write.py
+#   scripts/auto/auto-images.sh          · 主图全套 + 副推 1:1 thumb
+#   scripts/auto/auto-publish.sh         · cli.py publish-bundle
+#   scripts/auto/auto-comment-kickoff.sh · 群发后推置顶话术
+#
+# weekday: 0=周一 ... 6=周日(Python datetime.weekday() 语义)
+
+version: 2
+
+# 全局开关 · false 时所有 cron 跳过
+enabled: true
+
+notify_on_failure: true
+
+# 各 step 总开关
+steps:
+  pick: true              # 07:00
+  write: true             # 08:00
+  images: true            # 10:00
+  review: true            # 11:00
+  publish: true           # 12:00
+  notify: true            # 19:30 (提醒群发)
+  comment_kickoff: true   # 20:00 (置顶话术)
+  stats: true             # 周日 02:00
+
+# 时间表(launchd plist 对齐)
+times:
+  pick: "07:00"
+  write: "08:00"
+  images: "10:00"
+  review: "11:00"
+  publish: "12:00"
+  notify: "19:30"          # 提醒去群发(订阅号每日 1 次配额)
+  comment_kickoff: "20:00" # 群发后 30 分钟 · 推置顶话术给 Discord
+  stats: "Sun 02:00"
+
+# 7 天轮播 · 每天 1 主 + 1-2 副
+schedule:
+  # ============ 周一 · AI 使用手册 ============
+  - weekday: 0
+    label: 周一 · AI 使用手册
+    main:
+      category: tutorial
+      fallback: flexible
+      style: tutorial
+      image_style: mockup        # 真实 UI 截图
+      target_words: [2500, 4000]
+      topic_tags: ["AI 非共识", "AI 工具", "保姆级教程"]
+    companions:
+      - type: S1                  # 即时观点
+        category: tutorial
+        style: shortform
+        target_words: [800, 1200]
+        topic_tags: ["AI 非共识", "观察"]
+
+  # ============ 周二 · 干货教程 ============
+  - weekday: 1
+    label: 周二 · 干货教程
+    main:
+      category: tutorial
+      fallback: flexible
+      style: tutorial
+      image_style: infographic   # 信息图
+      target_words: [2500, 4500]
+      topic_tags: ["AI 非共识", "AI Coding", "干货合集"]
+    companions:
+      - type: S2                  # 数据快讯
+        category: tutorial
+        style: shortform
+        target_words: [600, 1000]
+        topic_tags: ["AI 非共识", "数据"]
+
+  # ============ 周三 ★ AI 真实成功案例 ============
+  - weekday: 2
+    label: 周三 · AI 真实成功案例 ★
+    main:
+      category: tutorial
+      fallback: flexible
+      style: case
+      image_style: case-realistic  # 拟真截图套件
+      target_words: [2200, 3800]
+      topic_tags: ["AI 非共识", "案例复盘", "真实跑通"]
+    companions:
+      - type: S3                  # 30 秒复盘(主推 TL;DR)
+        category: tutorial
+        style: shortform
+        target_words: [800, 1000]
+        topic_tags: ["AI 非共识", "金句"]
+
+  # ============ 周四 · AI 工具评测 ============
+  - weekday: 3
+    label: 周四 · AI 工具评测
+    main:
+      category: tutorial
+      fallback: flexible
+      style: tutorial
+      image_style: mockup
+      target_words: [2500, 4000]
+      topic_tags: ["AI 非共识", "工具横评"]
+    companions:
+      - type: S7                  # 失败踩坑(更可信)
+        category: tutorial
+        style: shortform
+        target_words: [800, 1200]
+        topic_tags: ["AI 非共识", "踩坑实录"]
+
+  # ============ 周五 · 深度解读热点 ============
+  - weekday: 4
+    label: 周五 · 深度解读热点
+    main:
+      category: hotspot
+      fallback: flexible
+      style: hotspot
+      image_style: infographic
+      target_words: [1800, 2800]
+      topic_tags: ["AI 非共识", "观察"]
+    companions:
+      - type: S2                  # 数据快讯
+        category: hotspot
+        fallback: tutorial
+        style: shortform
+        target_words: [600, 1000]
+        topic_tags: ["AI 非共识", "数据"]
+
+  # ============ 周六 · 轻量分享(2 副推 · 主推短)============
+  - weekday: 5
+    label: 周六 · 轻量分享
+    main:
+      category: flexible
+      fallback: tutorial
+      style: tutorial
+      image_style: simple
+      target_words: [1500, 2500]
+      topic_tags: ["AI 非共识", "干货合集"]
+    companions:
+      - type: S6                  # 金句卡
+        category: flexible
+        style: shortform
+        target_words: [200, 400]
+        topic_tags: ["AI 非共识", "金句"]
+      - type: S4                  # 读者问答
+        category: flexible
+        style: shortform
+        target_words: [700, 1000]
+        topic_tags: ["AI 非共识", "读者群"]
+
+  # ============ 周日 · 本周精华合集 ============
+  - weekday: 6
+    label: 周日 · 本周精华合集
+    main:
+      category: flexible
+      fallback: tutorial
+      style: hotspot
+      image_style: simple
+      target_words: [2000, 3000]
+      topic_tags: ["AI 非共识", "干货合集", "本周回顾"]
+    companions:
+      - type: S5                  # 资源清单
+        category: flexible
+        fallback: tutorial
+        style: shortform
+        target_words: [1000, 1500]
+        topic_tags: ["AI 非共识", "AI 工具", "本周收藏"]
+
+# auto_review.py 阈值(0-5 分制 · 任一维度 < threshold 触发重写)
+review:
+  threshold: 3
+  max_retries: 1
+  dimensions:
+    hook_strength: true
+    word_count_min: 1500    # 主推标准 · 副推会自动适配 (用副推 target_words[0])
+    image_count_min: 5      # 主推 6 张含 cover-square · 副推 1-3 张
+    catchphrase_min: 1
+    forbidden_check: true
+    case_realism: true
+
+# 评论区运营开关
+comment_ops:
+  enabled: true
+  open_comment_default: true        # 推草稿默认打开评论
+  fans_only_default: false          # 默认允许非粉丝评论(拉路过转化)
+  kickoff_delay_minutes: 30         # 群发后多少分钟推置顶话术
+  templates_per_day: 2              # 每天推 2 个候选模板让 user 选
