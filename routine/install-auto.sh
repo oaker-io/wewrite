@@ -52,25 +52,23 @@ install_one() {
 
   if [[ ! -f "$src" ]]; then
     echo "❌ 找不到 $src" >&2
-    return 1
+    return 0  # 不阻断整个 install loop
   fi
 
   # 替换 __REPO_ROOT__
   sed "s|__REPO_ROOT__|$REPO_ROOT|g" "$src" > "$dst"
 
-  # 卸再装
+  # 卸再装(若已装会先卸)
   launchctl unload -w "$dst" 2>/dev/null || true
-  if launchctl load -w "$dst" 2>/dev/null; then
-    if launchctl list | grep -q "$label"; then
-      echo "  ✓ $label 已装"
-    else
-      echo "  ⚠ $label load 后 list 看不到 · 检查 plist 语法" >&2
-      return 1
-    fi
+  launchctl load -w "$dst" 2>/dev/null || true
+  # 等 macOS 注册一下(launchctl list 偶尔 race · 0.3s 缓冲)
+  sleep 0.3
+  if launchctl list 2>/dev/null | grep -qE "(^|\s)$label(\s|$)"; then
+    echo "  ✓ $label 已装"
   else
-    echo "  ❌ $label load 失败" >&2
-    return 1
+    echo "  ⚠ $label 装了但 list 没 match · 第二天 02:00 再 launchctl list 验证 · 不阻断 install" >&2
   fi
+  return 0
 }
 
 case "${1:-}" in
@@ -91,7 +89,7 @@ case "${1:-}" in
     ;;
   "")
     # 默认 · 装全部
-    echo "装全部 7 个 auto-* launchd 任务..."
+    echo "装全部 ${#ALL_NAMES[@]} 个 auto-* launchd 任务..."
     for n in "${ALL_NAMES[@]}"; do install_one "$n"; done
     ;;
   *)
