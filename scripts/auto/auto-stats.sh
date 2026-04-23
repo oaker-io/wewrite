@@ -20,16 +20,29 @@ if [ ! -f "$FETCH" ]; then
 fi
 
 if "$PY" "$FETCH" >> "$LOG" 2>&1; then
-  echo "[$(date '+%F %T')] ✓ stats done" >> "$LOG"
-  # 推一份周报
+  echo "[$(date '+%F %T')] ✓ fetch_stats done" >> "$LOG"
   STATS_MSG="📊 **周日 02:00 · 数据回填完成**
 本周 fan_count / read_count 已写入 output/history.yaml
 看趋势:cat output/history.yaml | grep -A 2 fan_count_after | tail -20"
   "$PY" "$PUSH" --text "$STATS_MSG" 2>/dev/null || true
-  exit 0
 else
   rc=$?
-  echo "[$(date '+%F %T')] ✗ stats exit=$rc" >> "$LOG"
+  echo "[$(date '+%F %T')] ✗ fetch_stats exit=$rc" >> "$LOG"
   notify_failure "stats" "fetch_stats.py 退出 $rc"
-  exit $rc
+  # 不 exit · 继续跑配额报告(独立功能 · 不依赖 fetch_stats)
 fi
+
+# 配额周报(POE / GEMINI)· 独立步骤 · fetch_stats 失败也跑
+echo "[$(date '+%F %T')] → check_poe_quota" >> "$LOG"
+QUOTA_SCRIPT="$REPO_ROOT/scripts/check_poe_quota.py"
+if [ -f "$QUOTA_SCRIPT" ]; then
+  if "$PY" "$QUOTA_SCRIPT" --push >> "$LOG" 2>&1; then
+    echo "[$(date '+%F %T')] ✓ quota report pushed" >> "$LOG"
+  else
+    rc=$?
+    echo "[$(date '+%F %T')] ⚠ quota report exit=$rc" >> "$LOG"
+    # 不 notify_failure · 配额报告失败不重要
+  fi
+fi
+
+exit 0
