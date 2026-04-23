@@ -112,9 +112,9 @@ class TestPickCompanions(unittest.TestCase):
         self.assertEqual(out[0]["cfg"]["type"], "S2")
 
     def test_skips_when_no_ideas(self):
-        # idea 库空 · companion 跳过(不报错)
+        # idea 库空 + allow_fetch=False(防真去抓 GitHub)· companion 跳过
         comp_cfg = [{"type": "S2", "category": "tutorial", "fallback": "flexible"}]
-        out = self.ap._pick_companions(comp_cfg)
+        out = self.ap._pick_companions(comp_cfg, allow_fetch=False)
         self.assertEqual(out, [])
 
     def test_multiple_companions(self):

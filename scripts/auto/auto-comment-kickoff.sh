@@ -26,6 +26,26 @@ if [[ "$STATE" != "done" ]]; then
   exit 0
 fi
 
+# 防 stale session (跟 auto-notify 同逻辑)
+TODAY=$(date +%F)
+SESSION_DATE=$("$PY" -c "
+import yaml
+try:
+    s = yaml.safe_load(open('output/session.yaml', encoding='utf-8')) or {}
+    d = s.get('article_date')
+    if not d:
+        u = s.get('updated_at') or ''
+        d = u.split('T')[0] if u else ''
+    print(d)
+except Exception:
+    print('')
+" 2>/dev/null)
+
+if [[ "$SESSION_DATE" != "$TODAY" ]]; then
+  echo "[$(date '+%F %T')] · skip · session.date=$SESSION_DATE 不是 today=$TODAY · 不推老话术" >> "$LOG"
+  exit 0
+fi
+
 if "$PY" scripts/workflow/comment_kickoff.py >> "$LOG" 2>&1; then
   echo "[$(date '+%F %T')] ✓ comment-kickoff pushed" >> "$LOG"
   exit 0

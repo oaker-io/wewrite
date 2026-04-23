@@ -94,25 +94,71 @@ def _normalize_schedule(item: dict) -> dict:
     }
 
 
-def select_ideas(category: str, fallback: str) -> tuple[list[dict], str]:
+_FETCH_CHANGELOG = ROOT / "scripts" / "fetch_changelog.py"
+
+
+def _refill_via_fetch_changelog(timeout: int = 120) -> tuple[bool, str]:
+    """idea 库空时 · 调 fetch_changelog 抹道(github trending + anthropic blog/changelog)入库。
+
+    返回 (是否成功新增 · stdout 摘要)。
+    fetch_changelog 自带去重 · 多次跑不会重复入。
+    """
+    if not _FETCH_CHANGELOG.exists():
+        return False, "fetch_changelog.py 不存在"
+    try:
+        r = subprocess.run(
+            [str(PY), str(_FETCH_CHANGELOG), "--source", "all", "--limit", "5"],
+            cwd=str(ROOT),
+            capture_output=True, text=True, timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        return False, "fetch_changelog 超时"
+    out = (r.stdout or "")[-800:]
+    if r.returncode != 0:
+        return False, f"fetch_changelog rc={r.returncode}\n{out}"
+    # 抓 added 数(stdout 含「added=N」)
+    import re as _re
+    m = _re.search(r"added=(\d+)", out)
+    added = int(m.group(1)) if m else 0
+    return added > 0, f"added={added}\n{out[-300:]}"
+
+
+def select_ideas(category: str, fallback: str, *, allow_fetch: bool = True
+                 ) -> tuple[list[dict], str]:
     """从 idea_bank 选 1 主 + 1 备 · 返回 (ideas, used_category)。
 
-    优先用 category · 不够再用 fallback · 仍不够返回 [] · 调用方处理。
+    优先 category · 不够 fallback · 仍不够任意 unused。
+    全空时若 allow_fetch=True · 自动调 fetch_changelog 抹道入库 · 再重试一次。
+    依然空才返回 ([], "")。
     """
-    primary = _idea_bank.list_ideas(category=category, only_unused=True, limit=2)
-    if len(primary) >= 1:
-        return primary, category
+    def _try() -> tuple[list[dict], str]:
+        primary = _idea_bank.list_ideas(category=category, only_unused=True, limit=2)
+        if len(primary) >= 1:
+            return primary, category
+        backup = _idea_bank.list_ideas(category=fallback, only_unused=True, limit=2)
+        if len(backup) >= 1:
+            return backup, fallback
+        any_idea = _idea_bank.list_ideas(only_unused=True, limit=2)
+        if any_idea:
+            return any_idea, "any"
+        return [], ""
 
-    backup = _idea_bank.list_ideas(category=fallback, only_unused=True, limit=2)
-    if len(backup) >= 1:
-        return backup, fallback
+    ideas, used = _try()
+    if ideas:
+        return ideas, used
 
-    # 任何 category 都没了 · 用 flexible 兜底
-    any_idea = _idea_bank.list_ideas(only_unused=True, limit=2)
-    if any_idea:
-        return any_idea, "any"
+    if not allow_fetch:
+        return [], ""
 
-    return [], ""
+    # 兜底:idea 库空 → 主动抹道一次
+    print("⚠ idea 库全空 · 自动调 fetch_changelog 抹道入库...", file=sys.stderr)
+    ok, summary = _refill_via_fetch_changelog()
+    print(f"  fetch_changelog: {summary}", file=sys.stderr)
+    if not ok:
+        return [], ""
+
+    # 重试 select(此时 allow_fetch=False 防递归)
+    return select_ideas(category, fallback, allow_fetch=False)
 
 
 def to_topic(idea: dict, source_label: str) -> dict:
@@ -193,20 +239,20 @@ def push_no_idea_notice(weekday_item: dict) -> None:
     push_discord(msg)
 
 
-def _pick_companions(companions_cfg: list[dict]) -> list[dict]:
+def _pick_companions(companions_cfg: list[dict], *, allow_fetch: bool = True) -> list[dict]:
     """给每个 companion 配置 · 从 idea_bank 选 1 个未用 idea · 返回 [{topic, cfg}, ...]。
 
     若某个 companion 找不到合适 idea · 跳过那个位(不报错 · 让主推继续)。
+    allow_fetch=False 跳过 fetch_changelog 兜底(单测用 · 避免真去抓 GitHub)。
     """
     out = []
     for i, c in enumerate(companions_cfg):
         cat = c.get("category", "flexible")
         fb = c.get("fallback", "flexible")
-        ideas, used_cat = select_ideas(cat, fb)
+        ideas, used_cat = select_ideas(cat, fb, allow_fetch=allow_fetch)
         if not ideas:
             print(f"  ⚠ companion-{i+1} ({c.get('type','?')}) 无可用 idea · 跳过")
             continue
-        # 取第 1 个可用 · 但要跟主推不重复(id 不等)
         topic = to_topic(ideas[0], used_cat)
         out.append({"topic": topic, "cfg": c})
     return out

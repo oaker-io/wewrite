@@ -46,6 +46,28 @@ if [[ "$STATE" != "done" ]]; then
   exit 0
 fi
 
+# 防 stale session(防上次老 session 被反复推)
+# 检查 session.article_date / updated_at 是不是今天
+TODAY=$(date +%F)
+SESSION_DATE=$("$PY" -c "
+import yaml
+try:
+    s = yaml.safe_load(open('output/session.yaml', encoding='utf-8')) or {}
+    # 优先用 article_date · 兜底 updated_at(取日期前缀)
+    d = s.get('article_date')
+    if not d:
+        u = s.get('updated_at') or ''
+        d = u.split('T')[0] if u else ''
+    print(d)
+except Exception:
+    print('')
+" 2>/dev/null)
+
+if [[ "$SESSION_DATE" != "$TODAY" ]]; then
+  echo "[$(date '+%F %T')] · skip · session.date=$SESSION_DATE 不是 today=$TODAY · 不推老文章" >> "$LOG"
+  exit 0
+fi
+
 TEXT="🔔 **该群发了** · $(date +%H:%M)
 📝 ${TITLE}
 🆔 ${MEDIA_ID}

@@ -53,7 +53,8 @@ class TestSelectIdeas(unittest.TestCase):
         self.assertEqual(used, "flexible")
 
     def test_returns_empty_when_all_empty(self):
-        ideas, used = self.ap.select_ideas("tutorial", "flexible")
+        # allow_fetch=False · 跳过 fetch_changelog 兜底(避免单测真去抓 GitHub)
+        ideas, used = self.ap.select_ideas("tutorial", "flexible", allow_fetch=False)
         self.assertEqual(ideas, [])
         self.assertEqual(used, "")
 
