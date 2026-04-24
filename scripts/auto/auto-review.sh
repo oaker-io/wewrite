@@ -6,6 +6,7 @@ SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 . "$SCRIPT_DIR/_common.sh"
 
 step_check_enabled "review"
+require_binary claude
 load_keys
 
 LOG="$LOG_DIR/auto-review.$(date +%F).log"

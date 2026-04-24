@@ -77,3 +77,16 @@ $msg
 详见日志:routine/logs/auto-${step}.$(date +%F).log"
   "$PY" "$PUSH" --text "$text" 2>/dev/null || true
 }
+
+# launchd 子进程 PATH 跟登录 shell 不一致 · claude / 其他 binary 可能找不到
+# 调用方在 step_check_enabled 后加这一行 · 第一时间发现 PATH 问题
+# 用法: require_binary claude
+require_binary() {
+  local bin="$1"
+  if ! command -v "$bin" >/dev/null 2>&1; then
+    notify_failure "$(basename "${BASH_SOURCE[1]:-unknown}" .sh)" \
+      "binary '$bin' 不在 PATH(PATH=$PATH)· 修 plist 的 EnvironmentVariables/PATH"
+    echo "[auto] ❌ require_binary $bin 失败 · PATH=$PATH" >&2
+    exit 1
+  fi
+}
