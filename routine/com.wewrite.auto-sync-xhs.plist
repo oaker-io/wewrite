@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.wewrite.auto-sync-xhs</string>
+
+  <!-- 每天凌晨 03:05 · 兜底 Push 模型(xhswrite publish 直 fire 后)漏的 event -->
+  <!-- 跟 03:00 fetch-kol 错峰 5 分钟 -->
+  <key>StartCalendarInterval</key>
+  <dict>
+    <key>Hour</key><integer>3</integer>
+    <key>Minute</key><integer>5</integer>
+  </dict>
+
+  <key>ProgramArguments</key>
+  <array>
+    <string>/bin/bash</string>
+    <string>__REPO_ROOT__/scripts/auto/auto-sync-xhs.sh</string>
+  </array>
+
+  <key>WorkingDirectory</key>
+  <string>__REPO_ROOT__</string>
+
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PATH</key>
+    <string>/Users/mahaochen/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
+  </dict>
+
+  <key>StandardOutPath</key>
+  <string>__REPO_ROOT__/routine/logs/auto-sync-xhs.out.log</string>
+  <key>StandardErrorPath</key>
+  <string>__REPO_ROOT__/routine/logs/auto-sync-xhs.err.log</string>
+
+  <key>RunAtLoad</key>
+  <false/>
+</dict>
+</plist>

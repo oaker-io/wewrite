@@ -18,6 +18,7 @@ notify_on_failure: true
 # 各 step 总开关
 steps:
   fetch_kol: true         # 凌晨 03:00 (P1 · 抓 KOL RSS 入 idea_bank · 错峰)
+  sync_xhs: true          # 凌晨 03:05 (兜底拉 xhswrite publish event · push 模型主力)
   pick: true              # 07:00
   write: true             # 08:00
   images: true            # 10:00
@@ -30,6 +31,7 @@ steps:
 # 时间表(launchd plist 对齐)
 times:
   fetch_kol: "03:00"
+  sync_xhs: "03:05"
   pick: "07:00"
   write: "08:00"
   images: "10:00"
