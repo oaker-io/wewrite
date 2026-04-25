@@ -33,7 +33,7 @@ _ROOT = Path(__file__).resolve().parent.parent.parent
 _BANK_FILE = _ROOT / "output" / "idea_bank.yaml"
 
 CATEGORIES = ("tutorial", "hotspot", "flexible")
-SOURCES = ("user", "changelog", "github", "manual")
+SOURCES = ("user", "changelog", "github", "manual", "kol")
 DEFAULT_CATEGORY = "flexible"
 DEFAULT_SOURCE = "user"
 DEFAULT_PRIORITY = 50

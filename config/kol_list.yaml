@@ -1,0 +1,178 @@
+# KOL 订阅清单 · P1 (2026-04-25)
+#
+# 用法:
+#   - status: active   表示要 fetch · biz_name 必填(__biz=xxx==)· rss_url 由 wewe-rss 启动后填
+#   - status: pending  待用户添加 biz_name + 在 wewe-rss 后台订阅
+#   - status: paused   暂停 fetch · 保留记录
+#
+# biz_name 怎么找:打开公众号任一篇文章 → 浏览器 url 含 `__biz=MzI...` → 复制等号前 base64 段
+# 或在 wewe-rss web 界面里搜公众号名 · 它会自动解析
+#
+# tags:用于 idea_bank 入库时打分类标签(category 字段映射用)
+# weight: 0-100 · 选题权重 · 头部 IP / 高契合给 70+ · 信息流给 40-50
+
+list:
+  # =================================================================
+  # 用户提供 (8) · 偏向个人 IP / 副业搞钱 / 自媒体操盘 / AI 实战
+  # =================================================================
+  - name: 刘润
+    handle: liurun_5min
+    type: 商业财经 IP
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 90
+    tags: [商业, 案例, 框架]
+    notes: 国内最有名的商业咨询 IP · 标杆。学怎么把抽象商业讲成 framework
+
+  - name: 秦刚
+    handle: qingang
+    type: 自媒体 / 私域
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [自媒体, 私域, 涨粉]
+    notes: 互联网营销 + 私域流量专家 · 直接对标涨粉
+
+  - name: 谢无敌-闪亮猫传媒
+    handle: xiewudi
+    type: IP 操盘
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 75
+    tags: [IP, 自媒体, 操盘]
+    notes: 闪亮猫传媒 · IP 操盘手
+
+  - name: 木马人AI
+    handle: muma_ai
+    type: AI 工具实战
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 85
+    tags: [AI 工具, 实战, 副业]
+    notes: 跟本号最对标 · AI 工具实战 + 搞钱
+
+  - name: 白无敌C4D
+    handle: bai_c4d
+    type: 设计 / AIGC
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 70
+    tags: [设计, AIGC, 工具]
+    notes: C4D + AIGC · 设计角度看 AI
+
+  - name: 机会说
+    handle: jihui_shuo
+    type: 商业 / 信息差
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [商业, 信息差, 创业]
+    notes: 商业信息差 + 创业 · 选题角度参考
+
+  - name: 刘小排r
+    handle: liuxiaopai
+    type: 创业 / 自媒体
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 75
+    tags: [创业, 自媒体, 复盘]
+    notes: 创业 + 自媒体操盘
+
+  - name: 极客杰尼
+    handle: geek_jenny
+    type: AI 工具评测
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [AI 工具, 评测, 极客]
+    notes: AI 工具评测 + 极客生活
+
+  # =================================================================
+  # Claude 补充 (7) · 同类型 · 等用户筛选确认
+  # =================================================================
+  - name: 半佛仙人
+    handle: ban_fo
+    type: 商业 / 段子
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [商业, 段子, 财经]
+    notes: 经济视角 + 段子 · 学怎么写有梗的商业号
+
+  - name: 粥左罗
+    handle: zhouzuoluo
+    type: 自媒体写作
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 90
+    tags: [自媒体, 写作, 涨粉]
+    notes: 自媒体写作头部 · 教学派 · 标题结构都值得拆
+
+  - name: 生财有术
+    handle: shengcaiyoushu
+    type: 副业 / 搞钱社群
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 85
+    tags: [副业, 搞钱, 创业]
+    notes: 亦仁 · 搞钱社群核心 · 跟 xwrite 4/23 转向最对标
+
+  - name: caoz 的梦呓
+    handle: caoz
+    type: 商业冷观察
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [商业, 观察, 老炮]
+    notes: 曹政 · 商业冷观察派 · 学怎么写非情绪商业判断
+
+  - name: 数字生命卡兹克
+    handle: kaz_ai
+    type: AI 实战
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 80
+    tags: [AI, 实战, 副业]
+    notes: AI 工具实战 + 生活化叙事
+
+  - name: 卫夕指北
+    handle: weixi_zhibei
+    type: 广告 / AI 商业
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 75
+    tags: [广告, AI, 商业]
+    notes: 广告 + AI 商业 · 行业冷观察
+
+  - name: 数字游民部落
+    handle: nomad_tribe
+    type: 数字游民 / 远程
+    biz_name: ""
+    rss_url: ""
+    status: pending
+    weight: 65
+    tags: [副业, 数字游民, 远程]
+    notes: 数字游民圈头部 · 远程办公 + AI 工具
+
+# =================================================================
+# fetch 配置
+# =================================================================
+fetch:
+  daily_limit_per_kol: 5    # 每个 KOL 每天最多 fetch 几篇
+  total_daily_target: 30    # 全 KOL 加起来每天目标抓多少篇(够选题池)
+  dedupe_window_days: 30    # 30 天内同 url 不重复入库
+  store_path: output/kol_corpus.yaml

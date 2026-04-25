@@ -58,3 +58,8 @@ docs/
 routine/logs/
 discord-bot/logs/
 venv/
+
+# wewe-rss 本机数据 · sqlite + cookies(P1 加)
+infra/wewe-rss/data/
+# KOL corpus 是动态数据 · 不进 repo
+output/kol_corpus.yaml
