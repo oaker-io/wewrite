@@ -265,6 +265,98 @@ def _resolve_style(cli_style: str) -> str:
     return cli_style if cli_style != "default" else "default"
 
 
+# =================================================================
+# 2026-04-26 · cover-square.png 强制 Python 后处理(反「LLM 写字漏字」)
+# =================================================================
+_FONT_CANDIDATES = (
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+)
+
+
+def _extract_main_title(full_title: str, *, max_chars_per_line: int = 8) -> list[str]:
+    """从 selected_topic.title 抽 cover-square 主标(2-3 行短词)。
+
+    策略:
+    - 优先按「·」「,」「:」切首段(微信公众号标题常用 · 修饰从)
+    - 然后按视觉断点分行(每行 ≤ 8 字)· 最多 3 行
+    - 太长就截断 · 太短(全标题 < 8 字)1 行就够
+    """
+    import re as _re
+    if not full_title:
+        return ["智辰", "AI 红利"]
+    # 切首段(去掉 · 之后修饰)
+    head = _re.split(r"[·,:、]", full_title)[0].strip()
+    if not head:
+        head = full_title.strip()
+    # 去多余空格
+    head = _re.sub(r"\s+", "", head)[:24]  # 总长上限 24 字 = 3 行 × 8
+
+    # 智能分行:遇到自然断点(动词/数字)处断 · 否则均匀切
+    if len(head) <= max_chars_per_line:
+        return [head]
+    if len(head) <= max_chars_per_line * 2:
+        mid = len(head) // 2
+        # 优先在「跑/做/用/装/搭」这种动词或数字前断
+        for i in range(mid - 2, mid + 3):
+            if 0 < i < len(head) and head[i] in "跑做用装搭快慢提升降低0123456789":
+                return [head[:i], head[i:]]
+        return [head[:mid], head[mid:]]
+    # 3 行
+    n = len(head) // 3
+    return [head[:n], head[n:n*2], head[n*2:]]
+
+
+def _force_safe_cover_square(out_path: Path, full_title: str,
+                              *, size: int = 1080,
+                              bg: str = "#1A2332",
+                              fg: str = "#FFFFFF",
+                              brand_color: str = "#9099AA") -> None:
+    """100% Python 生 cover-square.png · 字必在中央安全区 · 微信列表 thumb 裁切不漏字。
+
+    设计:
+      - 1080×1080 纯背景(深蓝 / 深灰 / 暖色 5 套)
+      - 主标 2-3 行 · 字号 145px · 居中 · 总高 ≤ 525(中央 49%)
+      - 副标「宸的 AI 掘金笔记」字号 36px · 底部 80px
+      - 80×80 缩略时主标占 ~10px/字 · 仍能识别
+    """
+    from PIL import Image, ImageDraw, ImageFont
+
+    font_path = next((p for p in _FONT_CANDIDATES if Path(p).exists()), None)
+    if not font_path:
+        print("⚠ 找不到中文字体 · 跳过 cover-square 生成", file=sys.stderr)
+        return
+
+    title_lines = _extract_main_title(full_title)
+    img = Image.new("RGB", (size, size), color=bg)
+    d = ImageDraw.Draw(img)
+
+    # 主标(自适应字号:行多则字号小一些)
+    main_size = 160 if len(title_lines) == 1 else (145 if len(title_lines) == 2 else 130)
+    line_h = int(main_size * 1.2)
+    title_font = ImageFont.truetype(font_path, main_size, index=0)
+    total_h = line_h * len(title_lines)
+    y_start = (size - total_h) // 2 - 30  # 略上移给底部 brand 留位
+
+    for i, line in enumerate(title_lines):
+        bbox = d.textbbox((0, 0), line, font=title_font)
+        w = bbox[2] - bbox[0]
+        x = (size - w) // 2
+        d.text((x, y_start + i * line_h), line, fill=fg, font=title_font)
+
+    # 底部 brand
+    brand = "宸的 AI 掘金笔记"
+    brand_font = ImageFont.truetype(font_path, 36, index=0)
+    bbox = d.textbbox((0, 0), brand, font=brand_font)
+    bw = bbox[2] - bbox[0]
+    d.text(((size - bw) // 2, size - 80), brand, fill=brand_color, font=brand_font)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_path, optimize=True)
+    print(f"✓ Python 强制覆盖 cover-square.png · 主标:{title_lines}")
+
+
 def main():
     cli_style, auto = _parse_argv()
 
@@ -290,6 +382,13 @@ def main():
         print(f"❌ {e}", file=sys.stderr); sys.exit(2)
 
     imgs_dir = ROOT / "output" / "images"
+    # 2026-04-26 · 强制 Python 后处理 cover-square.png · 100% 不让 LLM 写中文字
+    # Why: T2 workflow prompt 不可控 · LLM 写字 30-50% 漏字 / 字超中央安全区
+    # 微信列表 thumb crop 中央 · 字必须紧贴中央 60% 区(高 ≤ 600 / 1080)
+    try:
+        _force_safe_cover_square(imgs_dir / "cover-square.png", topic.get("title", ""))
+    except Exception as e:
+        print(f"⚠ cover-square Python 后处理失败: {e}", file=sys.stderr)
     _state.advance(_state.STATE_IMAGED, images_dir=str(imgs_dir.relative_to(ROOT)))
     push_images(auto=auto, style=style)
     print(f"✓ images ready [{style}]{' · auto' if auto else ''}")

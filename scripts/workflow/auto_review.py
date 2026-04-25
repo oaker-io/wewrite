@@ -122,6 +122,98 @@ def _catchphrase_hits(md: str, phrases: list[str]) -> tuple[int, list[str]]:
     return count, hits
 
 
+# LLM 套话连接词(humanize 维度) · 命中即扣分
+_LLM_CONNECTORS = (
+    "然而", "此外", "总之", "综上", "与此同时", "值得一提的是",
+    "首先,", "其次,", "最后,", "总而言之", "综上所述",
+    "拭目以待", "值得关注", "希望对你有帮助", "不可否认",
+)
+
+# LLM 套话开头(humanize 维度)
+_LLM_OPENING_PATTERNS = (
+    "最近,", "近期,", "随着", "众所周知", "在这个", "让我们",
+    "我们一起", "相信大家", "近年来", "在AI时代", "随着AI",
+)
+
+
+def _humanize_check(md: str) -> dict:
+    """反 AI 检测维度 · 机械检查(不调 LLM)· 见 references/anti-ai-detection.md。
+
+    检 6 项:
+      1. LLM 套话连接词命中数(然而/此外/总之...)
+      2. LLM 套话开头(最近,/众所周知...)
+      3. 段长方差(全均匀 = AI)
+      4. 整数密度(100/50%/1000 等)
+      5. 真实经历锚点(地点+时间+人名 计数)
+      6. 失败/踩坑/不确定披露(0 处 = AI)
+
+    返回 raw counts + 0-5 综合 humanize 分。
+    """
+    # 1. LLM 连接词
+    connector_hits = sum(md.count(w) for w in _LLM_CONNECTORS)
+
+    # 2. LLM 开头(看前 100 字)
+    head = md[:200]
+    opening_hits = sum(1 for p in _LLM_OPENING_PATTERNS if p in head)
+
+    # 3. 段长方差(段 = 双换行分隔)· 方差 < 50 算太均匀
+    paragraphs = [p.strip() for p in re.split(r"\n\s*\n", md) if p.strip() and not p.startswith("#")]
+    if len(paragraphs) >= 5:
+        lengths = [len(p) for p in paragraphs]
+        mean = sum(lengths) / len(lengths)
+        var = sum((x - mean) ** 2 for x in lengths) / len(lengths)
+    else:
+        var = 999  # 段太少不判
+
+    # 4. 整数密度(100 / 50% / 1000 / 10000 等典型 LLM 整数)
+    integers = re.findall(r"\b(?:100|1000|10000|50%|100%|10倍|100倍|1000倍|十倍|百倍)\b", md)
+    integer_hits = len(integers)
+
+    # 5. 真实锚点(地点 + 时间 + 人名 出现次数)
+    anchors = 0
+    anchors += len(re.findall(r"(?:武汉|深圳|北京|上海|杭州)(?:光谷|南山|海淀|浦东|西湖)?", md))
+    anchors += len(re.findall(r"(?:上周|昨天|凌晨|今早|去年|半年前|3月|4月|5月)\s*(?:[一二三四五六日])?", md))
+    anchors += len(re.findall(r"(?:哈工大|清华|北大|半导体|fab|openclaw)", md))
+    anchors += len(re.findall(r"(?:张工|李工|王工|某 \w+ 同学|我朋友|群里 \w+)", md))
+
+    # 6. 失败 / 踩坑 / 不确定披露
+    failure_hits = sum(md.count(w) for w in (
+        "踩坑", "翻车", "失败", "搞砸", "折腾了",
+        "我没完全", "我没想清楚", "不确定", "可能不准", "偏差",
+        "报错", "卡住了", "搞了半天",
+    ))
+
+    # 综合分(0-5)
+    score = 5
+    if connector_hits >= 2:
+        score -= 2
+    elif connector_hits >= 1:
+        score -= 1
+    if opening_hits >= 1:
+        score -= 1
+    if var < 50 and len(paragraphs) >= 5:
+        score -= 1
+    if integer_hits >= 4:
+        score -= 1
+    if anchors == 0:
+        score -= 2
+    elif anchors == 1:
+        score -= 1
+    if failure_hits == 0:
+        score -= 1
+    score = max(0, min(5, score))
+
+    return {
+        "score": score,
+        "connector_hits": connector_hits,
+        "opening_hits": opening_hits,
+        "para_var": round(var, 1),
+        "integer_hits": integer_hits,
+        "anchors": anchors,
+        "failure_hits": failure_hits,
+    }
+
+
 def _forbidden_hits(md: str, words: list[str]) -> list[str]:
     return [w for w in words if w and w in md]
 
