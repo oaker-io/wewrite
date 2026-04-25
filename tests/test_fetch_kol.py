@@ -135,8 +135,9 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
             _fake_entry("文章 B", "https://mp.weixin.qq.com/s/b"),
         ]
         with mock.patch.object(self.fk, "fetch_rss", return_value=fake_entries), \
+             mock.patch.object(self.fk, "_fetch_article_body", return_value=""), \
              mock.patch.object(self.fk, "push_discord", return_value=None), \
-             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push"]):
+             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push", "--skip-content"]):
             rc = self.fk.main()
 
         self.assertEqual(rc, 0)
@@ -167,7 +168,7 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
         # 第一次跑 · 入库
         with mock.patch.object(self.fk, "fetch_rss", return_value=fake), \
              mock.patch.object(self.fk, "push_discord", return_value=None), \
-             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push"]):
+             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push", "--skip-content"]):
             self.fk.main()
 
         # 第二次跑同 entry · 应该全去重
@@ -178,7 +179,7 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
         fk2.KOL_CORPUS = self._corpus
         with mock.patch.object(fk2, "fetch_rss", return_value=fake), \
              mock.patch.object(fk2, "push_discord", return_value=None), \
-             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push"]):
+             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push", "--skip-content"]):
             fk2.main()
 
         import yaml
@@ -197,7 +198,7 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
             "tags": [],
         }])
         with mock.patch.object(self.fk, "push_discord", return_value=None), \
-             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push"]):
+             mock.patch.object(sys, "argv", ["fetch_kol.py", "--no-push", "--skip-content"]):
             rc = self.fk.main()
         self.assertEqual(rc, 0)
 
@@ -213,7 +214,7 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
         fake = [_fake_entry("dry run title", "https://x.com/dry")]
         with mock.patch.object(self.fk, "fetch_rss", return_value=fake), \
              mock.patch.object(self.fk, "push_discord", return_value=None), \
-             mock.patch.object(sys, "argv", ["fetch_kol.py", "--dry-run", "--no-push"]):
+             mock.patch.object(sys, "argv", ["fetch_kol.py", "--dry-run", "--no-push", "--skip-content"]):
             self.fk.main()
 
         # corpus 文件不应被写

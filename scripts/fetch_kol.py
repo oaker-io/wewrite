@@ -34,7 +34,15 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
+sys.path.insert(0, str(ROOT / "scripts"))
 import _idea_bank  # noqa: E402
+
+# fetch_article 4-level strategy(requests / Camoufox / Playwright / 手工)抓 mp.weixin 正文
+# wewe-rss feed 只给 title+url+publishTime 不给正文 · 这里补上让 P2 metadata 抽取真有数据
+try:
+    from fetch_article import fetch_article as _fa  # noqa: E402
+except ImportError:
+    _fa = None
 
 KOL_LIST = ROOT / "config" / "kol_list.yaml"
 KOL_CORPUS = ROOT / "output" / "kol_corpus.yaml"
@@ -134,6 +142,28 @@ def existing_fingerprints(corpus: dict, *, window_days: int) -> set[str]:
 # =================================================================
 # RSS fetch
 # =================================================================
+def _fetch_article_body(url: str, *, skip_content: bool = False) -> str:
+    """抓 mp.weixin 文章正文 → markdown · 失败静默返回空。
+
+    why: wewe-rss feed 只给 title+url+publishTime · 不给正文。
+    P2 metadata(结构/风格)需要正文 · 这里补上。
+    skip_content=True 时跳过(用于快速测试 / RSS 已含正文场景)。
+    """
+    if skip_content or _fa is None or not url:
+        return ""
+    if "mp.weixin.qq.com/s/" not in url:
+        return ""
+    try:
+        result = _fa(url=url)
+        return (result.get("markdown") or "").strip()
+    except SystemExit:
+        # fetch_article.py CLI 在 4 级全失败时 sys.exit(1) · 当 lib 用时吃掉
+        return ""
+    except Exception as e:
+        print(f"    · fetch_article fail: {str(e)[:80]}", file=sys.stderr)
+        return ""
+
+
 def _html_to_md(html: str) -> str:
     """HTML → markdown · 用 html2text · 不折行(body_width=0)· 去图片 src 长串。"""
     if not html:
@@ -407,6 +437,8 @@ def main() -> int:
                    help="只跑某一个 KOL(填 name 或 handle · debug 用)")
     p.add_argument("--seed", action="store_true",
                    help="塞 5 篇假文章进 corpus + idea_bank · 测试 P2/P3 链路用")
+    p.add_argument("--skip-content", action="store_true",
+                   help="不抓 mp.weixin 正文(默认抓 · 慢 1-3s/篇)")
     args = p.parse_args()
 
     if args.seed:
@@ -467,6 +499,13 @@ def main() -> int:
                 if idea_id is not None:
                     new_idea_ids.append(idea_id)
 
+            # 抓 mp.weixin 正文(wewe-rss feed 没含正文 · fetch_article 4 级 fallback)
+            content_md = entry.get("content_md") or ""
+            if not content_md:
+                content_md = _fetch_article_body(entry["link"], skip_content=args.skip_content)
+                if content_md:
+                    print(f"    + body: {len(content_md)} 字")
+
             # 入 corpus
             article = {
                 "kol": name,
@@ -475,7 +514,7 @@ def main() -> int:
                 "url": entry["link"],
                 "pub_date": entry["published"][:25],
                 "summary": entry["summary"],
-                "content_md": entry.get("content_md", ""),
+                "content_md": content_md,
                 "fetched_at": _now_iso(),
                 "fingerprint": fp,
                 "idea_id": idea_id,

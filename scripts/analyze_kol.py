@@ -49,8 +49,28 @@ def _now_iso() -> str:
 # =================================================================
 # 选题层 · title / hook / kw
 # =================================================================
+_BOILERPLATE_PATTERNS = (
+    "这是", "第 ", "关注公众号", "订阅", "星标", "置顶", "作者 l", "作者|", "作者 |",
+    "编辑 l", "编辑|", "编辑 |", "分享 l", "分享|", "分享 |", "ID：", "ID:",
+    "百万互联网", "向上生长", "**▲", "▲**", "未经授权",
+    "点进去后", "预约所有直播", "免费听课", "每日推送", "每天分享",
+)
+
+
+def _is_boilerplate(line: str) -> bool:
+    """KOL 文章常见首段 boilerplate · 这种段不算钩子。"""
+    s = line.strip()
+    if not s:
+        return True
+    # 短行(< 8 字)+ 含模板词 · 极可能是签名行
+    for pat in _BOILERPLATE_PATTERNS:
+        if pat in s:
+            return True
+    return False
+
+
 def extract_hook(content_md: str) -> str:
-    """首段(非 ## / 非空) · 截 80 字。"""
+    """首段非空 / 非标题 / 非引导(KOL boilerplate)的真钩子段 · 截 80 字。"""
     if not content_md:
         return ""
     for line in content_md.splitlines():
@@ -58,6 +78,8 @@ def extract_hook(content_md: str) -> str:
         if not line or line.startswith("#") or line.startswith("![") or line.startswith(">"):
             continue
         if line.startswith("- ") or line.startswith("* "):
+            continue
+        if _is_boilerplate(line):
             continue
         return line[:80]
     return ""
@@ -73,6 +95,9 @@ _STOPWORDS = {
     "今日", "今晚", "上周", "今年", "这次", "那次", "其中", "之间", "之后",
     "之前", "几个", "很多", "不少", "很大", "更多", "比如", "比起", "看到",
     "听到", "想到", "做到", "得到", "拿到", "找到", "走到", "感到",
+    # KOL 文章 boilerplate 噪声(粥左罗 / 半佛仙人 等头部惯用)
+    "这是", "这是粥左罗的第", "这是半佛仙人的第", "关注", "订阅", "星标", "置顶",
+    "作者", "编辑", "分享", "公众号", "百万互联网", "未经授权", "引言",
 }
 
 
