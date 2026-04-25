@@ -159,8 +159,22 @@ def _load_kol_patterns_block(*, top_n_hooks: int = 5) -> str:
     return "\n" + "\n".join(lines) + "\n"
 
 
+_TOPIC_SCOPE_RULES = (
+    "**🎯 主题必须命中以下 6 大范围之一(WeWrite 核心宗旨 · 越界即重写)**:\n"
+    "1. **AI 搞钱** — 副业 / 变现 / 月入 / 路径 / ROI / 红利窗口\n"
+    "2. **AI 实战** — 跑通流程 / 上手操作 / 工程化落地 / 「明天能用」\n"
+    "3. **AI 真实案例** — Day 0/Day N 时间线 + 具体数字 + 失败/坑\n"
+    "4. **AI 心得** — 反共识 / 冷观察 / 工程派判断 · 不堆 hype\n"
+    "5. **AI 最新测试** — 工具评测 / 横向对比 / 实测数据\n"
+    "6. **AI 咨询** — 行业判断 / 投资视角 / 趋势分析\n"
+    "**违规清单**:政治 / 股票币圈 / 同行八卦 / 个人感情 / 翻译式无价值复述 / 空洞 hype / 健康养生旅游娱乐。\n"
+    "若主题命中违规清单 · 直接报错退出 · 不要硬写。\n\n"
+)
+
+
 _COMMON_TAIL_RULES = (
-    "**通用必守**:\n"
+    _TOPIC_SCOPE_RULES
+    + "**通用必守**:\n"
     "- **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
     "- 第一行直接写 `![](images/cover.png)`(alt **必须留空**,否则会渲染出「封面」二字)\n"
     "- 文末**压轴必须**放一张完整的「智辰老师」介绍卡(含嵌入公众号关注卡视觉),格式:\n"
@@ -219,6 +233,7 @@ def _build_prompt_shortform(topic, out_path: Path, *, shortform_type: str = "aut
     return (
         "请使用 wewrite skill 写一篇微信公众号**副推短文**,主题:\n\n"
         f"**{topic['title']}**\n\n"
+        + _TOPIC_SCOPE_RULES +
         "**系列定位**:这是「短文 / 副推位」 · 跟主推一起 1 次群发 · **不是长文**。\n"
         "目标:让读者刷手机时一口气读完 · 短句 + 反复换行 + 数据密集 · 留个钩子让人加私域。\n\n"
         f"{type_hint}\n\n"
