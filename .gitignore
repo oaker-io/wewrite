@@ -68,3 +68,6 @@ output/kol_corpus.yaml
 .claude/plans/
 .claude/settings.local.json
 output/xhs_sync_state.yaml
+
+# runtime · cost_tracker / state_bus 写的运行时数据
+bus/
