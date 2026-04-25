@@ -60,8 +60,10 @@ else
   exit $rc
 fi
 
-# 副推循环:跑 N 次 write.py --idea "<companion title>" --style shortform
-# 副推完成后回写 session.yaml#auto_schedule.companion_articles 字段
+# 额外主推 + 副推循环:都用 write.py --idea 跑
+# extra_mains:跟主推同 style 体量(tutorial/case/hotspot · 1800-3000+ 字)
+# companions:shortform 短文(800-1500 字)
+# 写完回写 session.yaml#auto_schedule.{extra_main_articles,companion_articles}
 "$PY" - << 'PYEOF' >> "$LOG" 2>&1
 import yaml, subprocess, sys
 from pathlib import Path
@@ -71,59 +73,75 @@ SESSION = REPO_ROOT / 'output' / 'session.yaml'
 
 s = yaml.safe_load(SESSION.read_text(encoding='utf-8')) or {}
 sched = s.get('auto_schedule') or {}
+extra_mains = sched.get('extra_mains') or []
+extra_main_styles = sched.get('extra_main_styles') or []
 companions = sched.get('companions') or []
 companion_styles = sched.get('companion_styles') or []
 
-if not companions:
-    print('· 无副推 · 跳过 companion 循环')
-    sys.exit(0)
+py = REPO_ROOT / 'venv' / 'bin' / 'python3'
+if not py.exists():
+    py = 'python3'
 
-print(f'→ 跑 {len(companions)} 次副推 write...')
-companion_articles = []
-for i, ct in enumerate(companions):
-    title = ct.get('title', '')
-    style = companion_styles[i] if i < len(companion_styles) else 'shortform'
-    print(f'\n[companion-{i+1}/{len(companions)}] style={style} · {title[:50]}')
-    py = REPO_ROOT / 'venv' / 'bin' / 'python3'
-    if not py.exists():
-        py = 'python3'
-    # write.py --idea 路径 · 不动 session.state(它会试图覆盖)
-    # 我们 trick: 跑完后从 session.article_md 读路径 · 然后 restore session.state=wrote
-    state_before = s.get('state')
-    main_md_before = s.get('article_md')
+main_md_before = s.get('article_md')
 
+
+def _write_one(title, style, label):
+    """跑一次 write.py --idea · 返回 article_md 路径(失败返回 None)。"""
+    print(f'\n[{label}] style={style} · {title[:50]}')
     r = subprocess.run(
         [str(py), 'scripts/workflow/write.py', '--idea', title, '--style', style],
         cwd=str(REPO_ROOT),
         capture_output=True, text=True, timeout=900,
     )
     if r.returncode != 0:
-        print(f'  ✗ companion-{i+1} write 失败: rc={r.returncode}')
+        print(f'  ✗ {label} write 失败: rc={r.returncode}')
         print(r.stderr[-500:])
-        # 不阻断 · 继续下一篇
-        continue
-
-    # write.py --idea 会覆盖 session.article_md · 抽出来当 companion 路径
+        return None
     s_after = yaml.safe_load(SESSION.read_text(encoding='utf-8')) or {}
-    comp_md = s_after.get('article_md')
-    if comp_md and comp_md != main_md_before:
-        companion_articles.append(comp_md)
-        print(f'  ✓ companion-{i+1} 写完 · {comp_md}')
-    else:
-        print(f'  ⚠ companion-{i+1} article_md 未变 · 可能写失败')
+    md = s_after.get('article_md')
+    if md and md != main_md_before:
+        print(f'  ✓ {label} 写完 · {md}')
+        return md
+    print(f'  ⚠ {label} article_md 未变 · 可能写失败')
+    return None
 
-# 回写 session: state 恢复 wrote · article_md 恢复主推 · companion_articles 写新字段
+
+# 1. 额外主推循环(主推 2+)
+extra_main_articles = []
+if extra_mains:
+    print(f'→ 跑 {len(extra_mains)} 次额外主推 write...')
+    for i, em in enumerate(extra_mains):
+        title = em.get('title', '')
+        style = extra_main_styles[i] if i < len(extra_main_styles) else 'tutorial'
+        md = _write_one(title, style, f'extra-main-{i+2}')
+        if md:
+            extra_main_articles.append(md)
+
+# 2. 副推循环(shortform)
+companion_articles = []
+if companions:
+    print(f'\n→ 跑 {len(companions)} 次副推 write...')
+    for i, ct in enumerate(companions):
+        title = ct.get('title', '')
+        style = companion_styles[i] if i < len(companion_styles) else 'shortform'
+        md = _write_one(title, style, f'companion-{i+1}')
+        if md:
+            companion_articles.append(md)
+
+# 回写 session: state=wrote · article_md=主推 1 · 把 extra+companion 都存起来
 s_final = yaml.safe_load(SESSION.read_text(encoding='utf-8')) or {}
 s_final['state'] = 'wrote'
 s_final['article_md'] = main_md_before
 sched_final = s_final.get('auto_schedule') or {}
+sched_final['extra_main_articles'] = extra_main_articles
 sched_final['companion_articles'] = companion_articles
 s_final['auto_schedule'] = sched_final
 SESSION.write_text(
     yaml.safe_dump(s_final, allow_unicode=True, sort_keys=False),
     encoding='utf-8',
 )
-print(f'\n✓ 副推循环完成 · companion_articles={companion_articles}')
+total = 1 + len(extra_main_articles) + len(companion_articles)
+print(f'\n✓ 全部 write 循环完成 · 主 1+{len(extra_main_articles)} · 副 {len(companion_articles)} · 共 {total} 篇')
 PYEOF
 
 if [[ $? -ne 0 ]]; then

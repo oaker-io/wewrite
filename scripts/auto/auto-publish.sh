@@ -70,6 +70,8 @@ s = yaml.safe_load(SESSION.read_text(encoding='utf-8')) or {}
 sched = s.get('auto_schedule') or {}
 main_md = s.get('article_md')
 main_topic = s.get('selected_topic') or {}
+extra_main_articles = sched.get('extra_main_articles') or []
+extra_main_topics = sched.get('extra_mains') or []
 comp_articles = sched.get('companion_articles') or []
 comp_topics = sched.get('companions') or []
 
@@ -94,18 +96,28 @@ if cover_main.exists():
 if thumb_main.exists():
     cli_args += ['--main-thumb', str(thumb_main.relative_to(REPO_ROOT))]
 
-# 副推 · 一一对应 thumb (cover-square-cN.png)
+# 额外主推(主 2+)· 当 article 进 bundle · 顺序在副推之前显示
+# v3:WeChat bundle 里 article 无主副区分 · 全等价并列 · 用 --companion 加进去
+for i, em_md in enumerate(extra_main_articles):
+    cli_args += ['--companion', em_md]
+    # extra_main 没专门 thumb · 暂用主 cover-square 兜底(后续 images.py 可生 cover-square-m2.png)
+    em_thumb = IMAGES / f'cover-square-m{i+2}.png'
+    if em_thumb.exists():
+        cli_args += ['--companion-thumb', str(em_thumb.relative_to(REPO_ROOT))]
+    elif thumb_main.exists():
+        cli_args += ['--companion-thumb', str(thumb_main.relative_to(REPO_ROOT))]
+
+# 副推 shortform · 一一对应 thumb (cover-square-cN.png)
 for i, comp_md in enumerate(comp_articles):
     cli_args += ['--companion', comp_md]
     comp_thumb = IMAGES / f'cover-square-c{i+1}.png'
     if comp_thumb.exists():
         cli_args += ['--companion-thumb', str(comp_thumb.relative_to(REPO_ROOT))]
-    else:
-        # 兜底用主推 thumb (避免 wechat 报错)
-        if thumb_main.exists():
-            cli_args += ['--companion-thumb', str(thumb_main.relative_to(REPO_ROOT))]
+    elif thumb_main.exists():
+        cli_args += ['--companion-thumb', str(thumb_main.relative_to(REPO_ROOT))]
 
-print(f'→ 调 cli.py publish-bundle (1 主 + {len(comp_articles)} 副)')
+n_main_total = 1 + len(extra_main_articles)
+print(f'→ 调 cli.py publish-bundle ({n_main_total} 主 + {len(comp_articles)} 副)')
 print(f'  cmd: {" ".join(cli_args[2:])}')
 
 r = subprocess.run(cli_args, cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=600)
@@ -130,19 +142,24 @@ SESSION.write_text(
     yaml.safe_dump(s2, allow_unicode=True, sort_keys=False),
     encoding='utf-8',
 )
-print(f'\n✓ session done · media_id={media_id} · 1 主 + {len(comp_articles)} 副')
+print(f'\n✓ session done · media_id={media_id} · {n_main_total} 主 + {len(comp_articles)} 副')
 
 # push Discord 通知
 push_py = REPO_ROOT / 'discord-bot' / 'push.py'
 py = REPO_ROOT / 'venv' / 'bin' / 'python3'
 if not py.exists():
     py = 'python3'
+extra_lines = '\n'.join([f'  📝 主推 {i+2}: {(t.get("title") or "")[:40]}'
+                          for i, t in enumerate(extra_main_topics[:len(extra_main_articles)])])
+comp_lines = '\n'.join([f'  📎 副推 {i+1}: {(t.get("title") or "")[:40]}'
+                         for i, t in enumerate(comp_topics)])
 notify_text = (
-    f'🚀 **bundle 草稿就绪 · auto** (1 主 + {len(comp_articles)} 副)\n'
-    f'📝 主推:{main_title}\n'
-    + '\n'.join([f'  📎 副推 {i+1}: {(t.get("title") or "")[:40]}' for i, t in enumerate(comp_topics)])
-    + f'\n🆔 {media_id[:30]}\n\n'
-    f'📦 已自动:H1 去重 · 封面 alt 清空 · 主推完整 author-card · 副推 mini card · 评论已开\n\n'
+    f'🚀 **bundle 草稿就绪 · auto** ({n_main_total} 主 + {len(comp_articles)} 副 = {n_main_total+len(comp_articles)} 篇)\n'
+    f'📝 主推 1:{main_title}\n'
+    + (extra_lines + '\n' if extra_lines else '')
+    + (comp_lines + '\n' if comp_lines else '')
+    + f'🆔 {media_id[:30]}\n\n'
+    f'📦 已自动:H1 去重 · 封面 alt 清空 · author-card · 评论开 · 剥编辑器糖底\n\n'
     '📅 19:30 推群发提醒 · 20:00 推置顶话术'
 )
 subprocess.run([str(py), str(push_py), '--text', notify_text], timeout=60)

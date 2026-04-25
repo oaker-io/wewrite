@@ -67,29 +67,40 @@ def pick_for_weekday(cfg: dict, weekday: int) -> dict:
 
 
 def _normalize_schedule(item: dict) -> dict:
-    """新旧版 schedule 项归一化 · 总是返回 {label, main: {...}, companions: [...]}.
+    """新旧版 schedule 项归一化 · 总是返回 {label, main, mains, companions}.
 
-    旧版:item 顶层 category/style/...
-    新版:item.main / item.companions
+    版本兼容:
+      v3(2026-04-25):mains: [{...}, {...}] 数组 · 1-2 主推 · companions 不限
+      v2:main: {...} 单数(向后兼容 · 自动转 mains=[main])
+      v1:item 顶层 category/style/...
     """
-    if "main" in item:
-        # 新版 · 直接返回(确保 companions 是 list)
-        out = dict(item)
-        out.setdefault("companions", [])
+    out = dict(item)
+    out.setdefault("companions", [])
+
+    if "mains" in out and isinstance(out["mains"], list) and out["mains"]:
+        # v3 新版 · 已经是 mains 数组
+        out["main"] = out["mains"][0]  # 兼容老 caller 读 .main
         return out
-    # 旧版 · 包一下
+
+    if "main" in out:
+        # v2 单 main · 包成 mains 数组
+        out["mains"] = [out["main"]]
+        return out
+
+    # v1 旧版顶层
     main = {
         "category": item.get("category", "flexible"),
         "fallback": item.get("fallback", "flexible"),
         "style": item.get("style", "tutorial"),
         "image_style": item.get("image_style", "infographic"),
         "target_words": item.get("target_words", [1800, 3000]),
-        "topic_tags": item.get("topic_tags", ["AI 非共识"]),
+        "topic_tags": item.get("topic_tags", ["AI 红利"]),
     }
     return {
         "weekday": item.get("weekday"),
         "label": item.get("label", ""),
         "main": main,
+        "mains": [main],
         "companions": [],
     }
 
@@ -274,7 +285,8 @@ def push_discord(text: str, *, fail_silent: bool = True) -> None:
 
 
 def push_picked_notice(weekday_item: dict, primary_topic: dict, backup_topic: dict | None,
-                       *, companions: list[dict] | None = None) -> None:
+                       *, companions: list[dict] | None = None,
+                       extra_mains: list[dict] | None = None) -> None:
     label = weekday_item.get("label", "")
     main_cfg = weekday_item.get("main") or weekday_item
     cat = main_cfg.get("category", "")
@@ -284,8 +296,13 @@ def push_picked_notice(weekday_item: dict, primary_topic: dict, backup_topic: di
         f"🤖 **auto_pick · {label}**",
         f"📂 主推 category={cat} · style={style} · image_style={img_style}",
         "",
-        f"✅ **主推**:{primary_topic['title']}",
+        f"✅ **主推 1**:{primary_topic['title']}",
     ]
+    if extra_mains:
+        for i, p in enumerate(extra_mains, start=2):
+            t = p["topic"]
+            pstyle = p["cfg"].get("style", "tutorial")
+            msg_lines.append(f"✅ **主推 {i}** ({pstyle}):{t['title'][:50]}")
     if companions:
         msg_lines += ["", "📎 **副推**:"]
         for i, c in enumerate(companions):
@@ -295,10 +312,11 @@ def push_picked_notice(weekday_item: dict, primary_topic: dict, backup_topic: di
             msg_lines.append(f"  {i+1}. [{ctype}/{cstyle}] {t['title'][:50]}")
     if backup_topic:
         msg_lines += ["", f"🥈 备选(主推备份):{backup_topic['title']}"]
+    n_main = 1 + (len(extra_mains) if extra_mains else 0)
     n_comp = len(companions) if companions else 0
     msg_lines += [
         "",
-        f"📊 总计:1 主 + {n_comp} 副 · 占 1 次群发配额",
+        f"📊 总计:{n_main} 主 + {n_comp} 副 = {n_main + n_comp} 篇 · 占 1 次群发配额",
         "",
         "📅 接下来:08:00 auto_write → 10:00 auto_images → 11:00 auto_review → 12:00 auto_publish",
     ]
@@ -370,44 +388,66 @@ def main() -> int:
 
     weekday = args.weekday if args.weekday is not None else datetime.now().weekday()
     item = pick_for_weekday(cfg, weekday)
-    main_cfg = item["main"]
+    mains_cfg = item.get("mains") or [item["main"]]  # 兼容 v2 main 单数
+    main_cfg = mains_cfg[0]  # 第 1 主 · 老 caller 还用
     companions_cfg = item.get("companions", []) if not args.skip_companions else []
     print(f"→ weekday={weekday} · {item.get('label', '')}")
-    print(f"  main.category={main_cfg.get('category')} · style={main_cfg.get('style')} · image_style={main_cfg.get('image_style')}")
-    print(f"  companions 期望数: {len(companions_cfg)}")
+    print(f"  mains 期望数: {len(mains_cfg)} · companions 期望数: {len(companions_cfg)}")
+    print(f"  main[0].category={main_cfg.get('category')} · style={main_cfg.get('style')} · image_style={main_cfg.get('image_style')}")
 
-    # 主推
-    ideas, used_cat = select_ideas(
-        main_cfg.get("category", "flexible"),
-        main_cfg.get("fallback", "flexible"),
-    )
-    if not ideas:
-        print("❌ idea 库无可用 idea · 主推失败", file=sys.stderr)
-        if not args.dry_run:
-            push_no_idea_notice({"label": item.get("label",""), "category": main_cfg.get("category"), "fallback": main_cfg.get("fallback")})
+    # 主推循环 · 1-2 篇 · 跨主推去重
+    excl_main: set[int] = set()
+    main_picks: list[dict] = []  # [{topic, cfg}]
+    for i, m_cfg in enumerate(mains_cfg):
+        ideas, used_cat = select_ideas(
+            m_cfg.get("category", "flexible"),
+            m_cfg.get("fallback", "flexible"),
+            exclude_ids=excl_main,
+        )
+        if not ideas:
+            if i == 0:
+                # 第 1 主就空 · 真失败
+                print("❌ idea 库无可用 idea · 主推失败", file=sys.stderr)
+                if not args.dry_run:
+                    push_no_idea_notice({"label": item.get("label", ""),
+                                         "category": m_cfg.get("category"),
+                                         "fallback": m_cfg.get("fallback")})
+                return 1
+            else:
+                print(f"  ⚠ main-{i+1} 无可用 idea · 跳过(主推 N+1 不阻断)")
+                continue
+        topic = to_topic(ideas[0], used_cat)
+        main_picks.append({"topic": topic, "cfg": m_cfg})
+        excl_main.add(topic["idea_id"])
+        print(f"  ✓ 主推 {i+1}: #{topic['idea_id']} {topic['title'][:60]}")
+
+    if not main_picks:
         return 1
 
-    primary = to_topic(ideas[0], used_cat)
-    backup = to_topic(ideas[1], used_cat) if len(ideas) > 1 else None
-    print(f"  ✓ 主选: #{primary['idea_id']} {primary['title'][:60]}")
+    primary = main_picks[0]["topic"]
+    extra_mains = main_picks[1:]  # 第 2+ 主推
 
-    # 副推(若 companions_cfg 非空 · 选 N 个)
-    # 排除主推 + 备选已用的 idea_id · 避免副推和主推撞同一篇
-    excl_main = {primary["idea_id"]}
-    if backup and backup.get("idea_id") is not None:
-        excl_main.add(backup["idea_id"])
+    # 副推(若 companions_cfg 非空 · 选 N 个)· 排除所有主推已选的 idea_id
     companions = _pick_companions(companions_cfg, exclude_ids=excl_main) if companions_cfg else []
     for i, c in enumerate(companions):
         t = c["topic"]
         print(f"  ✓ 副推 {i+1} ({c['cfg'].get('type','?')}): #{t['idea_id']} {t['title'][:50]}")
 
     if args.dry_run:
-        print("(dry-run · session.yaml 未动 · Discord 未推)")
+        print(f"(dry-run · session.yaml 未动 · Discord 未推)")
+        print(f"  TOTAL: {len(main_picks)} 主 + {len(companions)} 副 = {len(main_picks)+len(companions)} 篇 · 1 次群发")
         return 0
 
-    # 写 session · topics = [main] + [backup?] + [companions...]
-    # companions 单独存 · 便于 auto-write.sh 区分
-    topics = [primary] + ([backup] if backup else [])
+    # 写 session · topics = [main_1, main_2, ...] (extra_mains 进 topics 备用 · auto-write 不读)
+    topics = [p["topic"] for p in main_picks]
+    backup = None  # v3:第 2 主直接是 extra_mains[0] · 不再单独存 backup
+    extra_main_topics = [p["topic"] for p in extra_mains]
+    extra_main_styles = [p["cfg"].get("style", "tutorial") for p in extra_mains]
+    extra_main_types = [p["cfg"].get("type", "main2") for p in extra_mains]
+    extra_main_tags = [p["cfg"].get("topic_tags", []) for p in extra_mains]
+    extra_main_target_words = [p["cfg"].get("target_words", [2000, 3500]) for p in extra_mains]
+    extra_main_image_styles = [p["cfg"].get("image_style", "infographic") for p in extra_mains]
+
     companion_topics = [c["topic"] for c in companions]
     companion_styles = [c["cfg"].get("style", "shortform") for c in companions]
     companion_types = [c["cfg"].get("type", "") for c in companions]
@@ -426,11 +466,19 @@ def main() -> int:
             auto_schedule={
                 "weekday": weekday,
                 "label": item.get("label", ""),
+                # 主推 1(老字段,兼容)
                 "style": main_cfg.get("style", "tutorial"),
                 "image_style": main_cfg.get("image_style", "infographic"),
                 "target_words": main_cfg.get("target_words", [1800, 3000]),
-                "topic_tags": main_cfg.get("topic_tags", ["AI 非共识"]),
-                # 副推信息(auto-write / auto-images / auto-publish 读)
+                "topic_tags": main_cfg.get("topic_tags", ["AI 红利"]),
+                # 主推 2+(v3 新 · auto-write 循环跑 extra_mains)
+                "extra_mains": extra_main_topics,
+                "extra_main_styles": extra_main_styles,
+                "extra_main_types": extra_main_types,
+                "extra_main_tags": extra_main_tags,
+                "extra_main_target_words": extra_main_target_words,
+                "extra_main_image_styles": extra_main_image_styles,
+                # 副推
                 "companions": companion_topics,
                 "companion_styles": companion_styles,
                 "companion_types": companion_types,
@@ -445,9 +493,10 @@ def main() -> int:
         )
         print(f"⚠ {e}", file=sys.stderr)
         return 0
-    push_picked_notice(item, primary, backup, companions=companions)
+    push_picked_notice(item, primary, backup, companions=companions, extra_mains=extra_mains)
     n_comp = len(companions)
-    print(f"✓ session BRIEFED · 1 主 + {n_comp} 副 · 等 08:00 auto-write")
+    n_main_total = 1 + len(extra_mains)
+    print(f"✓ session BRIEFED · {n_main_total} 主 + {n_comp} 副 · 等 08:00 auto-write")
     return 0
 
 
