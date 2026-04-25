@@ -104,6 +104,61 @@ def _load_identity_block() -> str:
     )
 
 
+_KOL_PATTERNS_FILE = ROOT / "output" / "kol_patterns.yaml"
+
+
+def _load_kol_patterns_block(*, top_n_hooks: int = 5) -> str:
+    """读 output/kol_patterns.yaml(P2 产出)· 拼成「今日头部对标」prompt 段。
+
+    Why: P3 · 让自动写文时参考头部 KOL 近 7 天的钩子模式 + 结构基线 + 风格签名 ·
+    不要照抄 · 只对标。文件不存在(没跑过 fetch_kol)就静默返回空字串 · 不阻断老链路。
+    """
+    if not _KOL_PATTERNS_FILE.exists():
+        return ""
+    try:
+        import yaml as _yaml
+        data = _yaml.safe_load(_KOL_PATTERNS_FILE.read_text(encoding="utf-8")) or {}
+    except Exception:
+        return ""
+
+    if not data.get("total_articles"):
+        return ""
+
+    hooks = (data.get("top_hooks") or [])[:top_n_hooks]
+    sn = data.get("structural_norms") or {}
+    ss = data.get("style_signature") or {}
+
+    lines: list[str] = ["**=== 今日 KOL 头部对标(参考 · 不照抄)===**\n"]
+    if hooks:
+        lines.append(f"**Top {len(hooks)} 钩子模板**(近 {data.get('window_days', 7)} 天):")
+        for h in hooks:
+            kol = h.get("kol", "?")
+            title = (h.get("title") or "")[:35]
+            hook = (h.get("hook") or "")[:60]
+            lines.append(f"  - [{kol}] {title}")
+            lines.append(f"    钩子:{hook}")
+        lines.append("")
+    if sn:
+        lines.append(
+            f"**结构基线**(中位 · 你写的可以略有差异):"
+            f"H2={sn.get('median_h2_count', 0)} 个 · "
+            f"段={sn.get('median_paragraph_count', 0)} 个 · "
+            f"段长 ≈ {sn.get('median_avg_para_chars', 0)} 字 · "
+            f"图 {sn.get('median_image_count', 0)} 张 · "
+            f"全文 ≈ {sn.get('median_total_chars', 0)} 字"
+        )
+    if ss and ss.get("top_emojis"):
+        emojis = "".join(ss["top_emojis"][:5])
+        lines.append(
+            f"**风格签名**:常见 emoji {emojis} · "
+            f"!! 密度 {ss.get('median_exclaim_per_100', 0)}/100字 · "
+            f"数字 {ss.get('median_number_per_100', 0)}/100字 · "
+            f"加粗 {ss.get('median_bold_per_100', 0)}/100字"
+        )
+    lines.append("\n**用法**:你的钩子可以借鉴上面的形式 · 但话题/数据/观点必须自己挖 · 不要照抄。")
+    return "\n" + "\n".join(lines) + "\n"
+
+
 _COMMON_TAIL_RULES = (
     "**通用必守**:\n"
     "- **不要写 H1**(WeChat 草稿箱标题由 publish 单独传入,H1 会重复)\n"
@@ -137,7 +192,8 @@ def _build_prompt_hotspot(topic, out_path: Path) -> str:
         "**系列定位**:这篇属于「热点观察 / AI 非共识」系列。\n"
         "选用 `references/frameworks.md` 里的框架(痛点型/故事型/观点型/盘点型/对比型)。\n"
         "persona 推荐:`midnight-friend` / `industry-observer` / `sharp-journalist`。\n"
-        + _load_identity_block() + "\n"
+        + _load_identity_block()
+        + _load_kol_patterns_block() + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
@@ -167,7 +223,8 @@ def _build_prompt_shortform(topic, out_path: Path, *, shortform_type: str = "aut
         "目标:让读者刷手机时一口气读完 · 短句 + 反复换行 + 数据密集 · 留个钩子让人加私域。\n\n"
         f"{type_hint}\n\n"
         "**写作 persona 用 `shortform-writer`**(短文写手 · 钩子型 · 第一人称 · 见 `personas/shortform-writer.yaml`)。"
-        + _load_identity_block() + "\n"
+        + _load_identity_block()
+        + _load_kol_patterns_block(top_n_hooks=3) + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
@@ -227,7 +284,8 @@ def _build_prompt_case(topic, out_path: Path) -> str:
         "- 时间线清晰(Day 0 / Day 7 / Day 30 ...)\n"
         "- 关键节点带具体数字(收入 / 用户 / 时长)\n"
         "- 不画大饼 · 不喊口号 · 失败/坑也要讲一两个(更可信)"
-        + _load_identity_block() + "\n"
+        + _load_identity_block()
+        + _load_kol_patterns_block() + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
@@ -263,7 +321,8 @@ def _build_prompt_tutorial(topic, out_path: Path) -> str:
         "选用 `references/tutorial-frameworks.md` 里的框架(T1 步骤教程 / T2 工具评测 / T3 方法论沉淀 / T4 知识科普 / T5 避坑清单),\n"
         "**默认用 T1 步骤教程型**(80% 干货文用这个),除非主题明显更适合其他。\n\n"
         "**写作 persona 用 `tutorial-instructor`**(教程讲师 · 步骤明确 · 操作性强 · 见 `personas/tutorial-instructor.yaml`)。"
-        + _load_identity_block() + "\n"
+        + _load_identity_block()
+        + _load_kol_patterns_block() + "\n"
         "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"

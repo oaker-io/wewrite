@@ -24,6 +24,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import os
+import re
 import sys
 import subprocess
 from datetime import datetime, timezone, timedelta
@@ -133,10 +134,30 @@ def existing_fingerprints(corpus: dict, *, window_days: int) -> set[str]:
 # =================================================================
 # RSS fetch
 # =================================================================
+def _html_to_md(html: str) -> str:
+    """HTML → markdown · 用 html2text · 不折行(body_width=0)· 去图片 src 长串。"""
+    if not html:
+        return ""
+    try:
+        import html2text
+        h = html2text.HTML2Text()
+        h.body_width = 0
+        h.ignore_images = False
+        h.ignore_links = False
+        h.skip_internal_links = True
+        md = h.handle(html)
+    except Exception:
+        return html  # 兜底:返回 HTML 原文 · 让分析器跑 regex
+    # mp.weixin.qq.com 图片 src 是超长 base64-like · 替成短占位
+    md = re.sub(r'!\[([^\]]*)\]\([^)]{200,}\)', r'![\1](IMG)', md)
+    return md.strip()
+
+
 def fetch_rss(rss_url: str, *, limit: int = 5) -> list[dict]:
-    """拉 RSS · 返回最多 limit 篇文章 · 每篇含 title/link/published/summary。
+    """拉 RSS · 返回最多 limit 篇文章 · 每篇含 title/link/published/summary/content_md。
 
     失败返回空 list · 不抛(上层按 KOL 计 fail rate)。
+    优先从 entry.content[0].value 取全文 · 没有 fallback summary。
     """
     import feedparser
     try:
@@ -149,11 +170,22 @@ def fetch_rss(rss_url: str, *, limit: int = 5) -> list[dict]:
         return []
     out = []
     for entry in (d.entries or [])[:limit]:
+        # 全文优先 entry.content[0].value(wewe-rss 这里给完整 HTML)
+        content_html = ""
+        contents = entry.get("content")
+        if contents and isinstance(contents, list) and contents:
+            content_html = (contents[0].get("value") or "").strip()
+        # fallback summary
+        summary = (entry.get("summary") or "").strip()
+        if not content_html and summary:
+            content_html = summary
+
         out.append({
             "title": (entry.get("title") or "").strip(),
             "link": (entry.get("link") or "").strip(),
             "published": entry.get("published") or entry.get("updated") or "",
-            "summary": (entry.get("summary") or "").strip()[:500],
+            "summary": summary[:500],
+            "content_md": _html_to_md(content_html),
         })
     return out
 
@@ -322,6 +354,7 @@ def main() -> int:
                 "url": entry["link"],
                 "pub_date": entry["published"][:25],
                 "summary": entry["summary"],
+                "content_md": entry.get("content_md", ""),
                 "fetched_at": _now_iso(),
                 "fingerprint": fp,
                 "idea_id": idea_id,

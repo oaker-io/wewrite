@@ -66,6 +66,16 @@
 - 群发限制:订阅号每日 1 次 · 没实现 masssend API · 用户每晚 1 tap 即可(决策 3)
 - `tests/test_auto_pick.py` 7 + `test_auto_review.py` 7 + `test_case_prompt.py` 7 + `test_sanitize_utm.py` 6 = 27 新条 · 总 181 条全绿
 
+### 🟣 **P1+P2+P3 进行中** · KOL 公众号语料库 + 头部模式注入(2026-04-25)
+- **P1 框架就绪**:`scripts/fetch_kol.py` · 03:00 凌晨抓 KOL RSS → corpus + idea_bank · 错峰避开白天 claude token
+- **P2 metadata 抽取**:`scripts/analyze_kol.py` · 4 层(选题/结构/风格/传播) · 输出 `output/kol_patterns.yaml`
+- **P3 prompt 注入**:`write.py:_load_kol_patterns_block()` · hotspot/shortform/case/tutorial 4 个 prompt 都注入「今日头部对标」段
+- `config/kol_list.yaml` · 15 KOL 清单(8 用户 + 7 Claude 补 · 偏个人 IP / 副业搞钱 / AI 实战)
+- `infra/wewe-rss/` · Docker compose + README · 用户起 wewe-rss 后扫码 · web UI 订阅 KOL · 拿 RSS url 填 kol_list.yaml
+- `auto-fetch-kol.sh` · 03:00 触发 fetch → 自动链 analyze · 失败 push Discord 不阻断
+- 阻塞:用户须装 OrbStack + 启 wewe-rss + 扫码 + 订阅 · 之后填 kol_list.yaml#rss_url + 改 status=active
+- 测试:`test_fetch_kol.py` 10 + `test_analyze_kol.py` 22 = 32 新条 · 总 291 全绿
+
 ## 关键文件地图
 
 | 文件 | 作用 | 改它时要注意 |
