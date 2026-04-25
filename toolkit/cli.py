@@ -54,10 +54,12 @@ def cmd_preview(args):
     result = converter.convert_file(args.input)
 
     # md2wx returns complete HTML; native returns body-only needing preview_html wrapping
+    # 2026-04-25:剥 aipickgold 编辑器糖背景色 · 让 preview 真实反映 publish 后样子
+    from sanitize import strip_decorative_backgrounds
     if args.engine == "md2wx":
-        full_html = result.html
+        full_html = strip_decorative_backgrounds(result.html)
     else:
-        full_html = preview_html(result.html, theme)
+        full_html = preview_html(strip_decorative_backgrounds(result.html), theme)
 
     # Write to temp file
     input_path = Path(args.input)

@@ -189,23 +189,30 @@ def _strip_bg_keep_gradient(style: str) -> str:
     return "; ".join(out)
 
 
+# 匹配 inline style="..."(含前导可选空格)· 非贪婪
+# Why 不用 BeautifulSoup:aipickgold 给的 style 偶尔嵌双引号(eg "SF Mono") ·
+# html.parser 在嵌套 " 处闭合 attribute · 后面字符全成 boolean attrs · 输出脏
+# 纯 regex 在 style="..." 字符串边界处理 · 不 parse 结构 · 对不规范 HTML 也稳
+_STYLE_ATTR_RE = re.compile(r' ?style="([^"]*)"', re.DOTALL)
+
+
 def strip_decorative_backgrounds(html: str) -> str:
-    """剥 aipickgold 编辑器糖背景色 · 让微信草稿用原底。幂等。"""
+    """剥 aipickgold 编辑器糖背景色 · 让微信草稿用原底。
+
+    保留含 linear-gradient / radial-gradient 的 background(author-card brand 视觉)。
+    用纯 regex 处理 style="..." · 不 parse HTML 结构 · 对 aipickgold 不规范 HTML 容错。
+    幂等。
+    """
     if not html or "background" not in html.lower():
         return html
-    try:
-        from bs4 import BeautifulSoup
-    except ImportError:
-        return html  # bs4 没装兜底 · 不阻断
-    soup = BeautifulSoup(html, "html.parser")
-    for el in soup.find_all(style=True):
-        new_style = _strip_bg_keep_gradient(el["style"])
-        if new_style != el["style"]:
-            if new_style.strip():
-                el["style"] = new_style
-            else:
-                del el["style"]
-    return str(soup)
+
+    def _replace(m: re.Match) -> str:
+        new_style = _strip_bg_keep_gradient(m.group(1))
+        if not new_style.strip():
+            return ""  # 空 style attr 整个删(连同前导空格)
+        return f' style="{new_style}"'
+
+    return _STYLE_ATTR_RE.sub(_replace, html)
 
 
 def _add_utm_to_aipickgold(md: str, *, date_str: str | None = None) -> str:
