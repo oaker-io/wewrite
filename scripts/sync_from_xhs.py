@@ -309,7 +309,17 @@ def handle_payload(payload_path: Path, *, dry_run: bool, no_push: bool) -> int:
     # 2. 渲头图(wechat-cover 2.35:1 · 0 钱 HTML)
     png_path = render_sync_cover(payload, dry_run=dry_run)
 
-    # 3. Discord push
+    # 3. 贴图模式 · 推公众号草稿箱(2026-04-26 加)
+    # 触发条件:payload.push_to_gzh_draft=True + xhs_md_path 存在
+    draft_media_id = None
+    if (
+        not dry_run
+        and payload.get("push_to_gzh_draft")
+        and payload.get("xhs_md_path")
+    ):
+        draft_media_id = _push_to_gzh_draft(payload, png_path)
+
+    # 4. Discord push
     if not no_push:
         lines = [
             "🔗 **xhs → wewrite 同步(v2)**",
@@ -319,13 +329,80 @@ def handle_payload(payload_path: Path, *, dry_run: bool, no_push: bool) -> int:
             lines.append(f"idea_bank: #{idea_id}")
         if png_path and png_path.exists():
             lines.append(f"封面: {png_path.name} · 2350×1000 @2x")
+        if draft_media_id:
+            lines.append(f"📨 公众号草稿: `{draft_media_id[:24]}...`")
+            lines.append("→ 公众号 App 草稿箱可见 · 通读后一键发表")
+        elif png_path and png_path.exists():
             lines.append("→ 公众号头条头图已生成 · 待人审")
-            push_discord("\n".join(lines), image_path=str(png_path))
         else:
             lines.append("封面: 跳过(无 image_plan / dry-run)")
+
+        if png_path and png_path.exists():
+            push_discord("\n".join(lines), image_path=str(png_path))
+        else:
             push_discord("\n".join(lines))
 
     return 0
+
+
+def _push_to_gzh_draft(payload: dict, cover_png: Path | None) -> str | None:
+    """贴图模式 · 把 xhs md + cover 推公众号草稿箱。
+
+    成功返 media_id · 失败返 None(不阻塞 sync 主流程)。
+    复用 toolkit/cli.py publish · 不重写。
+    """
+    xhs_md = payload.get("xhs_md_path")
+    title = (payload.get("title") or "").strip()
+    if not xhs_md or not Path(xhs_md).exists():
+        print(f"  ⚠ xhs_md_path 不存在 · 跳过草稿推送: {xhs_md}", file=sys.stderr)
+        return None
+
+    cover_arg = str(cover_png) if cover_png and cover_png.exists() else (
+        payload.get("xhs_cover_path") or ""
+    )
+    if not cover_arg or not Path(cover_arg).exists():
+        print("  ⚠ 无可用 cover · 跳过草稿推送", file=sys.stderr)
+        return None
+
+    # 公众号标题钩子化 · 不直接用 xhs 标题
+    digest = (payload.get("title") or "")[:60]
+
+    py = ROOT / "venv" / "bin" / "python3"
+    if not py.exists():
+        py = "python3"
+    cli = ROOT / "toolkit" / "cli.py"
+
+    cmd = [
+        str(py), str(cli), "publish", xhs_md,
+        "--engine", "md2wx",
+        "--theme", "focus-navy",
+        "--cover", cover_arg,
+        "--title", title,
+        "--digest", digest,
+    ]
+    try:
+        r = subprocess.run(
+            cmd, cwd=str(ROOT),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print("  ⚠ cli.py publish 超时 · 草稿推送跳过", file=sys.stderr)
+        return None
+
+    if r.returncode != 0:
+        print(f"  ⚠ cli.py publish 失败 rc={r.returncode}", file=sys.stderr)
+        print(f"     {r.stderr[-300:]}", file=sys.stderr)
+        return None
+
+    # 抠 media_id
+    import re as _re
+    m = _re.search(r"Draft created[!]?\s+media_id:\s*(\S+)", r.stdout)
+    if not m:
+        m = _re.search(r"media_id:\s*(\S{30,})", r.stdout)
+    media_id = m.group(1) if m else None
+    if media_id:
+        print(f"  ✓ 公众号草稿 media_id={media_id[:24]}...")
+    return media_id
 
 
 # --- 旧 events.jsonl 模式(P1) -----------------------------------------------
