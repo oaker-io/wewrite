@@ -168,11 +168,83 @@ def select_ideas(category: str, fallback: str, *, allow_fetch: bool = True,
         return [], ""
 
     # 重试 select(此时 allow_fetch=False 防递归)
-    return select_ideas(category, fallback, allow_fetch=False)
+    ideas, used = select_ideas(category, fallback, allow_fetch=False)
+    if ideas:
+        return ideas, used
+
+    # 终极兜底:从 ai-news-hub 拉 release/eval 素材 · 转成 idea 形态
+    print("⚠ idea 库仍空 · 尝试从 ai-news-hub 共享层拉候选...", file=sys.stderr)
+    news_picks = _read_news_hub_as_ideas(2, exclude_ids=excl)
+    if news_picks:
+        return news_picks, "news_hub"
+    return [], ""
+
+
+def _read_news_hub_as_ideas(limit: int, *, exclude_ids: set | None = None) -> list[dict]:
+    """Pull recent wewrite-scored news_hub items, shape them like idea_bank rows.
+
+    Returns list of dicts with keys: id, title, category, priority, plus
+    `_news_hub` payload (url, source, summary) consumed by to_topic.
+    Silent on any failure.
+    """
+    try:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from news_hub_reader import read_news  # type: ignore
+    except Exception:  # noqa: BLE001
+        return []
+    try:
+        items = read_news(limit=max(limit * 2, 6), since_hours=72)
+    except Exception:  # noqa: BLE001
+        return []
+    if not items:
+        return []
+    out: list[dict] = []
+    for it in items:
+        if len(out) >= limit:
+            break
+        # synthesize a stable negative id so it never collides with idea_bank rows
+        try:
+            iid = -(int(str(it.get("id", "0"))[:12], 16) % 9_000_000_000)
+        except Exception:  # noqa: BLE001
+            iid = -abs(hash(it.get("title", ""))) % 9_000_000_000
+            iid = -iid if iid > 0 else iid
+        if exclude_ids and iid in exclude_ids:
+            continue
+        out.append({
+            "id": iid,
+            "title": (it.get("title") or "")[:80],
+            "category": "hotspot",
+            "priority": float(it.get("wx_score", 0) or 0),
+            "_news_hub": {
+                "url": it.get("url", ""),
+                "source": it.get("source", ""),
+                "summary": (it.get("summary") or "")[:600],
+            },
+        })
+    return out
 
 
 def to_topic(idea: dict, source_label: str) -> dict:
-    """idea 库记录 → session.yaml 的 topic 字典(跟 brief.py 同结构)。"""
+    """idea 库记录 → session.yaml 的 topic 字典(跟 brief.py 同结构)。
+
+    news_hub 来源时,from="news_hub" + 携带 url/source/summary,让 write.py
+    可以注入 KOL reactions + eval reviews 上下文。
+    """
+    payload = idea.get("_news_hub")
+    if payload:
+        return {
+            "title": idea.get("title", ""),
+            "source": f"news_hub / {payload.get('source','?')}",
+            "hot": 0,
+            "score": float(idea.get("priority", 0) or 0),
+            "ai_kw": "auto",
+            "is_robot": False,
+            "url": payload.get("url", ""),
+            "from": "news_hub",
+            "idea_id": idea.get("id"),
+            "category": idea.get("category", "hotspot"),
+            "summary": payload.get("summary", ""),
+        }
     return {
         "title": idea.get("title", ""),
         "source": f"idea 库 / {source_label}",

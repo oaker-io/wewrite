@@ -159,6 +159,58 @@ def _load_kol_patterns_block(*, top_n_hooks: int = 5) -> str:
     return "\n" + "\n".join(lines) + "\n"
 
 
+def _load_news_hub_reactions_block(topic: dict) -> str:
+    """When topic.from == news_hub, fetch matching KOL reactions + real-eval cards.
+
+    Returns a markdown block to inject into the writer prompt as concrete
+    evidence. Silent no-op for non-news_hub topics or any failure.
+    """
+    if not topic or topic.get("from") != "news_hub":
+        return ""
+    try:
+        sys.path.insert(0, str(ROOT / "scripts"))
+        from news_hub_reader import read_release_reactions, read_reviews  # type: ignore
+    except Exception:
+        return ""
+
+    url = (topic.get("url") or "").rstrip("/")
+    slug_raw = url.split("/")[-1].lower() if url else ""
+    slug = re.sub(r"[^a-z0-9]+", "_", slug_raw)[:60]
+
+    rxns = []
+    revs = []
+    try:
+        if slug:
+            rxns = read_release_reactions(slug=slug)
+            revs = read_reviews(model_slug=slug)
+    except Exception:
+        pass
+
+    out: list[str] = []
+    summary = (topic.get("summary") or "").strip()
+    if summary:
+        out.append(f"**=== news_hub 发布摘要 ===**\n{summary[:600]}\n")
+    if rxns:
+        out.append("**=== 5 个 KOL 怎么说(news_hub release_reactions)===**")
+        for r in (rxns[0].get("kol_reactions") or [])[:5]:
+            author = r.get("author", "?")
+            text = (r.get("text") or "").replace("\n", " ").strip()[:240]
+            out.append(f"- @{author}:{text}")
+        out.append("")
+    if revs:
+        out.append("**=== 5 个维度真测(news_hub reviews · 可在正文引用 eval 结论)===**")
+        for c in (revs[0].get("cards") or [])[:5]:
+            cat = c.get("category", "?")
+            eid = c.get("eval_id", "?")
+            out.append(f"- {cat}:{eid}")
+        out.append("")
+    if not out:
+        return ""
+    out.insert(0, "\n**用法**:本主题来自 ai-news-hub · 下方是真实 KOL/eval 素材 · "
+                  "正文必须基于这些事实 · 不要编造数据,可在文中引用 KOL 原话作佐证。\n")
+    return "\n" + "\n".join(out) + "\n"
+
+
 _TOPIC_SCOPE_RULES = (
     "**🎯 主题必须命中以下 6 大范围之一(WeWrite 核心宗旨 · 越界即重写)**:\n"
     "1. **AI 搞钱** — 副业 / 变现 / 月入 / 路径 / ROI / 红利窗口\n"
@@ -208,7 +260,8 @@ def _build_prompt_hotspot(topic, out_path: Path) -> str:
         "persona 推荐:`midnight-friend` / `industry-observer` / `sharp-journalist`。\n"
         + _load_identity_block()
         + _load_kol_patterns_block() + "\n"
-        "严格要求:\n"
+        + _load_news_hub_reactions_block(topic)
+        + "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
         "3. 正文 **1800-2500 字** · 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
@@ -240,7 +293,8 @@ def _build_prompt_shortform(topic, out_path: Path, *, shortform_type: str = "aut
         "**写作 persona 用 `shortform-writer`**(短文写手 · 钩子型 · 第一人称 · 见 `personas/shortform-writer.yaml`)。"
         + _load_identity_block()
         + _load_kol_patterns_block(top_n_hooks=3) + "\n"
-        "严格要求:\n"
+        + _load_news_hub_reactions_block(topic)
+        + "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
         "3. 正文 **800-1500 字**(超过 1500 直接砍 · 短文不允许凑字数)\n"
@@ -301,7 +355,8 @@ def _build_prompt_case(topic, out_path: Path) -> str:
         "- 不画大饼 · 不喊口号 · 失败/坑也要讲一两个(更可信)"
         + _load_identity_block()
         + _load_kol_patterns_block() + "\n"
-        "严格要求:\n"
+        + _load_news_hub_reactions_block(topic)
+        + "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
         "3. 正文 **2200-3800 字** · 至少 2 个编辑锚点 `<!-- ✏️ ... -->`\n"
@@ -338,7 +393,8 @@ def _build_prompt_tutorial(topic, out_path: Path) -> str:
         "**写作 persona 用 `tutorial-instructor`**(教程讲师 · 步骤明确 · 操作性强 · 见 `personas/tutorial-instructor.yaml`)。"
         + _load_identity_block()
         + _load_kol_patterns_block() + "\n"
-        "严格要求:\n"
+        + _load_news_hub_reactions_block(topic)
+        + "严格要求:\n"
         f"1. 文章输出到 `{out_path.relative_to(ROOT)}`\n"
         "2. **只跑 Step 3-5**(框架/素材/写作/SEO/自检),**不要生成图片**,**不要推草稿箱**\n"
         "3. 正文 **2500-4500 字**(教程通常需要更长结构 · 步骤要展开)\n"
