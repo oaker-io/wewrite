@@ -55,7 +55,7 @@
 - ✅ **图像生成**:Poe gpt-image-2 主 · Gemini API 备 · quota-aware fallback · overlay_text.py 中文叠字兜底(2026-04-25 从 nano-banana-2 切到 gpt-image-2)
 - ✅ **排版双引擎**:native(自带 16 主题,零依赖)+ md2wx(50 主题,`--engine md2wx` 切换)
 - ✅ **`:::author-card` 容器**:8 style preset · 66 theme 自动映射(50 md2wx + 16 native)· **table 布局**(WeChat-safe)+ linear-gradient 渐变 · **mp_brand 现在渲染成虚线占位框**(2026-04-25 改 · 用户发表前在 mp.weixin.qq.com 工具栏「资源引用→公众号」手插真卡覆盖)
-- ✅ **微信草稿箱发布**:`cli.py publish` 自动上传图片 + src 重写 · 默认接 `sanitize` 中间件(去 H1 / 清 cover alt / 兜底 author-card / 补 mp_brand / **加 QR 块**)· AppID/AppSecret + IP 白名单已配
+- ✅ **微信草稿箱发布**:`cli.py publish` 自动上传图片 + src 重写 · 默认接 `sanitize` 中间件(去 H1 / 清 cover alt / 兜底 author-card / 补 mp_brand / **加 QR 块** / **剥 aipickgold 装饰背景**)· AppID/AppSecret + IP 白名单已配
 - ✅ **routine 已上线**:launchd 每日 08:30 · `daily-brief.sh` → `brief.py` → AI 白名单过滤 → Discord Top N · Bark/ntfy 仅作异常降级
 - ✅ **Discord bot**:入站 `bot.py` daemon · ACL 白名单 · 出站 `push.py` CLI(主动推送 + DM/channel fallback + 图片附件)
 - ✅ **个人 IP 化**:author=智辰 · brand=宸的 AI 掘金笔记 · 私域二维码 + aipickgold 推广固定在文末
