@@ -308,19 +308,82 @@ def _extract_main_title(full_title: str, *, max_chars_per_line: int = 8) -> list
     return [head[:n], head[n:n*2], head[n*2:]]
 
 
+def _try_html_cover_square(out_path: Path, full_title: str,
+                            *, theme: str = "xhs-insight-news") -> bool:
+    """优先方案:走 xhs-card html 引擎(0 钱 · 漂亮模板)· 失败返回 False。
+
+    使用 wechat-square preset(1080×1080) + cover.html 模板 + theme CSS。
+    可选 theme:xhs-insight-news / xhs-money-card / xhs-news-card / xhs-combat-step ...
+    """
+    try:
+        sys.path.insert(0, str(ROOT))
+        from lib.image_card_client import render_card  # noqa: E402
+    except Exception as e:
+        print(f"  ⚠ image_card_client unavailable: {e}", file=sys.stderr)
+        return False
+
+    title_lines = _extract_main_title(full_title)
+    headline = title_lines[0] if title_lines else "AI 红利"
+    subtitle = "".join(title_lines[1:])[:24] if len(title_lines) > 1 else ""
+
+    spec = {
+        "slug": f"cover-square-auto",
+        "engine": "html",
+        "platform": "gzh",
+        "theme": theme,
+        "size_preset": "wechat-square",  # 1080×1080
+        "author": "@aipickgold",
+        "pages": [
+            {
+                "template": "cover",
+                "fields": {
+                    "tag": "AI 红利信号",
+                    "title_main": headline[:14],
+                    "title_sub": subtitle,
+                    "anchor_glyph": "★",
+                    "kicker": "宸的 AI 掘金笔记",
+                    "hero_stats": [],
+                },
+            },
+        ],
+    }
+    try:
+        tmp_dir = out_path.parent / ".cover-square-tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        outputs = render_card(spec, tmp_dir, timeout=120)
+        if not outputs:
+            return False
+        # 第 1 张就是 cover · copy 覆盖目标
+        import shutil
+        shutil.copy2(outputs[0], out_path)
+        # 清 tmp
+        for f in tmp_dir.glob("*"):
+            try: f.unlink()
+            except OSError: pass
+        try: tmp_dir.rmdir()
+        except OSError: pass
+        print(f"✓ html-card 生 cover-square · theme={theme} · headline={headline}")
+        return True
+    except Exception as e:
+        print(f"  ⚠ html-card 失败: {str(e)[:120]}", file=sys.stderr)
+        return False
+
+
 def _force_safe_cover_square(out_path: Path, full_title: str,
                               *, size: int = 1080,
-                              bg: str = "#1A2332",
-                              fg: str = "#FFFFFF",
-                              brand_color: str = "#9099AA") -> None:
-    """100% Python 生 cover-square.png · 字必在中央安全区 · 微信列表 thumb 裁切不漏字。
+                              bg: str = "#FAF7F0",      # 默认浅米黄(暖底深字 · 比黑底好看)
+                              fg: str = "#1A2332",
+                              brand_color: str = "#666677",
+                              prefer_html: bool = True) -> None:
+    """100% 控字版 cover-square · 字必在中央安全区 · 微信 thumb 不漏字。
 
-    设计:
-      - 1080×1080 纯背景(深蓝 / 深灰 / 暖色 5 套)
-      - 主标 2-3 行 · 字号 145px · 居中 · 总高 ≤ 525(中央 49%)
-      - 副标「宸的 AI 掘金笔记」字号 36px · 底部 80px
-      - 80×80 缩略时主标占 ~10px/字 · 仍能识别
+    顺序:
+      1. prefer_html=True:先尝试 xhs-card html 模板(漂亮 · 0 钱)
+      2. fallback:PIL 纯背景叠字(浅米黄 · 不再黑底白字)
     """
+    if prefer_html and _try_html_cover_square(out_path, full_title):
+        return
+
     from PIL import Image, ImageDraw, ImageFont
 
     font_path = next((p for p in _FONT_CANDIDATES if Path(p).exists()), None)
@@ -332,18 +395,21 @@ def _force_safe_cover_square(out_path: Path, full_title: str,
     img = Image.new("RGB", (size, size), color=bg)
     d = ImageDraw.Draw(img)
 
-    # 主标(自适应字号:行多则字号小一些)
+    # 主标 · 自适应字号
     main_size = 160 if len(title_lines) == 1 else (145 if len(title_lines) == 2 else 130)
     line_h = int(main_size * 1.2)
     title_font = ImageFont.truetype(font_path, main_size, index=0)
     total_h = line_h * len(title_lines)
-    y_start = (size - total_h) // 2 - 30  # 略上移给底部 brand 留位
+    y_start = (size - total_h) // 2 - 30
 
     for i, line in enumerate(title_lines):
         bbox = d.textbbox((0, 0), line, font=title_font)
         w = bbox[2] - bbox[0]
         x = (size - w) // 2
         d.text((x, y_start + i * line_h), line, fill=fg, font=title_font)
+
+    # 顶部锚点装饰条(让暖底不空)
+    d.rectangle([(size // 2 - 60, 80), (size // 2 + 60, 86)], fill=fg)
 
     # 底部 brand
     brand = "宸的 AI 掘金笔记"
@@ -354,7 +420,7 @@ def _force_safe_cover_square(out_path: Path, full_title: str,
 
     out_path.parent.mkdir(parents=True, exist_ok=True)
     img.save(out_path, optimize=True)
-    print(f"✓ Python 强制覆盖 cover-square.png · 主标:{title_lines}")
+    print(f"✓ PIL fallback cover-square · 浅米黄底深字 · 主标:{title_lines}")
 
 
 def main():

@@ -315,6 +315,7 @@ def review(md: str, *, is_case: bool = False, threshold: int = DEFAULT_THRESHOLD
     ic = _image_count(md)
     catches, hit_list = _catchphrase_hits(md, load_catchphrases())
     forbidden_hits = _forbidden_hits(md, load_forbidden())
+    humanize = _humanize_check(md)  # 反 AI 检测维度(2026-04-26 加)
 
     # 这些转 0-5 分制
     word_score = 5 if wc >= word_min else (3 if wc >= word_min * 0.8 else (2 if wc >= word_min * 0.6 else 1))
@@ -337,6 +338,7 @@ def review(md: str, *, is_case: bool = False, threshold: int = DEFAULT_THRESHOLD
         "catchphrase": catch_score,
         "forbidden": forbid_score,
         "case_realism": case_score,
+        "humanize": humanize["score"],   # 反 AI 检测综合分(2026-04-26)
     }
     raw = {
         "word_count": wc,
@@ -345,6 +347,7 @@ def review(md: str, *, is_case: bool = False, threshold: int = DEFAULT_THRESHOLD
         "catchphrase_examples": hit_list[:3],
         "forbidden_hits": forbidden_hits,
         "is_case": is_case,
+        "humanize": humanize,            # 含 6 子项 raw counts
     }
     # 决定通过/不通过(LLM None 不算 fail)
     failed_dims = []
@@ -365,11 +368,15 @@ def review(md: str, *, is_case: bool = False, threshold: int = DEFAULT_THRESHOLD
 def push_review_result(result: dict, md_path: Path) -> None:
     s = result["scores"]
     raw = result["raw"]
+    h = raw.get("humanize") or {}
     status = "✅ 通过" if result["passed"] else "❌ 未达标"
     lines = [
         f"📊 **auto_review · {status}**",
         f"📂 {md_path.name}",
         "",
+        f"• humanize: {s.get('humanize', '?')}/5 "
+        f"(连接词 {h.get('connector_hits', 0)} · 锚点 {h.get('anchors', 0)} · "
+        f"失败披露 {h.get('failure_hits', 0)})",
         f"• hook_strength: {s['hook_strength']}",
         f"• word_count: {s['word_count']} (实测 {raw['word_count']} 字)",
         f"• image_count: {s['image_count']} (实测 {raw['image_count']} 张)",
