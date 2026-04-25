@@ -308,6 +308,67 @@ def _extract_main_title(full_title: str, *, max_chars_per_line: int = 8) -> list
     return [head[:n], head[n:n*2], head[n*2:]]
 
 
+# 2026-04-26 · 集成 nano-banana-cover(sibling 仓 · Poe nano-banana-2 + OCR)
+NANO_BANANA_ROOT = ROOT.parent / "nano-banana-cover"
+
+
+def _try_nano_banana_cover_square(out_path: Path, full_title: str) -> bool:
+    """调 nano-banana-cover · Poe nano-banana-2 + multi-anchor + OCR 验证 · 出 1:1 cover-square。
+
+    优先级最高 · 质量最好(用户已肉眼审过 banner+square 全 satisfy)。
+    成本 ~$0.04/张 + ~$0.001 OCR · 一天 5 张 ≈ $0.20。
+    失败回 False · caller fallback html-card → PIL。
+    """
+    if not NANO_BANANA_ROOT.exists():
+        return False
+    cli = NANO_BANANA_ROOT / "src" / "generate.py"
+    if not cli.exists():
+        return False
+
+    # 把 full_title 抽成 1-3 行 · | 分隔(nano-banana CLI 硬规则)
+    title_lines = _extract_main_title(full_title)
+    title_arg = "|".join(title_lines)
+
+    py = ROOT / "venv" / "bin" / "python3"
+    if not py.exists():
+        py = "python3"
+
+    try:
+        r = subprocess.run(
+            [str(py), "-m", "src.generate", "single",
+             "--title", title_arg, "--format", "square",
+             "--max-retries", "2"],
+            cwd=str(NANO_BANANA_ROOT),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print("  ⚠ nano-banana 超时", file=sys.stderr)
+        return False
+    if r.returncode != 0:
+        print(f"  ⚠ nano-banana exit={r.returncode}: {r.stderr[-300:]}", file=sys.stderr)
+        return False
+
+    # 找最新 output 目录的 square.png · resize 到 1080×1080 兼容旧路径
+    outs = sorted((NANO_BANANA_ROOT / "output").iterdir(), reverse=True)
+    if not outs:
+        return False
+    square_src = outs[0] / "square.png"
+    if not square_src.exists():
+        return False
+    try:
+        from PIL import Image
+        img = Image.open(square_src)
+        if img.size != (1080, 1080):
+            img = img.resize((1080, 1080), Image.LANCZOS)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(out_path, optimize=True)
+        print(f"  ✓ nano-banana cover-square · headline={title_lines} · src={square_src.relative_to(NANO_BANANA_ROOT)}")
+        return True
+    except Exception as e:
+        print(f"  ⚠ nano-banana resize 失败: {e}", file=sys.stderr)
+        return False
+
+
 def _try_html_cover_square(out_path: Path, full_title: str,
                             *, theme: str = "xhs-insight-news") -> bool:
     """优先方案:走 xhs-card html 引擎(0 钱 · 漂亮模板)· 失败返回 False。
@@ -381,6 +442,11 @@ def _force_safe_cover_square(out_path: Path, full_title: str,
       1. prefer_html=True:先尝试 xhs-card html 模板(漂亮 · 0 钱)
       2. fallback:PIL 纯背景叠字(浅米黄 · 不再黑底白字)
     """
+    # 2026-04-26 · 优先级:nano-banana(质量最高 · 用户审过满意)
+    #              → html-card(0 钱 兜底)
+    #              → PIL 暴力(最后兜底 · 浅米黄底深字)
+    if _try_nano_banana_cover_square(out_path, full_title):
+        return
     if prefer_html and _try_html_cover_square(out_path, full_title):
         return
 
