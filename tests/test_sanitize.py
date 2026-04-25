@@ -147,7 +147,7 @@ class SanitizeFullFlow(unittest.TestCase):
 # -----------------------------------------------------------------
 class PrepareFileIO(unittest.TestCase):
     def test_clean_file_returns_self(self):
-        # "clean" 现在意味着:无 H1 / 无 cover alt / 末尾 author-card 已含 mp_brand
+        # "clean" 现在意味着:无 H1 / 无 cover alt / author-card 含 mp_brand / 已有 QR 块
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "clean.md"
             p.write_text(
@@ -155,7 +155,11 @@ class PrepareFileIO(unittest.TestCase):
                 ":::author-card\n"
                 "name: x\n"
                 "mp_brand: 宸的 AI 掘金笔记\n"
-                ":::\n",
+                ":::\n\n"
+                "### 👋 加我个人微信\n\n"
+                "![智辰老师聊 ai](images/qr-zhichen.png)\n\n"
+                "### 🔥 武汉同城 · OpenClaw 创业群\n\n"
+                "![openclaw 武汉创业群](images/qr-openclaw.png)\n",
                 encoding="utf-8",
             )
             out = prepare_for_publish(p)
@@ -180,7 +184,12 @@ class PrepareFileIO(unittest.TestCase):
 # 6. author_card mp_brand 嵌入卡渲染
 # -----------------------------------------------------------------
 class AuthorCardMpBrand(unittest.TestCase):
-    def test_mp_card_rendered(self):
+    def test_mp_card_renders_placeholder(self):
+        """2026-04-25 改:mp_brand 触发虚线占位框 + 提示文字 · 不再渲染静态嵌入卡。
+
+        Why: 用户每次发表前用 mp.weixin.qq.com 工具栏「资源引用→公众号」插入真卡 ·
+        静态视觉反而占了那块位置 · 让用户不清楚该往哪儿插。
+        """
         md = (
             ":::author-card\n"
             "name: 智辰老师\n"
@@ -190,11 +199,15 @@ class AuthorCardMpBrand(unittest.TestCase):
             ":::"
         )
         html = preprocess_author_card(md, theme_id="focus-navy")
-        self.assertIn("宸的 AI 掘金笔记", html)
-        self.assertIn("记录 AI Agent", html)
-        self.assertIn("关注获取每日 AI 非共识", html)
-        # 视觉占位的箭头
-        self.assertIn("›", html)
+        # 占位文字 · 用户一眼定位插卡位
+        self.assertIn("▼ 公众号关注卡片 · 发表前在此插入 ▼", html)
+        # 虚线边框(实测 WeChat 安全)
+        self.assertIn("dashed", html)
+        # 静态视觉的箭头不应再出现在 mp 块里
+        # (其他地方还可能有 · 不强校验)
+        # 静态品牌文字不应再渲染
+        self.assertNotIn("记录 AI Agent", html)
+        self.assertNotIn("关注获取每日 AI 非共识", html)
 
     def test_no_mp_card_when_brand_absent(self):
         md = (
@@ -204,24 +217,11 @@ class AuthorCardMpBrand(unittest.TestCase):
             ":::"
         )
         html = preprocess_author_card(md)
-        # 没有 mp_brand · 不应渲染嵌入卡(箭头不存在)
-        # 但 name/bio 仍在
+        # 没有 mp_brand · 不应渲染占位框
         self.assertIn("普通卡", html)
         self.assertIn("没有 mp", html)
-        self.assertNotIn("mp_brand", html)
-
-    def test_mp_id_emits_mp_common_profile(self):
-        md = (
-            ":::author-card\n"
-            "name: x\n"
-            "mp_brand: 宸的 AI 掘金笔记\n"
-            "mp_id: gh_test123\n"
-            ":::"
-        )
-        html = preprocess_author_card(md)
-        # mp_id 触发 mp-common-profile 占位标签(WeChat 渲染器若识别会替换)
-        self.assertIn("mp-common-profile", html)
-        self.assertIn("gh_test123", html)
+        self.assertNotIn("公众号关注卡片", html)
+        self.assertNotIn("dashed", html)
 
     def test_gradient_in_render(self):
         """WeChat 实测支持 linear-gradient · 必须在 bg/strip/avatar 渲染。"""
@@ -283,7 +283,7 @@ class EnsureMpBrand(unittest.TestCase):
         out = _ensure_mp_brand_in_last_card(md)
         self.assertIn("mp_brand: 宸的 AI 掘金笔记", out)
         self.assertIn("mp_desc: 记录 AI Agent", out)
-        self.assertIn("mp_meta: 关注获取每日 AI 非共识", out)
+        self.assertIn("mp_meta: 关注获取每日 AI 红利信号 · 看智辰", out)
         # 原字段保留
         self.assertIn("name: 智辰老师", out)
         self.assertIn("bio: 老 prompt", out)

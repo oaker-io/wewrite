@@ -274,15 +274,22 @@ def main():
         print("⚠ no hotspots & no ideas · kept state=idle · user notified", file=sys.stderr)
         return 0
 
-    _state.advance(
-        _state.STATE_BRIEFED,
-        article_date=datetime.now().strftime("%Y-%m-%d"),
-        topics=topics,
-        selected_idx=None,
-        article_md=None,
-        images_dir=None,
-        draft_media_id=None,
-    )
+    try:
+        _state.advance(
+            _state.STATE_BRIEFED,
+            article_date=datetime.now().strftime("%Y-%m-%d"),
+            topics=topics,
+            selected_idx=None,
+            article_md=None,
+            images_dir=None,
+            draft_media_id=None,
+        )
+    except _state.StateGuardError as e:
+        cur = _state.get_state()
+        push(f"⚠ brief skip · session 已在 {cur} · 不重置进行中的工作\n"
+             f"如要开新文 · 在 Discord 回 `reset` 或 `pass`")
+        print(f"⚠ {e}", file=sys.stderr)
+        return 0
     msg = format_message(topics, stats, idea_count=idea_count)
     push(msg)
     print(f"✓ briefed · {len(hot_topics)} hotspots + {idea_count} ideas pushed · awaiting user pick")

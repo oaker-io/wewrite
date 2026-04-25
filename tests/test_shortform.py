@@ -82,8 +82,9 @@ class TestSanitizeMiniCard(unittest.TestCase):
         self.assertIn("footer:", out)
         # 不应有完整版的 bio
         self.assertNotIn("不追热搜情绪", out)
-        # 不应有 openclaw 群码字样(短文不放第二个 QR)
-        self.assertNotIn("openclaw 武汉创业群", out)
+        # 2026-04-25 改:短文也注入武汉群 QR(用户私域核心入口 · 每篇都要)
+        self.assertIn("qr-openclaw.png", out)
+        self.assertIn("OpenClaw", out)
 
     def test_prepare_for_publish_shortform_param(self):
         import tempfile

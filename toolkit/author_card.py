@@ -301,6 +301,18 @@ def _build_tokens(s):
             "margin: 4px 0 0 0", "font-size: 11px",
             f"color: {s['text_tertiary']}",
         ]),
+        # 公众号关注卡占位:虚线框 + 居中提示文字 · 用户发表前手插真卡覆盖
+        "mp_placeholder_wrap": "; ".join([
+            "margin: 14px 0 4px 0", "padding: 18px 14px",
+            "background: #fafafa",
+            f"border: 1px dashed {s['border']}",
+            "border-radius: 6px",
+            "text-align: center",
+        ]),
+        "mp_placeholder_text": "; ".join([
+            "margin: 0", "font-size: 13px",
+            f"color: {s['text_tertiary']}", "line-height: 1.5",
+        ]),
     }
 
 
@@ -386,54 +398,20 @@ def _render(fields, theme_id=None):
 
     bio_html = f'<p style="{T["bio"]}">{bio}</p>' if bio else ""
 
-    # === 公众号嵌入卡:<table> 横排 avatar + brand/desc/meta + 箭头 ===
-    mp_brand = html.escape(fields.get("mp_brand") or "")
-    mp_html = ""
+    # === 公众号关注卡占位:发表前在 mp.weixin.qq.com 用「资源引用→公众号」插入真实卡 ===
+    # Why: 静态 mp_brand 视觉占了那块位置 · 让用户不清楚该往哪儿插真卡
+    # 现在改成虚线占位框 + 提示文字 · 用户一眼定位 · 插完直接覆盖
+    mp_brand = (fields.get("mp_brand") or "").strip()
     if mp_brand:
-        mp_desc = html.escape(fields.get("mp_desc") or "")
-        mp_meta = html.escape(fields.get("mp_meta") or "")
-        mp_avatar = (fields.get("mp_avatar") or "").strip()
-        mp_id = (fields.get("mp_id") or "").strip()
-
-        if mp_avatar:
-            mp_av_html = (
-                f'<img src="{html.escape(mp_avatar)}" alt="{mp_brand}" '
-                f'style="{T["mp_avatar_img"]}"/>'
-            )
-        else:
-            mp_av_html = (
-                f'<span style="{T["mp_avatar_fb"]}">{mp_brand[:1]}</span>'
-            )
-
-        mp_text_cell = f'<p style="{T["mp_brand"]}">{mp_brand}</p>'
-        if mp_desc:
-            mp_text_cell += f'<p style="{T["mp_desc"]}">{mp_desc}</p>'
-        if mp_meta:
-            mp_text_cell += f'<p style="{T["mp_meta"]}">{mp_meta}</p>'
-
-        # mp-common-profile 占位标签 · WeChat 渲染器若识别会替换成真关注卡
-        mp_profile_tag = ""
-        if mp_id:
-            mp_profile_tag = (
-                f'<mp-common-profile data-pluginname="mpprofile" '
-                f'data-id="{html.escape(mp_id)}" '
-                f'data-nickname="{mp_brand}" '
-                f'data-signature="{mp_desc}" '
-                f'data-from="0"></mp-common-profile>'
-            )
-
         mp_html = (
-            mp_profile_tag
-            + f'<section style="{T["mp_card_wrap"]}">'
-            + f'<table style="{T["mp_table"]}" cellpadding="0" cellspacing="0">'
-            + f'<tr>'
-            + f'<td style="{T["mp_avatar_cell"]}">{mp_av_html}</td>'
-            + f'<td style="{T["mp_text_cell"]}">{mp_text_cell}</td>'
-            + f'<td style="{T["mp_arrow_cell"]}">›</td>'
-            + f'</tr>'
-            + f'</table>'
-            + f'</section>'
+            f'<section style="{T["mp_placeholder_wrap"]}">'
+            f'<p style="{T["mp_placeholder_text"]}">'
+            f'▼ 公众号关注卡片 · 发表前在此插入 ▼'
+            f'</p>'
+            f'</section>'
         )
+    else:
+        mp_html = ""
 
     if tags:
         chips = "".join(f'<span style="{T["chip"]}">{t}</span>' for t in tags)

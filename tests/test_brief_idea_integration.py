@@ -46,7 +46,13 @@ class _IsolatedFsMixin:
         self._prev_env = os.environ.get("WEWRITE_IDEA_BANK")
         os.environ["WEWRITE_IDEA_BANK"] = str(self._bank_file)
 
-        # session.yaml 备份
+        # session.yaml → tmpdir · 不动真实 output/session.yaml
+        # (终态保护已加 · 测试若用真实文件 · wrote/imaged 会被 guard 拒)
+        self._session_tmp = Path(self._tmpdir) / "session.yaml"
+        self._prev_session_env = os.environ.get("WEWRITE_SESSION_FILE")
+        os.environ["WEWRITE_SESSION_FILE"] = str(self._session_tmp)
+
+        # 真实 session 备份(防 reload 失败回写错位置)
         self._session_file = REPO_ROOT / "output" / "session.yaml"
         self._session_backup = None
         if self._session_file.exists():
@@ -65,10 +71,16 @@ class _IsolatedFsMixin:
             os.environ.pop("WEWRITE_IDEA_BANK", None)
         else:
             os.environ["WEWRITE_IDEA_BANK"] = self._prev_env
-        # 还 session.yaml
-        if self._session_file.exists():
-            self._session_file.unlink()
-        if self._session_backup is not None:
+        if self._prev_session_env is None:
+            os.environ.pop("WEWRITE_SESSION_FILE", None)
+        else:
+            os.environ["WEWRITE_SESSION_FILE"] = self._prev_session_env
+        # 还 session.yaml(走 tmpdir · 真实文件理论上没动 · 兜底还原)
+        if self._session_backup is not None and self._session_file.exists():
+            cur = self._session_file.read_text(encoding="utf-8")
+            if cur != self._session_backup:
+                self._session_file.write_text(self._session_backup, encoding="utf-8")
+        elif self._session_backup is not None:
             self._session_file.parent.mkdir(parents=True, exist_ok=True)
             self._session_file.write_text(self._session_backup, encoding="utf-8")
         # 清理测试期创建的 md 文件

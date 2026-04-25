@@ -123,22 +123,32 @@ def _refill_via_fetch_changelog(timeout: int = 120) -> tuple[bool, str]:
     return added > 0, f"added={added}\n{out[-300:]}"
 
 
-def select_ideas(category: str, fallback: str, *, allow_fetch: bool = True
+def select_ideas(category: str, fallback: str, *, allow_fetch: bool = True,
+                 exclude_ids: set[int] | None = None
                  ) -> tuple[list[dict], str]:
     """从 idea_bank 选 1 主 + 1 备 · 返回 (ideas, used_category)。
 
     优先 category · 不够 fallback · 仍不够任意 unused。
     全空时若 allow_fetch=True · 自动调 fetch_changelog 抹道入库 · 再重试一次。
     依然空才返回 ([], "")。
+
+    exclude_ids 用于副推去重 · 跳过主推已选的 idea_id(主推=副推会让 write.py 跑同一篇 → 副推 article_md 未变)。
     """
+    excl = exclude_ids or set()
+
+    def _filter(ideas: list[dict]) -> list[dict]:
+        return [i for i in ideas if i.get("id") not in excl]
+
     def _try() -> tuple[list[dict], str]:
-        primary = _idea_bank.list_ideas(category=category, only_unused=True, limit=2)
+        # 拉宽 limit 补偿被 exclude 掉的 · 拿 limit+len(excl) 让过滤后仍有 2 个候选
+        n = 2 + len(excl)
+        primary = _filter(_idea_bank.list_ideas(category=category, only_unused=True, limit=n))[:2]
         if len(primary) >= 1:
             return primary, category
-        backup = _idea_bank.list_ideas(category=fallback, only_unused=True, limit=2)
+        backup = _filter(_idea_bank.list_ideas(category=fallback, only_unused=True, limit=n))[:2]
         if len(backup) >= 1:
             return backup, fallback
-        any_idea = _idea_bank.list_ideas(only_unused=True, limit=2)
+        any_idea = _filter(_idea_bank.list_ideas(only_unused=True, limit=n))[:2]
         if any_idea:
             return any_idea, "any"
         return [], ""
@@ -239,22 +249,26 @@ def push_no_idea_notice(weekday_item: dict) -> None:
     push_discord(msg)
 
 
-def _pick_companions(companions_cfg: list[dict], *, allow_fetch: bool = True) -> list[dict]:
+def _pick_companions(companions_cfg: list[dict], *, allow_fetch: bool = True,
+                     exclude_ids: set[int] | None = None) -> list[dict]:
     """给每个 companion 配置 · 从 idea_bank 选 1 个未用 idea · 返回 [{topic, cfg}, ...]。
 
     若某个 companion 找不到合适 idea · 跳过那个位(不报错 · 让主推继续)。
     allow_fetch=False 跳过 fetch_changelog 兜底(单测用 · 避免真去抓 GitHub)。
+    exclude_ids: 调用方传入主推已选的 idea_id · 副推之间也会互相去重。
     """
+    excl = set(exclude_ids or set())
     out = []
     for i, c in enumerate(companions_cfg):
         cat = c.get("category", "flexible")
         fb = c.get("fallback", "flexible")
-        ideas, used_cat = select_ideas(cat, fb, allow_fetch=allow_fetch)
+        ideas, used_cat = select_ideas(cat, fb, allow_fetch=allow_fetch, exclude_ids=excl)
         if not ideas:
             print(f"  ⚠ companion-{i+1} ({c.get('type','?')}) 无可用 idea · 跳过")
             continue
         topic = to_topic(ideas[0], used_cat)
         out.append({"topic": topic, "cfg": c})
+        excl.add(ideas[0].get("id"))
     return out
 
 
@@ -306,7 +320,11 @@ def main() -> int:
     print(f"  ✓ 主选: #{primary['idea_id']} {primary['title'][:60]}")
 
     # 副推(若 companions_cfg 非空 · 选 N 个)
-    companions = _pick_companions(companions_cfg) if companions_cfg else []
+    # 排除主推 + 备选已用的 idea_id · 避免副推和主推撞同一篇
+    excl_main = {primary["idea_id"]}
+    if backup and backup.get("idea_id") is not None:
+        excl_main.add(backup["idea_id"])
+    companions = _pick_companions(companions_cfg, exclude_ids=excl_main) if companions_cfg else []
     for i, c in enumerate(companions):
         t = c["topic"]
         print(f"  ✓ 副推 {i+1} ({c['cfg'].get('type','?')}): #{t['idea_id']} {t['title'][:50]}")
@@ -323,29 +341,38 @@ def main() -> int:
     companion_types = [c["cfg"].get("type", "") for c in companions]
     companion_tags = [c["cfg"].get("topic_tags", []) for c in companions]
 
-    _state.advance(
-        _state.STATE_BRIEFED,
-        article_date=datetime.now().strftime("%Y-%m-%d"),
-        topics=topics,
-        selected_idx=0,
-        selected_topic=primary,
-        article_md=None,
-        images_dir=None,
-        draft_media_id=None,
-        auto_schedule={
-            "weekday": weekday,
-            "label": item.get("label", ""),
-            "style": main_cfg.get("style", "tutorial"),
-            "image_style": main_cfg.get("image_style", "infographic"),
-            "target_words": main_cfg.get("target_words", [1800, 3000]),
-            "topic_tags": main_cfg.get("topic_tags", ["AI 非共识"]),
-            # 副推信息(auto-write / auto-images / auto-publish 读)
-            "companions": companion_topics,
-            "companion_styles": companion_styles,
-            "companion_types": companion_types,
-            "companion_tags": companion_tags,
-        },
-    )
+    try:
+        _state.advance(
+            _state.STATE_BRIEFED,
+            article_date=datetime.now().strftime("%Y-%m-%d"),
+            topics=topics,
+            selected_idx=0,
+            selected_topic=primary,
+            article_md=None,
+            images_dir=None,
+            draft_media_id=None,
+            auto_schedule={
+                "weekday": weekday,
+                "label": item.get("label", ""),
+                "style": main_cfg.get("style", "tutorial"),
+                "image_style": main_cfg.get("image_style", "infographic"),
+                "target_words": main_cfg.get("target_words", [1800, 3000]),
+                "topic_tags": main_cfg.get("topic_tags", ["AI 非共识"]),
+                # 副推信息(auto-write / auto-images / auto-publish 读)
+                "companions": companion_topics,
+                "companion_styles": companion_styles,
+                "companion_types": companion_types,
+                "companion_tags": companion_tags,
+            },
+        )
+    except _state.StateGuardError as e:
+        cur = _state.get_state()
+        push_discord(
+            f"⚠ auto-pick skip · session 已在 {cur} · 不覆盖进行中的工作\n"
+            f"昨/今天的文章可能还没走完 publish · 检查 Discord 历史"
+        )
+        print(f"⚠ {e}", file=sys.stderr)
+        return 0
     push_picked_notice(item, primary, backup, companions=companions)
     n_comp = len(companions)
     print(f"✓ session BRIEFED · 1 主 + {n_comp} 副 · 等 08:00 auto-write")

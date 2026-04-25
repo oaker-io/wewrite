@@ -124,7 +124,7 @@ def _build_prompt_case(md_path: Path, topic_title: str) -> str:
         "   - 把这些数字放进对应 chart 的 prompt · 让生成的截图包含这些数字\n"
         "   - 数字要 `not round`(避免 5000 / 10000 / $1000 这种凑数)\n\n"
         "3. **★ 必带 negative prompt**(case-realistic.md 末尾那段)· 拒绝插画/卡通/水彩/渐变光晕等\n\n"
-        "4. 用 toolkit/image_gen.py 经 config.yaml 的 Poe provider(nano-banana-2)· 失败 fallback Gemini\n"
+        "4. 用 toolkit/image_gen.py 经 config.yaml 的 Poe provider(gpt-image-2)· 失败 fallback Gemini\n"
         "5. 输出到 `output/images/` · 文件名固定 cover.png / chart-1.png ... chart-4.png · 不要改名\n"
         "6. 每张图生成后**不要**写 prompts 文件或改 md\n"
         "7. 完成后返回 'DONE case-realistic images generated'\n\n"

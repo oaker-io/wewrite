@@ -23,7 +23,9 @@ if not PY.exists():
     PY = Path("python3")
 
 
-def run_publish(md_path: str, cover: str, title: str, engine="md2wx", theme="focus-navy"):
+def run_publish(md_path: str, cover: str, title: str, *,
+                thumb: str | None = None,
+                engine="md2wx", theme="focus-navy"):
     env = os.environ.copy()
     keys = ROOT / "secrets" / "keys.env"
     if keys.exists():
@@ -37,6 +39,9 @@ def run_publish(md_path: str, cover: str, title: str, engine="md2wx", theme="foc
         "--engine", engine, "--theme", theme,
         "--cover", cover, "--title", title,
     ]
+    # 1:1 看一看小图 · 用 cover-square.png 避免 WeChat 自动从 2.35:1 裁中间导致字漏一半
+    if thumb:
+        args += ["--thumb", thumb]
     print(f"→ cli.py publish ...")
     r = subprocess.run(args, cwd=str(ROOT), env=env,
                        capture_output=True, text=True, timeout=300)
@@ -91,6 +96,9 @@ def main():
     cover = ROOT / "output" / "images" / "cover.png"
     if not cover.exists():
         print("❌ cover.png 不存在", file=sys.stderr); sys.exit(1)
+    # 1:1 thumb · 没有就 fallback 用 cover(WeChat 会自动裁 · 字可能漏)
+    cover_square = ROOT / "output" / "images" / "cover-square.png"
+    thumb_rel = str(cover_square.relative_to(ROOT)) if cover_square.exists() else None
 
     title = (topic.get("title") or "")[:60] or "(untitled)"
 
@@ -105,6 +113,7 @@ def main():
         media_id, _out = run_publish(
             md_path=publish_md_rel,
             cover=str(cover.relative_to(ROOT)),
+            thumb=thumb_rel,
             title=title,
         )
     finally:

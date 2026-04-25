@@ -33,7 +33,17 @@ from pathlib import Path
 import yaml
 
 _ROOT = Path(__file__).resolve().parent.parent.parent
-_STATE_FILE = _ROOT / "output" / "session.yaml"
+
+
+def _resolve_state_file() -> Path:
+    """单测把 WEWRITE_SESSION_FILE 指向 tmpdir · 避免改到真实 output/session.yaml。"""
+    override = os.environ.get("WEWRITE_SESSION_FILE")
+    if override:
+        return Path(override)
+    return _ROOT / "output" / "session.yaml"
+
+
+_STATE_FILE = _resolve_state_file()
 
 STATE_IDLE = "idle"
 STATE_BRIEFED = "briefed"
@@ -78,9 +88,31 @@ def save(state_dict: dict) -> None:
     )
 
 
-def advance(new_state: str, **updates) -> dict:
-    """Update state field + merge other fields · return new state."""
+_TERMINAL_STATES = {STATE_WROTE, STATE_IMAGED, STATE_DONE}
+
+
+class StateGuardError(RuntimeError):
+    """advance 拒绝把进行中的工作状态打回 briefed/idle 时抛出。"""
+
+
+def advance(new_state: str, *, force: bool = False, **updates) -> dict:
+    """Update state field + merge other fields · return new state.
+
+    Why: 旧 daily-brief plist 在 wrote 状态后又跑 brief.py,把 state 打回 briefed +
+    article_md 清空,导致 images/review/publish 全 skip。加 guard 防御:
+    当前在 wrote/imaged/done 时,不能未授权地往回退到 briefed/idle。
+
+    显式重置请用 reset() 或传 force=True。
+    """
     s = load()
+    cur = s.get("state", STATE_IDLE)
+    if (not force
+            and cur in _TERMINAL_STATES
+            and new_state in {STATE_BRIEFED, STATE_IDLE}):
+        raise StateGuardError(
+            f"refuse to overwrite state={cur} → {new_state} without force=True. "
+            f"Call _state.reset() if user explicitly wants a new article."
+        )
     s["state"] = new_state
     s.update(updates)
     save(s)
