@@ -282,6 +282,121 @@ def push_discord(text: str) -> None:
 # =================================================================
 # 主流程
 # =================================================================
+_SEED_ARTICLES = [
+    {
+        "title": "Cursor 估值 100 亿背后:3 个非共识真相",
+        "kol": "刘润", "weight": 90, "tags": ["商业", "案例"],
+        "content_md": (
+            "## 估值不是关键\n\n"
+            "昨晚刷到一条新闻 · Cursor 估值 100 亿。\n\n"
+            "评论区一堆 「AI 泡沫」 「不过是套壳」。\n\n"
+            "我看了 3 天财报 + 用户访谈数据 · 有 3 个真相被忽略了。\n\n"
+            "## 真相 1:用户黏性 90%\n\n"
+            "Cursor 月留存 87% · 比 Notion 还高 12 个百分点。\n\n"
+            "这意味着开发者把它当成 IDE · 不是工具。\n\n"
+            "**工具会被替换 · IDE 不会。**\n\n"
+            "## 真相 2:ARR 8 亿\n\n"
+            "去年这时候 ARR 才 1 亿 · 一年 8x 增长。\n\n"
+            "这种增速 · 就算 SaaS 历史上也罕见。"
+        ),
+    },
+    {
+        "title": "我用 Claude 跑了 7 天副业 · 月入 3 万的真实拆解",
+        "kol": "木马人AI", "weight": 85, "tags": ["AI 工具", "副业", "实战"],
+        "content_md": (
+            "## Day 0:为什么是 Claude\n\n"
+            "上周朋友问我 · 现在做 AI 副业还来得及吗?\n\n"
+            "**来得及 · 但窗口只剩 6 个月。**\n\n"
+            "我跑了 7 天 · 用 Claude 接了 12 个单 · 月入折算 3 万。\n\n"
+            "今天把全部流程拆给你。\n\n"
+            "## Day 1-3:找到第一个客户\n\n"
+            "不是去 Upwork · 是去小红书评论区。\n\n"
+            "搜 「想做 AI 但不会用」 · 评论 3 句话 · 加微信。\n\n"
+            "成单率 12% · 比 Upwork 高 8 倍。"
+        ),
+    },
+    {
+        "title": "5 个钩子让你的公众号文章打开率 +40%",
+        "kol": "粥左罗", "weight": 90, "tags": ["自媒体", "写作", "涨粉"],
+        "content_md": (
+            "## 钩子是开篇 30 秒\n\n"
+            "我看了 1000 篇打开率 10%+ 的文章。\n\n"
+            "97% 都用了下面这 5 种钩子之一。\n\n"
+            "## 钩子 1:数字反共识\n\n"
+            "「为什么 90% 的人在 Cursor 上花了冤枉钱」\n\n"
+            "数字 + 反常识 · 直接抓眼。"
+        ),
+    },
+    {
+        "title": "AI 创业的 3 个大坑 · 我踩了 2 个",
+        "kol": "caoz 的梦呓", "weight": 80, "tags": ["商业", "观察"],
+        "content_md": (
+            "## 坑 1:别迷信「技术壁垒」\n\n"
+            "去年我投了一个项目 · CEO 说有「核心算法壁垒」。\n\n"
+            "今年开源模型一出 · 壁垒没了。\n\n"
+            "**真正的壁垒是数据 + 用户习惯 · 不是技术。**"
+        ),
+    },
+    {
+        "title": "卡兹克教你 5 分钟做一张 AI 海报 · 还能商用",
+        "kol": "数字生命卡兹克", "weight": 80, "tags": ["AI 工具", "实战"],
+        "content_md": (
+            "## 工具 = Midjourney V7 + GPT-4o\n\n"
+            "上周我做的 AI 海报 · 客户一张给 800。\n\n"
+            "5 分钟一张 · 一晚上做 6 张 · 折合时薪 ~600。\n\n"
+            "## Step 1:用 GPT-4o 写 prompt\n\n"
+            "把客户需求扔给 4o · 让它生成 V7 风格 prompt。\n\n"
+            "「商业海报 · 留白 · 极简 · 字体 SourceHanSans」"
+        ),
+    },
+]
+
+
+def _seed_corpus() -> None:
+    """塞 5 篇假文章进 corpus + idea_bank · 用户没起 wewe-rss 也能验证 P2/P3 链路。"""
+    print("→ seeding 5 fake KOL articles...")
+    corpus = load_corpus()
+    seen_fps = existing_fingerprints(corpus, window_days=30)
+    new_articles: list[dict] = []
+    for i, seed in enumerate(_SEED_ARTICLES):
+        url = f"https://mp.weixin.qq.com/s/seed-{i+1}"
+        fp = _fingerprint(url, seed["title"])
+        if fp in seen_fps:
+            print(f"  · skip(dup): {seed['title'][:40]}")
+            continue
+        kol_record = {
+            "name": seed["kol"], "handle": seed["kol"].lower().replace(" ", "_"),
+            "weight": seed["weight"], "tags": seed["tags"],
+        }
+        article = {
+            "kol": seed["kol"],
+            "kol_handle": kol_record["handle"],
+            "title": seed["title"],
+            "url": url,
+            "pub_date": datetime.now(_CST).strftime("%Y-%m-%d"),
+            "summary": seed["content_md"][:200],
+            "content_md": seed["content_md"],
+            "fetched_at": _now_iso(),
+            "fingerprint": fp,
+            "idea_id": None,
+            "weight": seed["weight"],
+            "tags": seed["tags"],
+        }
+        idea_id = add_to_idea_bank(
+            {"title": seed["title"], "summary": seed["content_md"][:200],
+             "link": url, "published": article["pub_date"]},
+            kol_record,
+        )
+        article["idea_id"] = idea_id
+        new_articles.append(article)
+        print(f"  + seed: [{idea_id}] {seed['title'][:50]}")
+
+    corpus["articles"] = (corpus.get("articles") or []) + new_articles
+    save_corpus(corpus)
+    print(f"✓ seeded {len(new_articles)} 篇 → output/kol_corpus.yaml")
+    print(f"  下一步:venv/bin/python3 scripts/analyze_kol.py --no-push")
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description="抓 KOL 公众号 RSS · 入 idea_bank")
     p.add_argument("--dry-run", action="store_true",
@@ -290,7 +405,13 @@ def main() -> int:
                    help="不 push Discord(测试用)")
     p.add_argument("--kol", default=None,
                    help="只跑某一个 KOL(填 name 或 handle · debug 用)")
+    p.add_argument("--seed", action="store_true",
+                   help="塞 5 篇假文章进 corpus + idea_bank · 测试 P2/P3 链路用")
     args = p.parse_args()
+
+    if args.seed:
+        _seed_corpus()
+        return 0
 
     data = load_kol_list()
     fetch_cfg = data.get("fetch") or {}
