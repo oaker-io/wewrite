@@ -169,6 +169,14 @@ tail -f discord-bot/logs/bot.out.log
 4. 改 `:::author-card` 或 `author_card.py` 时**必须同步** `md2wx/skill/src/preprocessor.ts` — 两边色板/映射表要一致
 5. 改代码前 `git status` 确认 clean · 改完 commit 习惯中英文都有(代码改动用英文,中文写业务决策)
 6. 密钥永远不在对话里出现完整值 — 只说"已填好"
+7. **自动开 skills**(2026-04-25 用户要求 · 不要等提醒):
+   - 非平凡编码任务前 → invoke `andrej-karpathy-skills:karpathy-guidelines`(防过度工程化)
+   - 用户问"以前 / 上次 / 历史" → invoke `claude-mem:mem-search`(跨 session 持久 memory)
+   - 探索某个 module 结构 → 用 `claude-mem:smart-explore` 替代 Read 全文(token 优化)
+8. **wewrite 团队 sub-agent**(`.claude/agents/`)· 主线程协作时优先 delegate:
+   - `topic-curator` 选题判 6 大主题 · `hook-writer` 生 5 钩子候选
+   - `kol-pattern-analyst` KOL 文章拆解 · `review-critic` 7 维度自审
+   - `revise-editor` 外科改稿 · `visual-art-director` 视觉决策
 
 ## WeChat 公众号 CSS 白名单(2026-04-20 踩坑实战)
 

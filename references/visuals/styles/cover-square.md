@@ -7,13 +7,42 @@
 > 短文(副推位)**只用 cover-square** · 不需要 cover.png(短文不显示大封面)。
 > 长文(主推)**两张都生** · cover.png 用于内文首图 + cover-square.png 用作 thumb。
 
-## 视觉规则
+## 🚨 强制 T2 workflow(2026-04-25 修)
+
+**LLM 直接生中文大字不可控** · 实测字漏 / 字小 / 被复杂背景压住 · 在 mp 列表 80×80 缩略时
+关键文字看不清 · 转化率受影响。
+
+**所有 cover-square.png 必须走 T2(raw + overlay)流程** · 跟 `chart-N.png` 同套路:
+
+```
+1. LLM 生 cover-square-raw.png      · 只生「无字纯背景」(纯色 / 简单纹理 / 单图标)· 不写任何文字
+2. LLM 生 cover-square.overlay.json · Pillow 文字层 spec(主标 8-10 字居中 + 底部 brand 小字)
+3. images.py 跑 toolkit/overlay_text.py    · raw + overlay → cover-square.png(像素级控字大小+位置)
+```
+
+**overlay.json 必填字段**(主标必须落在中央 60% 区域 · 防 80×80 裁切时漏):
+```json
+{
+  "size": [1080, 1080],
+  "layers": [
+    {"text": "<主标 8-10 字>", "x": 540, "y": 540, "anchor": "mm",
+     "weight": "Heavy", "size": 160, "color": "<深色>"},
+    {"text": "宸的 AI 掘金笔记", "x": 540, "y": 980, "anchor": "mm",
+     "weight": "Regular", "size": 32, "color": "#888888"}
+  ]
+}
+```
+
+**为啥 size: 160?**:1080 / 8 字 = 135px,留点余量到 160 · 80×80 缩略时仍占 12px(可读)。
+
+## 视觉规则(LLM 只管 raw 背景)
 
 ```
 画布尺寸  · 1080 × 1080 (1:1)
-主标题    · 8-10 字(从 H1 极致压缩 · 数字保留)
-副标题    · 「宸的 AI 掘金笔记」(底部小字)
-版权位    · 「智辰 · 2026」(底部右下角微小)
+LLM 任务  · 生纯背景(深蓝 / 浅灰白 / 暖色 / 白底 / 撞色对比 等 5 套之一)· **零文字**
+Pillow 任务 · 主标 8-10 字 · 字号 140-180px · 居中
+            副标 「宸的 AI 掘金笔记」 · 字号 28-36px · 底部居中
+            版权 「智辰 · 2026」 · 字号 16-20px · 右下角(可选)
 ```
 
 ### 跟 cover.png (2.35:1) 的差异表
@@ -116,11 +145,14 @@ prompt 关键词:
 ## 通用 negative prompt(所有 1:1 cover 共用)
 
 ```
+ANY text or numbers (Pillow 后处理 · LLM 不写字 · 写了也会被覆盖),
 illustration, cartoon, painting, watercolor, abstract, decorative gradient,
 neon glow, lens flare, hand-drawn, sketch, doodles, mascot characters,
 small text overlays, dense info graphic (1:1 太小放不下), busy composition,
-multi-column layout (1:1 不适合多列), tiny font (要在 80x80 缩略图能看清)
+multi-column layout (1:1 不适合多列)
 ```
+
+**关键:LLM 写中文字 = 漏字 · 全部交 Pillow** · 见上方「强制 T2 workflow」段。
 
 ## 80×80 thumbnail readability 自检
 

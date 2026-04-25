@@ -26,6 +26,22 @@ COVER_SQUARE_REF = ROOT / "references" / "visuals" / "styles" / "cover-square.md
 CUTE_INFOGRAPHIC_REF = ROOT / "references" / "visuals" / "styles" / "cute-infographic.md"
 
 
+# 2026-04-25 修 1:1 thumb 字漏:cover-square 强制走 T2 workflow(raw + overlay)
+# Why:LLM 直接生中文大字不可控 · 实测 mp 列表 80×80 缩略时字漏一半
+# Fix:LLM 只生 raw 背景(零文字)+ overlay.json · Pillow 像素级控字
+_COVER_SQUARE_T2_RULES = (
+    "**🚨 cover-square 强制 T2 workflow**(2026-04-25 修):\n"
+    "  Step A: 生 `cover-square-raw.png` 1:1 1080×1080 · **零文字**(只纯色 / 简单纹理 / 单图标)·\n"
+    "          走 `references/visuals/styles/cover-square.md` 5 套风格选 1 套\n"
+    "  Step B: 写 `cover-square.overlay.json` · Pillow 文字层 spec ·\n"
+    "          主标 8-10 字 · x=540 y=540 anchor=mm size=160 weight=Heavy\n"
+    "          副标「宸的 AI 掘金笔记」· x=540 y=980 anchor=mm size=32 weight=Regular color=#888888\n"
+    "  Step C: 跑 `venv/bin/python3 toolkit/overlay_text.py output/images/cover-square-raw.png "
+    "output/images/cover-square.overlay.json -o output/images/cover-square.png`\n"
+    "  **不允许 LLM 直接写中文字进 cover-square** · 写了字必漏 · 见 cover-square.md「强制 T2 workflow」段。\n"
+)
+
+
 def _build_prompt_default(md_path: Path, topic_title: str) -> str:
     """通用配图 prompt(hotspot / tutorial 都用这个 · 主推位 · 6 张图含 1:1 thumb)。"""
     cover_sq_rel = COVER_SQUARE_REF.relative_to(ROOT)
@@ -36,9 +52,9 @@ def _build_prompt_default(md_path: Path, topic_title: str) -> str:
         "1. 用 toolkit/image_gen.py 经 config.yaml 的 Poe provider 生成,不要用网页手动路径\n"
         "2. **6 张图**,输出到 `output/images/`:\n"
         "   - `cover.png`        2.35:1  · 内文首图大封面 · 中文主标题 10-16 字 + 副标「宸的 AI 掘金笔记」\n"
-        f"   - `cover-square.png` 1:1 (1080×1080) · **看一看 thumb 缩略位** · 严格按 `{cover_sq_rel}` 配置\n"
-        "                          · 主标 8-10 字(从 H1 极致压缩 · 数字保留)· 80×80 缩略仍可读\n"
+        "   - `cover-square.png` 1:1 (1080×1080) · **看一看 thumb 缩略位** · **走 T2 workflow**(见下)\n"
         "   - `chart-1.png` ~ `chart-4.png`  16:9 各一张 · 高密度 infographic-dense\n"
+        + _COVER_SQUARE_T2_RULES +
         "3. 文章 md 里的 `![](images/xxx.png)` 占位符对应 cover/chart-* 5 个 · cover-square.png **不放 md 里**(只用作 thumb)\n"
         "4. 每张图生成后**不要**写 prompts 文件或重新改 md\n"
         "5. 风格:和 chart 深蓝色系协调 · 用 pop-laboratory 风 · 要求 AI 逐字渲染中文数据\n"
@@ -67,7 +83,8 @@ def _build_prompt_narrative(md_path: Path, topic_title: str) -> str:
         "   - `chart-2.png` 16:9 · layout 2 (系统架构拟人图) · 讲清方案\n"
         "   - `chart-3.png` 16:9 · layout 3 (时间流程横排) · 步骤化\n"
         "   - `chart-4.png` 16:9 · layout 4 (之前 vs 之后 对比图) · 给变化\n"
-        f"   - `cover-square.png` 1:1 · **不萌系** · 走 `{cover_sq_rel}` 数字大字风(thumb 要清晰可读)\n\n"
+        f"   - `cover-square.png` 1:1 · **不萌系** · 走 T2 workflow(见下)· 数字大字风\n\n"
+        + _COVER_SQUARE_T2_RULES + "\n"
         "2. **★ 同一角色贯穿全篇**(连续性):cover 用什么角色 · chart-1..4 都用同一角色\n"
         "   eg 全篇都是龙虾 / 都是机器人 / 都是猫\n\n"
         "3. **★ 暖色板**:橙 / 黄 / 浅蓝 · 不要冷调蓝紫(不亲切)\n\n"
@@ -86,14 +103,14 @@ def _build_prompt_shortform(md_path: Path, topic_title: str) -> str:
         f"选题:{topic_title}\n\n"
         "**短文模式特殊要求**:\n"
         "1. **只生 1-3 张图**(不是 6 张):\n"
-        f"   - `cover-square.png` 1:1 (1080×1080) · 看一看 thumb · 严格按 `{cover_sq_rel}` 配置\n"
+        "   - `cover-square.png` 1:1 (1080×1080) · 看一看 thumb · **走 T2 workflow**(见下)\n"
         "   - 短文 md 里若有 `![](images/chart-1.png)` 占位 · 生 1 张 16:9 chart-1\n"
         "   - 短文 md 里若有 `![](images/chart-2.png)` 占位 · 再生 1 张 16:9 chart-2\n"
         "   - **超过 chart-2 的占位忽略**(短文不允许多图)\n"
+        + _COVER_SQUARE_T2_RULES +
         "2. **不生 cover.png**(短文不显示大封面)\n"
-        "3. cover-square 主标 8-10 字 · 大字 · 80×80 缩略仍可读\n"
-        "4. 用 toolkit/image_gen.py 经 Poe 生成 · 失败 fallback Gemini\n"
-        "5. 完成后返回 'DONE shortform images generated'\n\n"
+        "3. 用 toolkit/image_gen.py 经 Poe 生成 · 失败 fallback Gemini\n"
+        "4. 完成后返回 'DONE shortform images generated'\n\n"
         "**自检**:看一下 md 里有几个 ![](images/...) 占位 · 你只生这么多 + 1 张 cover-square。"
     )
 
@@ -118,7 +135,8 @@ def _build_prompt_case(md_path: Path, topic_title: str) -> str:
         "   - `chart-2.png` · 功效对比图(before/after split 或 30 天曲线)\n"
         "   - `chart-3.png` · 真实操作截图(terminal / VS Code / DevTools)\n"
         "   - `chart-4.png` · 真实结果证明(Stripe 通知 / GitHub stars / Tweet 截图)\n"
-        f"   - `cover-square.png` · 1:1 (1080×1080) · 数字大字风(从案例文章抽 1 个最爆的数字 · 如 $12,847 / Day 30)\n\n"
+        f"   - `cover-square.png` · 1:1 (1080×1080) · 走 T2 workflow(见下)· 数字大字风(从案例文章抽 1 个最爆的数字 · 如 $12,847 / Day 30)\n\n"
+        + _COVER_SQUARE_T2_RULES + "\n"
         "2. **★ 数字必须从 markdown 中真实出现的数字抽** · 不要凭空编:\n"
         "   - 先读 markdown 找出所有具体数字(如 `$12,847` / `4,891 users` / `Day 30`)\n"
         "   - 把这些数字放进对应 chart 的 prompt · 让生成的截图包含这些数字\n"

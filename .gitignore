@@ -67,3 +67,4 @@ output/kol_corpus.yaml
 # .claude/ 部分文件提交 · 部分本地
 .claude/plans/
 .claude/settings.local.json
+output/xhs_sync_state.yaml
