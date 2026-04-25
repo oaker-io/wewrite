@@ -63,3 +63,7 @@ venv/
 infra/wewe-rss/data/
 # KOL corpus 是动态数据 · 不进 repo
 output/kol_corpus.yaml
+
+# .claude/ 部分文件提交 · 部分本地
+.claude/plans/
+.claude/settings.local.json
