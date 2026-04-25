@@ -147,11 +147,15 @@ class SanitizeFullFlow(unittest.TestCase):
 # -----------------------------------------------------------------
 class PrepareFileIO(unittest.TestCase):
     def test_clean_file_returns_self(self):
-        # "clean" 现在意味着:无 H1 / 无 cover alt / author-card 含 mp_brand / 已有 QR 块
+        # "clean" 现在意味着:无 H1 / 无 cover alt / 含 CTA + author-card + mp_brand + QR 块
         with tempfile.TemporaryDirectory() as tmp:
             p = Path(tmp) / "clean.md"
             p.write_text(
                 "正文\n\n"
+                "---\n\n"
+                "👉 **觉得有用?点「在看」+ 转发到群** · 你的一次互动\n\n"
+                "⭐ **设星标 · 不漏每天的 AI 红利信号**\n\n"
+                "💬 **评论区告诉我**\n\n"
                 ":::author-card\n"
                 "name: x\n"
                 "mp_brand: 宸的 AI 掘金笔记\n"

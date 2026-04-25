@@ -121,6 +121,39 @@ def _ensure_mp_brand_in_last_card(
     return text[:last.start(2)] + new_body + text[last.end(2):]
 
 
+# 文末互动 CTA 三件套(2026-04-26 加 · 涨粉漏斗)
+# Why:Agent 调研显示文末 CTA 引导提升「在看」率 30%+ · 转发率 15%+ ·
+# 算法分数显著 → 推荐池 +。新号 30 天扶持期靠这个达阈值才进推荐。
+# 插入位置:正文末尾 → 此 CTA → author-card → QR
+DEFAULT_CTA_BLOCK = """
+---
+
+👉 **觉得有用?点「在看」+ 转发到群** · 你的一次互动 = 算法多推 100 个智辰
+
+⭐ **设星标 · 不漏每天的 AI 红利信号**(订阅号信息流默认折叠 · 设⭐才置顶)
+
+💬 **评论区告诉我**:你的具体场景 · 下篇案例可能就拆你的
+""".strip()
+
+
+def _ensure_cta_block(text: str, cta_md: str = DEFAULT_CTA_BLOCK) -> str:
+    """正文末尾 + author-card 之前插 CTA 三件套 · 涨粉漏斗。
+
+    幂等:tail 30 行含「设星标」或「点在看」就跳过(防重复)。
+    无 author-card 兜底:append 到末尾(QR 块会在它之后再加)。
+    """
+    tail = "\n".join(text.splitlines()[-_TAIL_LOOKBACK_LINES:])
+    if "设星标" in tail or "点「在看」" in tail or "点在看" in tail:
+        return text
+    matches = list(_RE_AUTHOR_CARD_BLOCK.finditer(text))
+    if not matches:
+        return text.rstrip() + "\n\n" + cta_md.strip() + "\n"
+    # 插在最后一个 author-card 的 :::author-card 行之前
+    first = matches[-1]
+    insert_at = first.start()
+    return text[:insert_at] + cta_md.strip() + "\n\n" + text[insert_at:]
+
+
 # 文末必须带的 QR 二维码块 · 武汉群是用户私域核心入口(2026-04-25 加)
 DEFAULT_QR_BLOCK = """
 ### 👋 加我个人微信
@@ -258,6 +291,7 @@ def sanitize_for_publish(
     md = _clear_cover_alt(md)
     md = _ensure_bottom_card(md, bottom_card)
     md = _ensure_mp_brand_in_last_card(md)
+    md = _ensure_cta_block(md)   # 2026-04-26 · CTA 三件套(在 author-card 之前)
     md = _ensure_qr_block(md)
     md = _add_utm_to_aipickgold(md)
     return md
