@@ -115,6 +115,9 @@ def cmd_publish(args):
     # Resolve relative paths against the markdown file's directory
     md_dir = input_path.resolve().parent
     html = result.html
+    # 2026-04-25:剥 aipickgold 编辑器糖背景色 · 保留 linear-gradient(author-card brand 视觉)
+    from sanitize import strip_decorative_backgrounds
+    html = strip_decorative_backgrounds(html)
     for img_src in result.images:
         if img_src.startswith(("http://", "https://")):
             print(f"Skipping remote image: {img_src}")
@@ -205,6 +208,9 @@ def _process_one_article(
 
     md_dir = md_path.resolve().parent
     html = result.html
+    # 2026-04-25:同 publish · 剥 aipickgold 编辑器糖背景色
+    from sanitize import strip_decorative_backgrounds
+    html = strip_decorative_backgrounds(html)
     for img_src in result.images:
         if img_src.startswith(("http://", "https://")):
             continue

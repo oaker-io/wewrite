@@ -160,6 +160,54 @@ _RE_AIPICKGOLD_LINK = re.compile(
 )
 
 
+# =================================================================
+# HTML 后处理:剥 aipickgold 编辑器糖背景色(2026-04-25 加)
+# Why:aipickgold 服务端给 callout / quote / list-item 等加纯色 background
+# 那是编辑器里的 viewing aid · 推到微信草稿箱后视觉杂乱 · 应该用微信原底。
+# 保留含 linear-gradient 的 background(author-card brand 视觉)。
+# =================================================================
+def _strip_bg_keep_gradient(style: str) -> str:
+    """从 inline style 删 background / background-color · 保留含 gradient 的。"""
+    if not style:
+        return style
+    out = []
+    for decl in style.split(";"):
+        decl = decl.strip()
+        if not decl:
+            continue
+        if ":" not in decl:
+            out.append(decl)
+            continue
+        key = decl.split(":", 1)[0].strip().lower()
+        val = decl.split(":", 1)[1].strip().lower()
+        if key in ("background", "background-color"):
+            if "gradient" in val:
+                out.append(decl)
+            # 否则丢(纯色背景 = 编辑器糖)
+            continue
+        out.append(decl)
+    return "; ".join(out)
+
+
+def strip_decorative_backgrounds(html: str) -> str:
+    """剥 aipickgold 编辑器糖背景色 · 让微信草稿用原底。幂等。"""
+    if not html or "background" not in html.lower():
+        return html
+    try:
+        from bs4 import BeautifulSoup
+    except ImportError:
+        return html  # bs4 没装兜底 · 不阻断
+    soup = BeautifulSoup(html, "html.parser")
+    for el in soup.find_all(style=True):
+        new_style = _strip_bg_keep_gradient(el["style"])
+        if new_style != el["style"]:
+            if new_style.strip():
+                el["style"] = new_style
+            else:
+                del el["style"]
+    return str(soup)
+
+
 def _add_utm_to_aipickgold(md: str, *, date_str: str | None = None) -> str:
     """给所有 aipickgold.com 链接加 UTM 参数 · 已有 utm 的不重加。"""
     if date_str is None:

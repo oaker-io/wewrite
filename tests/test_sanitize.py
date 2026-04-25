@@ -744,5 +744,73 @@ class BotIntentAdvanceToNext(unittest.TestCase):
         self.assertNotEqual(action, "next")
 
 
+class TestStripDecorativeBackgrounds(unittest.TestCase):
+    """剥 aipickgold 编辑器糖背景色 · 让微信草稿用原底。"""
+
+    def setUp(self):
+        from sanitize import strip_decorative_backgrounds
+        self.strip = strip_decorative_backgrounds
+
+    def test_strips_background_color(self):
+        h = '<p style="color: #333; background-color: #FFFAEE; padding: 8px">x</p>'
+        out = self.strip(h)
+        self.assertNotIn("background-color", out)
+        self.assertIn("color: #333", out)
+        self.assertIn("padding: 8px", out)
+
+    def test_strips_background_shorthand(self):
+        h = '<div style="background: #F5F5F5">x</div>'
+        out = self.strip(h)
+        # 整个 background:#F5F5F5 应被剥 · 但 div / x 还在
+        self.assertIn("<div", out)
+        self.assertIn("x</div>", out)
+        self.assertNotIn("F5F5F5", out)
+
+    def test_preserves_linear_gradient(self):
+        h = '<section style="background: linear-gradient(135deg, #1A2332 0%, #2D4663 100%)">brand</section>'
+        out = self.strip(h)
+        self.assertIn("linear-gradient", out)
+        self.assertIn("135deg", out)
+
+    def test_preserves_radial_gradient(self):
+        h = '<div style="background: radial-gradient(circle, #fff, #000)">x</div>'
+        out = self.strip(h)
+        self.assertIn("radial-gradient", out)
+
+    def test_preserves_other_styles(self):
+        h = '<p style="color: red; font-size: 16px; margin: 8px">y</p>'
+        out = self.strip(h)
+        self.assertIn("color: red", out)
+        self.assertIn("font-size: 16px", out)
+        self.assertIn("margin: 8px", out)
+
+    def test_empty_style_attr_removed(self):
+        h = '<p style="background: #fff">x</p>'
+        out = self.strip(h)
+        self.assertNotIn('style=""', out)
+        self.assertIn("<p>x</p>", out)
+
+    def test_idempotent(self):
+        h = '<p style="background-color: #FFFAEE; color: #333">x</p>'
+        once = self.strip(h)
+        twice = self.strip(once)
+        self.assertEqual(once, twice)
+
+    def test_no_html_returns_unchanged(self):
+        self.assertEqual(self.strip(""), "")
+        no_bg = '<p style="color: red">x</p>'
+        self.assertEqual(self.strip(no_bg), no_bg)
+
+    def test_nested_elements_each_processed(self):
+        h = '''<section style="background: linear-gradient(135deg, #1 0%, #2 100%)">
+            <p style="background-color: #FFFAEE; color: #333">糖</p>
+            <p style="color: blue">蓝色</p>
+        </section>'''
+        out = self.strip(h)
+        self.assertIn("linear-gradient", out)
+        self.assertNotIn("FFFAEE", out)
+        self.assertIn("color: blue", out)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
