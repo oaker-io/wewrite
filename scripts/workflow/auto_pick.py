@@ -410,7 +410,37 @@ def main() -> int:
     # 主推循环 · 1-2 篇 · 跨主推去重
     excl_main: set[int] = set()
     main_picks: list[dict] = []  # [{topic, cfg}]
+
+    # 2026-04-26 · 主推 #1 优先看干货系列(series)是否到期
+    series_topic = None
+    if not args.dry_run:
+        try:
+            import series_picker  # noqa: E402
+            series_pick = series_picker.pick_due_today()
+            if series_pick:
+                # 顶替主推 #1 · 构造 topic dict 兼容现行结构
+                series_topic = {
+                    "title": series_pick["title"],
+                    "source": f"series:{series_pick['series_name']}",
+                    "hot": 0,
+                    "score": 100,
+                    "ai_kw": "series",
+                    "is_robot": False,
+                    "url": "",
+                    "from": "series",
+                    "idea_id": -1000 - hash(series_pick["series_id"]) % 1000,  # 负 id 避碰
+                    "category": mains_cfg[0].get("category", "flexible") if mains_cfg else "flexible",
+                    "_series": series_pick,  # 留给 write.py 注入「本文是 series 第 N 篇」
+                }
+                print(f"  🟢 系列到期 · 顶主推 #1: {series_pick['series_name']} · 第 {series_pick['episode']}/{series_pick['total']} · {series_pick['title'][:50]}")
+        except ImportError:
+            pass
+
     for i, m_cfg in enumerate(mains_cfg):
+        if i == 0 and series_topic is not None:
+            main_picks.append({"topic": series_topic, "cfg": m_cfg})
+            print(f"  ✓ 主推 1: [series] {series_topic['title'][:60]}")
+            continue
         ideas, used_cat = select_ideas(
             m_cfg.get("category", "flexible"),
             m_cfg.get("fallback", "flexible"),

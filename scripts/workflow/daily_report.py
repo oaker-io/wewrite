@@ -175,6 +175,55 @@ def _kol_candidates_today() -> list[dict]:
     return data.get("today") or []
 
 
+def _hotspot_today_count(today: str) -> int:
+    """idea_bank 今天 source=hotspot 的条目数。"""
+    p = ROOT / "output" / "idea_bank.yaml"
+    if not p.exists():
+        return 0
+    try:
+        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return 0
+    items = data.get("ideas") or []
+    n = 0
+    for i in items:
+        if not isinstance(i, dict):
+            continue
+        if i.get("source") != "hotspot":
+            continue
+        ts = (i.get("created_at") or i.get("added_at") or "")
+        if isinstance(ts, str) and ts[:10] == today:
+            n += 1
+    return n
+
+
+def _series_status() -> list[dict]:
+    """读 series_picker.list_series_status · 容错。"""
+    try:
+        sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
+        import series_picker  # noqa: E402
+        return series_picker.list_series_status()
+    except Exception:
+        return []
+
+
+def _publish_guard_status(today: str) -> str:
+    """看今天是否有 publish 成功 · 给 daily-report 用。"""
+    try:
+        sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
+        import _state  # noqa: E402
+        if _state.is_today_published(today):
+            return "✓ 已 publish"
+        s = _state.load()
+        if s.get("article_date") == today and s.get("state") == "wrote":
+            return "⚠ 写完了但没推草稿"
+        if s.get("article_date") == today and s.get("state") in ("briefed", "imaged"):
+            return "⚠ 卡住:state=" + str(s.get("state"))
+        return "⚪ 未触发"
+    except Exception:
+        return "?"
+
+
 def _kol_active_count() -> int:
     """active KOL 数 · 进度条用(目标 100)。"""
     p = ROOT / "config" / "kol_list.yaml"
@@ -222,6 +271,9 @@ def build_report() -> str:
     pubs = _published_today(today)
     cost = _cost_today(today)
     plan = _tomorrow_plan()
+    hot_n = _hotspot_today_count(today)
+    series = _series_status()
+    guard = _publish_guard_status(today)
 
     lines = [f"🌙 **智辰 · {today_short} 日报**", ""]
 
@@ -235,9 +287,11 @@ def build_report() -> str:
         lines.append(f"• KOL 0 新篇 · 库存 {kol['total']} 篇 · 上次 {kol['last_fetched'] or '?'}")
     if idea_n:
         lines.append(f"• idea_bank 新增 {idea_n} 条")
+    if hot_n:
+        lines.append(f"• 半小时 hotspot 入库 {hot_n} 条(LLM 改写干货 idea)")
     if xhs["publish_count"]:
         lines.append(f"• 小红书同步 {xhs['publish_count']} 篇 · {xhs['image_count']} 张图入草稿")
-    if not (kol["count"] or idea_n or xhs["publish_count"]):
+    if not (kol["count"] or idea_n or xhs["publish_count"] or hot_n):
         lines.append("• (今日 0 抓取)")
 
     # ── 发布
@@ -255,6 +309,7 @@ def build_report() -> str:
     if cost["image_calls"]:
         tier_str = " · ".join(f"{k}×{v}" for k, v in cost["by_tier"].items())
         lines.append(f"• 配图 {cost['image_calls']} 张 · ${cost['cost_usd']:.3f} · {tier_str}")
+    lines.append(f"• publish-guard:{guard}")
 
     # ── 明日
     lines.append("")
@@ -266,6 +321,14 @@ def build_report() -> str:
         lines.append(f"• 副推 {plan['companions_count']} 篇")
     if plan.get("tags"):
         lines.append(f"• 标签:{' / '.join(plan['tags'])}")
+    if series:
+        from datetime import date as _d
+        tomorrow = (_d.fromisoformat(today) + __import__("datetime").timedelta(days=1)).isoformat()
+        due_tomorrow = [s for s in series if s.get("next_due", "") <= tomorrow]
+        if due_tomorrow:
+            lines.append("• 明日到期系列:")
+            for s in due_tomorrow:
+                lines.append(f"  - {s['name']} · 第 {s['published']+1}/{s['total']}")
 
     # ── 学习 · KOL 候选(目标 100 库)
     lines.append("")

@@ -22,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-ALL_NAMES=("fetch-kol" "sync-xhs" "discover-kol" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "daily-report" "stats")
+ALL_NAMES=("fetch-kol" "sync-xhs" "discover-kol" "hotspot-poll" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "publish-guard" "daily-report" "stats")
 
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -116,6 +116,7 @@ echo "时间表:"
 echo "  03:00  auto-fetch-kol 抓 KOL 公众号 RSS 入 idea_bank(凌晨错峰)"
 echo "  03:05  auto-sync-xhs  兜底从 xhswrite 拉 publish event 入 idea_bank"
 echo "  03:30  auto-discover-kol 选 5 个 AI KOL 候选 · 用户审入 wewe-rss"
+echo "  04-23 半小时 auto-hotspot-poll 拉 news_hub + LLM 改写入 idea_bank"
 echo "  07:00  auto-pick     选今日 idea(读 config/auto-schedule.yaml)"
 echo "  08:00  auto-write    claude -p 写 1 篇文(5-15 分钟)"
 echo "  10:00  auto-images   生 5 张图(case 类走拟真套件)"
@@ -123,6 +124,7 @@ echo "  11:00  auto-review   LLM 自审 5+1 维度"
 echo "  12:00  auto-publish  推 mp.weixin.qq.com 草稿箱 + push 通知"
 echo "  19:30  auto-notify          提醒去手动 1 tap 群发(订阅号每日 1 次)"
 echo "  20:00  auto-comment-kickoff  推 Discord 候选置顶话术 + 自动回复速查"
+echo "  21:30  auto-publish-guard    没发干货 → Discord 警报 + 补救线索"
 echo "  22:00  auto-daily-report     Discord 日报(爬了啥/发了啥/明日计划)"
 echo "  Sun 02:00  auto-stats        回填本周 fan_count / read_count"
 echo ""

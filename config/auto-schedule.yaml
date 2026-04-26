@@ -16,6 +16,7 @@ steps:
   fetch_kol: true
   sync_xhs: true
   discover_kol: true
+  hotspot_poll: true
   pick: true
   write: true
   images: true
@@ -23,6 +24,7 @@ steps:
   publish: true
   notify: true
   comment_kickoff: true
+  publish_guard: true
   daily_report: true
   stats: true
 times:
@@ -36,6 +38,7 @@ times:
   publish: '12:00'
   notify: '19:30'
   comment_kickoff: '20:00'
+  publish_guard: '21:30'
   daily_report: '22:00'
   stats: Sun 02:00
 schedule:
