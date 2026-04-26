@@ -17,7 +17,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import re
 import sys
 from datetime import date
@@ -25,9 +24,9 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
+sys.path.insert(0, str(ROOT))  # for lib/
 
-POE_BASE_URL = "https://api.poe.com/v1"
-DEFAULT_BOT = os.environ.get("REWRITE_BOT", "claude-sonnet-4.6")  # 中文洗稿质量
+from lib import llm_service  # noqa: E402 · 统一接 cpa.gateway
 
 
 SYSTEM_PROMPT = """你是「智辰 / 宸的 AI 掘金笔记」公众号作者智辰。
@@ -96,19 +95,6 @@ USER_PROMPT_TEMPLATE = """选题:{idea_title}
 """
 
 
-def _resolve_poe_key() -> str:
-    key = os.environ.get("POE_API_KEY")
-    if key:
-        return key
-    p = ROOT / "secrets" / "keys.env"
-    if p.exists():
-        for line in p.read_text(encoding="utf-8").splitlines():
-            line = line.strip()
-            if line.startswith("POE_API_KEY="):
-                return line.split("=", 1)[1].strip().strip('"').strip("'")
-    raise RuntimeError("POE_API_KEY 未设置")
-
-
 def _format_sources(packages: list[dict]) -> tuple[str, int]:
     """packages → 给 LLM 看的素材 markdown · 同时返图片总数。"""
     parts: list[str] = []
@@ -148,8 +134,11 @@ def _format_sources(packages: list[dict]) -> tuple[str, int]:
 
 def rewrite(idea_title: str, packages: list[dict], *,
             slug: str | None = None,
-            bot: str = DEFAULT_BOT) -> str:
-    """主洗稿入口 · 返回 markdown 字符串。"""
+            kind: str = "L1_creative") -> str:
+    """主洗稿入口 · 返回 markdown 字符串。
+
+    走 cpa.gateway(L1_creative)· primary claude-max · fallback poe-api(claude-sonnet-4.6)。
+    """
     if not packages:
         raise ValueError("packages 为空 · 没素材怎么洗")
 
@@ -164,24 +153,13 @@ def rewrite(idea_title: str, packages: list[dict], *,
         slug=slug,
     )
 
-    try:
-        from openai import OpenAI
-    except ImportError:
-        raise RuntimeError("openai SDK 没装 · pip install openai")
-
-    client = OpenAI(api_key=_resolve_poe_key(), base_url=POE_BASE_URL)
-    print(f"→ 调 Poe {bot} · 素材 {len(packages)} 个 · 图 {n_images} 张")
-
-    resp = client.chat.completions.create(
-        model=bot,
-        messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
-        ],
-        max_tokens=4096,
-        temperature=0.8,  # 加点 humanize 多样性
+    print(f"→ 调 cpa.gateway kind={kind} · 素材 {len(packages)} 个 · 图 {n_images} 张")
+    md = llm_service.generate_text(
+        prompt=user_prompt,
+        system=SYSTEM_PROMPT,
+        kind=kind,
     )
-    md = (resp.choices[0].message.content or "").strip()
+    md = (md or "").strip()
     # 去掉可能的 ``` 包裹
     md = re.sub(r"^```(?:markdown|md)?\s*\n", "", md, count=1)
     md = re.sub(r"\n```\s*$", "", md, count=1)
@@ -245,7 +223,8 @@ def main() -> int:
     ap.add_argument("--sources-json", required=True,
                     help="source_fetcher --json-out 输出的文件 · 含 packages 数组")
     ap.add_argument("--slug", default=None, help="output md 文件 slug · 默认日期")
-    ap.add_argument("--bot", default=DEFAULT_BOT, help="Poe 模型名")
+    ap.add_argument("--kind", default="L1_creative",
+                    help="cpa kind (L1_creative / L0_critical / L3_summarize 等)")
     ap.add_argument("--dry-run", action="store_true",
                     help="只 print prompt · 不调 LLM")
     args = ap.parse_args()
@@ -262,7 +241,7 @@ def main() -> int:
         print(f"\nimages total: {n}")
         return 0
 
-    md = rewrite(args.idea_title, pkgs, slug=args.slug, bot=args.bot)
+    md = rewrite(args.idea_title, pkgs, slug=args.slug, kind=args.kind)
     dst = save_article(md, slug=args.slug)
     print(f"\n✓ {dst.relative_to(ROOT)}({len(md)} 字)")
     print()
