@@ -22,6 +22,7 @@ steps:
   publish: true
   notify: true
   comment_kickoff: true
+  daily_report: true
   stats: true
 times:
   fetch_kol: 03:00
@@ -33,6 +34,7 @@ times:
   publish: '12:00'
   notify: '19:30'
   comment_kickoff: '20:00'
+  daily_report: '22:00'
   stats: Sun 02:00
 schedule:
 - weekday: 0

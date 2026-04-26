@@ -22,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-ALL_NAMES=("fetch-kol" "sync-xhs" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "stats")
+ALL_NAMES=("fetch-kol" "sync-xhs" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "daily-report" "stats")
 
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -122,6 +122,7 @@ echo "  11:00  auto-review   LLM 自审 5+1 维度"
 echo "  12:00  auto-publish  推 mp.weixin.qq.com 草稿箱 + push 通知"
 echo "  19:30  auto-notify          提醒去手动 1 tap 群发(订阅号每日 1 次)"
 echo "  20:00  auto-comment-kickoff  推 Discord 候选置顶话术 + 自动回复速查"
+echo "  22:00  auto-daily-report     Discord 日报(爬了啥/发了啥/明日计划)"
 echo "  Sun 02:00  auto-stats        回填本周 fan_count / read_count"
 echo ""
 echo "停某一步:编辑 config/auto-schedule.yaml#steps · 把对应 step 设 false"
