@@ -68,19 +68,37 @@ def generate_text(
     prompt: str,
     system: str | None = None,
     kind: str = "L1_creative",
-) -> str:
-    """生成文本 · 优先走 cpa.gateway · fallback raw claude -p。"""
-    if os.environ.get("CPA_DISABLED") != "1":
-        try:
-            _cpa_root = str(Path.home() / "cpa")
-            if _cpa_root not in sys.path:
-                sys.path.insert(0, _cpa_root)
-            from cpa import gateway as _cpa_gw  # type: ignore
-            return _cpa_gw.run(kind=kind, prompt=prompt, system=system)
-        except Exception as e:
-            print(f"[wewrite/llm_service] cpa 路由失败 · 退回 raw claude -p: {e}",
-                  file=sys.stderr)
-    return _run_claude(prompt, system=system)
+    images: list[str] | None = None,
+    return_meta: bool = False,
+):
+    """生成文本 · 优先走 cpa.gateway · fallback raw claude -p。
+
+    kind: L0_critical / L1_creative / L2_vision / L3_summarize / L4_short
+    images: vision 任务传图片路径列表
+    return_meta: True → 返 dict(含 trace_id) · False → 返 str
+    CPA_LOG_META=1 时自动写 ~/wechatgzh/wewrite/bus/llm_trace.jsonl
+    CPA_DISABLED=1 时跳过 cpa 直接 raw claude -p
+    """
+    try:
+        _cpa_root = str(Path.home() / "cpa")
+        if _cpa_root not in sys.path:
+            sys.path.insert(0, _cpa_root)
+        from cpa.client_helper import call_cpa, CpaDisabledError  # type: ignore
+        return call_cpa(
+            prompt, system=system, kind=kind, images=images,
+            project="wewrite", return_meta=return_meta,
+        )
+    except CpaDisabledError:
+        pass
+    except Exception as e:
+        print(f"[wewrite/llm_service] cpa 路由失败 · 退回 raw claude -p: {e}",
+              file=sys.stderr)
+    text = _run_claude(prompt, system=system)
+    if return_meta:
+        return {"text": text, "pool_used": "raw-claude-p-escape", "kind": kind,
+                "trace_id": "", "fallback_chain_tried": [], "elapsed_ms": 0,
+                "tokens_in": 0, "tokens_out": 0}
+    return text
 
 
 def generate_structured(
