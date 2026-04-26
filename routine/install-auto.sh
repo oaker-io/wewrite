@@ -22,7 +22,7 @@ set -euo pipefail
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 REPO_ROOT="$( cd "$SCRIPT_DIR/.." && pwd )"
 
-ALL_NAMES=("fetch-kol" "sync-xhs" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "daily-report" "stats")
+ALL_NAMES=("fetch-kol" "sync-xhs" "discover-kol" "pick" "write" "images" "review" "publish" "notify" "comment-kickoff" "daily-report" "stats")
 
 mkdir -p "$SCRIPT_DIR/logs"
 mkdir -p "$HOME/Library/LaunchAgents"
@@ -115,6 +115,7 @@ echo ""
 echo "时间表:"
 echo "  03:00  auto-fetch-kol 抓 KOL 公众号 RSS 入 idea_bank(凌晨错峰)"
 echo "  03:05  auto-sync-xhs  兜底从 xhswrite 拉 publish event 入 idea_bank"
+echo "  03:30  auto-discover-kol 选 5 个 AI KOL 候选 · 用户审入 wewe-rss"
 echo "  07:00  auto-pick     选今日 idea(读 config/auto-schedule.yaml)"
 echo "  08:00  auto-write    claude -p 写 1 篇文(5-15 分钟)"
 echo "  10:00  auto-images   生 5 张图(case 类走拟真套件)"

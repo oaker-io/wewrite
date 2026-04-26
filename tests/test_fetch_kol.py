@@ -130,9 +130,10 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
             "tags": ["商业", "案例"],
         }])
 
+        # 标题含 AI 关键词才能过 _topic_guard.is_ai_topic 守门(2026-04-26 加)
         fake_entries = [
-            _fake_entry("文章 A", "https://mp.weixin.qq.com/s/a"),
-            _fake_entry("文章 B", "https://mp.weixin.qq.com/s/b"),
+            _fake_entry("Claude 教程 A", "https://mp.weixin.qq.com/s/a"),
+            _fake_entry("AI 工具实测 B", "https://mp.weixin.qq.com/s/b"),
         ]
         with mock.patch.object(self.fk, "fetch_rss", return_value=fake_entries), \
              mock.patch.object(self.fk, "_fetch_article_body", return_value=""), \
@@ -163,7 +164,7 @@ class TestEndToEndFetch(_IsolatedFs, unittest.TestCase):
             "weight": 50,
             "tags": ["AI 工具"],
         }])
-        fake = [_fake_entry("Same Title", "https://x.com/s/same")]
+        fake = [_fake_entry("Claude Same Title", "https://x.com/s/same")]
 
         # 第一次跑 · 入库
         with mock.patch.object(self.fk, "fetch_rss", return_value=fake), \

@@ -15,6 +15,7 @@ notify_on_failure: true
 steps:
   fetch_kol: true
   sync_xhs: true
+  discover_kol: true
   pick: true
   write: true
   images: true
@@ -27,6 +28,7 @@ steps:
 times:
   fetch_kol: 03:00
   sync_xhs: 03:05
+  discover_kol: 03:30
   pick: 07:00
   write: 08:00
   images: '10:00'

@@ -163,6 +163,30 @@ def _cost_today(today: str) -> dict:
     return {"image_calls": calls, "cost_usd": round(total, 3), "by_tier": by_tier}
 
 
+def _kol_candidates_today() -> list[dict]:
+    """读 output/kol_candidates.yaml#today · 给 daily-report 学习段用。"""
+    p = ROOT / "output" / "kol_candidates.yaml"
+    if not p.exists():
+        return []
+    try:
+        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return []
+    return data.get("today") or []
+
+
+def _kol_active_count() -> int:
+    """active KOL 数 · 进度条用(目标 100)。"""
+    p = ROOT / "config" / "kol_list.yaml"
+    if not p.exists():
+        return 0
+    try:
+        data = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return 0
+    return sum(1 for k in (data.get("list") or []) if isinstance(k, dict) and k.get("status") == "active")
+
+
 def _tomorrow_plan() -> dict:
     """读 auto-schedule.yaml · 明日 weekday → label + companions count。"""
     cfg_p = ROOT / "config" / "auto-schedule.yaml"
@@ -242,6 +266,19 @@ def build_report() -> str:
         lines.append(f"• 副推 {plan['companions_count']} 篇")
     if plan.get("tags"):
         lines.append(f"• 标签:{' / '.join(plan['tags'])}")
+
+    # ── 学习 · KOL 候选(目标 100 库)
+    lines.append("")
+    active = _kol_active_count()
+    lines.append(f"📚 **学习 · KOL 库 {active}/100**")
+    cands = _kol_candidates_today()
+    if cands:
+        lines.append("• 今日候选 5 个(去 wewe-rss 订阅认可的):")
+        for c in cands[:5]:
+            handle = f" / {c['handle']}" if c.get("handle") else ""
+            lines.append(f"  - **{c['name']}**{handle} [{c.get('theme','?')}] {c.get('why','')}")
+    else:
+        lines.append("• (今日无新候选 · 种子库已耗尽 / discover_kol 未跑)")
 
     return "\n".join(lines)
 

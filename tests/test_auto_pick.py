@@ -41,13 +41,14 @@ class TestSelectIdeas(unittest.TestCase):
             pass
 
     def test_returns_primary_when_category_has_ideas(self):
-        self.bank.add("X 教程", category="tutorial")
+        # 标题需含 AI 关键词才能过 _topic_guard.is_ai_topic 守门(2026-04-26 加)
+        self.bank.add("Claude 教程", category="tutorial")
         ideas, used = self.ap.select_ideas("tutorial", "flexible")
         self.assertEqual(len(ideas), 1)
         self.assertEqual(used, "tutorial")
 
     def test_falls_back_when_category_empty(self):
-        self.bank.add("Y 灵感", category="flexible")
+        self.bank.add("AI 灵感", category="flexible")
         ideas, used = self.ap.select_ideas("tutorial", "flexible")
         self.assertEqual(len(ideas), 1)
         self.assertEqual(used, "flexible")
@@ -57,6 +58,14 @@ class TestSelectIdeas(unittest.TestCase):
         ideas, used = self.ap.select_ideas("tutorial", "flexible", allow_fetch=False)
         self.assertEqual(ideas, [])
         self.assertEqual(used, "")
+
+    def test_filters_non_ai_topics(self):
+        """新加 · 验证非 AI 题被守门拦下。"""
+        self.bank.add("男人外向社牛", category="flexible")  # 非 AI
+        self.bank.add("Claude 干货", category="flexible")   # AI
+        ideas, used = self.ap.select_ideas("flexible", "tutorial", allow_fetch=False)
+        self.assertEqual(len(ideas), 1)
+        self.assertEqual(ideas[0]["title"], "Claude 干货")
 
 
 class TestPickForWeekday(unittest.TestCase):

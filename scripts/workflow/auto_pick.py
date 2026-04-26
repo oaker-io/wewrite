@@ -30,6 +30,7 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 import _state  # noqa: E402
 import _idea_bank  # noqa: E402
+from _topic_guard import is_ai_topic, reject_reason  # noqa: E402
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONFIG = ROOT / "config" / "auto-schedule.yaml"
@@ -148,11 +149,22 @@ def select_ideas(category: str, fallback: str, *, allow_fetch: bool = True,
     excl = exclude_ids or set()
 
     def _filter(ideas: list[dict]) -> list[dict]:
-        return [i for i in ideas if i.get("id") not in excl]
+        # 2026-04-26 · 7 大主题守门 · 非 AI 题直接 skip(不算 used)
+        out = []
+        for i in ideas:
+            if i.get("id") in excl:
+                continue
+            title = i.get("title", "")
+            notes = i.get("notes", "") or ""
+            if not is_ai_topic(title, notes):
+                # 静默跳过 · 非 AI 题不影响排序但让出位置
+                continue
+            out.append(i)
+        return out
 
     def _try() -> tuple[list[dict], str]:
-        # 拉宽 limit 补偿被 exclude 掉的 · 拿 limit+len(excl) 让过滤后仍有 2 个候选
-        n = 2 + len(excl)
+        # 拉宽 limit 让 _filter 拒了非 AI 题后仍有得选(取 N 倍候选)
+        n = 20 + len(excl)
         primary = _filter(_idea_bank.list_ideas(category=category, only_unused=True, limit=n))[:2]
         if len(primary) >= 1:
             return primary, category

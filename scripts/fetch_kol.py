@@ -36,6 +36,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts" / "workflow"))
 sys.path.insert(0, str(ROOT / "scripts"))
 import _idea_bank  # noqa: E402
+from _topic_guard import is_ai_topic, reject_reason  # noqa: E402
 
 # fetch_article 4-level strategy(requests / Camoufox / Playwright / 手工)抓 mp.weixin 正文
 # wewe-rss feed 只给 title+url+publishTime 不给正文 · 这里补上让 P2 metadata 抽取真有数据
@@ -266,12 +267,18 @@ def _kol_category(kol: dict) -> str:
 
 
 def add_to_idea_bank(article: dict, kol: dict) -> int | None:
-    """给一篇文章加进 idea_bank · 返回 idea_id · 失败返回 None。
+    """给一篇文章加进 idea_bank · 返回 idea_id · 非 AI 主题 / 失败返回 None。
 
-    title 直接用 KOL 文章 title(不改 · 选题时让 LLM 决定怎么解构)。
+    2026-04-26 加 7 大主题守门:title + summary 必须 is_ai_topic。
+    非 AI 文章入 corpus(留作钩子学习材料)· 但不进 idea_bank 不会被选为选题。
     """
     title = article["title"]
     if not title:
+        return None
+    summary = article.get("summary", "") or ""
+    if not is_ai_topic(title, summary):
+        # 不入 idea_bank · 但 caller 已经入 corpus · 留作 KOL 钩子学习
+        # 静默跳过(不打印 · 否则日志爆 · 失败原因总是「无 AI 关键词」)
         return None
     category = _kol_category(kol)
     notes = (

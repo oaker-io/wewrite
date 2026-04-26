@@ -4,37 +4,43 @@ list:
   type: 商业财经 IP
   biz_name: MP_WXS_2396392481
   rss_url: http://localhost:4000/feeds/MP_WXS_2396392481.atom
-  status: active
+  status: archived
   weight: 90
   tags:
   - 商业
   - 案例
   - 框架
   notes: 国内最有名的商业咨询 IP · 标杆。学怎么把抽象商业讲成 framework
+  archived_reason: 商业评论(非 AI)
+  archived_at: '2026-04-26'
 - name: 秦刚
   handle: qingang
   type: 自媒体 / 私域
   biz_name: MP_WXS_3256272179
   rss_url: http://localhost:4000/feeds/MP_WXS_3256272179.atom
-  status: active
+  status: archived
   weight: 80
   tags:
   - 自媒体
   - 私域
   - 涨粉
   notes: 互联网营销 + 私域流量专家 · 直接对标涨粉
+  archived_reason: 自媒体涨粉(非 AI)
+  archived_at: '2026-04-26'
 - name: 谢无敌-闪亮猫传媒
   handle: xiewudi
   type: IP 操盘
   biz_name: MP_WXS_2396034796
   rss_url: http://localhost:4000/feeds/MP_WXS_2396034796.atom
-  status: active
+  status: archived
   weight: 75
   tags:
   - IP
   - 自媒体
   - 操盘
   notes: 闪亮猫传媒 · IP 操盘手
+  archived_reason: IP 操盘(非 AI)
+  archived_at: '2026-04-26'
 - name: 木马人AI
   handle: muma_ai
   type: AI 工具实战
@@ -64,25 +70,29 @@ list:
   type: 商业 / 信息差
   biz_name: MP_WXS_3541927674
   rss_url: http://localhost:4000/feeds/MP_WXS_3541927674.atom
-  status: active
+  status: archived
   weight: 80
   tags:
   - 商业
   - 信息差
   - 创业
   notes: 商业信息差 + 创业 · 选题角度参考
+  archived_reason: 商业信息差(非 AI)
+  archived_at: '2026-04-26'
 - name: 刘小排r
   handle: liuxiaopai
   type: 创业 / 自媒体
   biz_name: MP_WXS_3251517810
   rss_url: http://localhost:4000/feeds/MP_WXS_3251517810.atom
-  status: active
+  status: archived
   weight: 75
   tags:
   - 创业
   - 自媒体
   - 复盘
   notes: 创业 + 自媒体操盘
+  archived_reason: 普通创业(非 AI)
+  archived_at: '2026-04-26'
 - name: 极客杰尼
   handle: geek_jenny
   type: AI 工具评测
@@ -100,49 +110,57 @@ list:
   type: 商业 / 段子
   biz_name: MP_WXS_3921643922
   rss_url: http://localhost:4000/feeds/MP_WXS_3921643922.atom
-  status: active
+  status: archived
   weight: 80
   tags:
   - 商业
   - 段子
   - 财经
   notes: 经济视角 + 段子 · 学怎么写有梗的商业号
+  archived_reason: 财经段子(非 AI)
+  archived_at: '2026-04-26'
 - name: 粥左罗
   handle: zhouzuoluo
   type: 自媒体写作
   biz_name: MP_WXS_3571752189
   rss_url: http://localhost:4000/feeds/MP_WXS_3571752189.atom
-  status: active
+  status: archived
   weight: 90
   tags:
   - 自媒体
   - 写作
   - 涨粉
   notes: 自媒体写作头部 · 教学派 · 标题结构都值得拆
+  archived_reason: 写作鸡汤(非 AI · 4/26 霸榜根因)
+  archived_at: '2026-04-26'
 - name: 生财有术
   handle: shengcaiyoushu
   type: 副业 / 搞钱社群
   biz_name: MP_WXS_3891906515
   rss_url: http://localhost:4000/feeds/MP_WXS_3891906515.atom
-  status: active
+  status: archived
   weight: 85
   tags:
   - 副业
   - 搞钱
   - 创业
   notes: 亦仁 · 搞钱社群核心 · 跟 xwrite 4/23 转向最对标
+  archived_reason: 普通副业(非 AI)
+  archived_at: '2026-04-26'
 - name: caoz的梦呓
   handle: caoz
   type: 商业冷观察
   biz_name: MP_WXS_3242052866
   rss_url: http://localhost:4000/feeds/MP_WXS_3242052866.atom
-  status: active
+  status: archived
   weight: 80
   tags:
   - 商业
   - 观察
   - 老炮
   notes: 曹政 · 商业冷观察派 · 学怎么写非情绪商业判断
+  archived_reason: 商业老炮(非 AI)
+  archived_at: '2026-04-26'
 - name: 数字生命卡兹克
   handle: kaz_ai
   type: AI 实战
@@ -172,13 +190,15 @@ list:
   type: 数字游民 / 远程
   biz_name: MP_WXS_3222007036
   rss_url: http://localhost:4000/feeds/MP_WXS_3222007036.atom
-  status: active
+  status: archived
   weight: 65
   tags:
   - 副业
   - 数字游民
   - 远程
   notes: 数字游民圈头部 · 远程办公 + AI 工具
+  archived_reason: 数字游民(非 AI)
+  archived_at: '2026-04-26'
 fetch:
   daily_limit_per_kol: 5
   total_daily_target: 30
