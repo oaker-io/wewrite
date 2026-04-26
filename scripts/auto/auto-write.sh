@@ -39,9 +39,33 @@ STYLE=$(read_session_field "style" "hotspot")
 echo "[$(date '+%F %T')] → auto_write · style=$STYLE · session.state=$STATE" >> "$LOG"
 
 if [[ "$STATE" != "briefed" ]]; then
-  echo "[$(date '+%F %T')] ✗ skip · state=$STATE 不是 briefed" >> "$LOG"
-  notify_failure "write" "session.state=$STATE · 不是 briefed · auto_pick 是不是没跑成功?"
-  exit 1
+  # state 不是 briefed · 检查是不是跨日 / done 残留 · 是的话补救:reset + 触发 auto-pick
+  echo "[$(date '+%F %T')] ⚠ state=$STATE · 检查跨日残留 ..." >> "$LOG"
+  RESET_OK=$("$PY" -c "
+import sys; sys.path.insert(0, 'scripts/workflow')
+import _state
+print('1' if _state.reset_if_stale() else '0')
+" 2>/dev/null)
+  if [[ "$RESET_OK" == "1" ]]; then
+    echo "[$(date '+%F %T')] · 跨日 reset 触发 · 补跑 auto-pick.sh" >> "$LOG"
+    if "$SCRIPT_DIR/auto-pick.sh" >> "$LOG" 2>&1; then
+      STATE=$("$PY" -c "
+import yaml
+try:
+    s = yaml.safe_load(open('output/session.yaml', encoding='utf-8')) or {}
+    print(s.get('state', 'idle'))
+except Exception:
+    print('idle')
+" 2>/dev/null)
+      STYLE=$(read_session_field "style" "hotspot")
+      echo "[$(date '+%F %T')] · 补 pick 完成 · 新 state=$STATE" >> "$LOG"
+    fi
+  fi
+  if [[ "$STATE" != "briefed" ]]; then
+    echo "[$(date '+%F %T')] ✗ skip · state=$STATE 仍不是 briefed" >> "$LOG"
+    notify_failure "write" "session.state=$STATE · 不是 briefed · auto_pick 是不是没跑成功?"
+    exit 1
+  fi
 fi
 
 # 主推:write.py 0 --style $STYLE

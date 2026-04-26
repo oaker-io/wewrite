@@ -128,3 +128,54 @@ def reset() -> dict:
 
 def get_state() -> str:
     return load().get("state", STATE_IDLE)
+
+
+def is_today_active(today: str | None = None) -> bool:
+    """当日是否还在活跃流程中(briefed/wrote/imaged 且 article_date == today)。
+
+    True  · 今天选过题 · 还没 done · 不要 reset
+    False · 没选 / 选过但不是今天的 / 已 done · 可以 reset 重选
+    """
+    from datetime import date
+    today = today or date.today().isoformat()
+    s = load()
+    state = s.get("state", STATE_IDLE)
+    if state == STATE_IDLE:
+        return False
+    if state == STATE_DONE:
+        return False  # 已发完 · 当日补发也允许 reset
+    return s.get("article_date", "") == today
+
+
+def is_today_published(today: str | None = None) -> bool:
+    """今天是否已经 publish 成功(state=done + article_date=today + draft_media_id 非空)。"""
+    from datetime import date
+    today = today or date.today().isoformat()
+    s = load()
+    return (
+        s.get("state") == STATE_DONE
+        and s.get("article_date", "") == today
+        and bool(s.get("draft_media_id"))
+    )
+
+
+def reset_if_stale(today: str | None = None) -> bool:
+    """跨日自动 reset · 返回是否真的 reset 了。
+
+    场景:昨天 state=done · 今早 03:00 cron 跑前先 reset · 让 auto-pick 能写
+    """
+    from datetime import date
+    today = today or date.today().isoformat()
+    s = load()
+    state = s.get("state", STATE_IDLE)
+    if state == STATE_IDLE:
+        return False
+    article_date = s.get("article_date", "")
+    if article_date and article_date < today:
+        reset()
+        return True
+    if state == STATE_DONE:
+        # 当日已 done 也可以 reset(允许补发)
+        reset()
+        return True
+    return False
