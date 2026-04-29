@@ -80,10 +80,10 @@ def generate_text(
     CPA_DISABLED=1 时跳过 cpa 直接 raw claude -p
     """
     try:
-        _cpa_root = str(Path.home() / "cpa")
+        _cpa_root = "/Users/mahaochen/自媒体运营/cpa"
         if _cpa_root not in sys.path:
             sys.path.insert(0, _cpa_root)
-        from cpa.client_helper import call_cpa, CpaDisabledError  # type: ignore
+        from cpa_client import call_cpa, CpaDisabledError  # v2 shim
         return call_cpa(
             prompt, system=system, kind=kind, images=images,
             project="wewrite", return_meta=return_meta,
@@ -91,7 +91,7 @@ def generate_text(
     except CpaDisabledError:
         pass
     except Exception as e:
-        print(f"[wewrite/llm_service] cpa 路由失败 · 退回 raw claude -p: {e}",
+        print(f"[wewrite/llm_service] cpa_client 路由失败 · 退回 raw claude -p: {e}",
               file=sys.stderr)
     text = _run_claude(prompt, system=system)
     if return_meta:
