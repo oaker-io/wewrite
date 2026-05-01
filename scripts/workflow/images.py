@@ -1,0 +1,531 @@
+#!/usr/bin/env python3
+"""Workflow 3 · 图片 images
+读 session 的 article_md · 跑 Step 6(cover + 4 charts)· push 到手机。
+
+用法:
+  python3 scripts/workflow/images.py                    # 默认 hotspot 风
+  python3 scripts/workflow/images.py --style tutorial   # 干货 · infographic-dense
+  python3 scripts/workflow/images.py --style case       # 案例 · case-realistic 套件 ★
+  python3 scripts/workflow/images.py --auto             # 全自动 · 不等 ok · 自动进 publish
+"""
+from __future__ import annotations
+import argparse, re, subprocess, sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+import _state
+
+ROOT = Path(__file__).resolve().parent.parent.parent
+PUSH = ROOT / "discord-bot" / "push.py"
+PY = ROOT / "venv" / "bin" / "python3"
+if not PY.exists():
+    PY = Path("python3")
+
+CASE_REALISTIC_REF = ROOT / "references" / "visuals" / "styles" / "case-realistic.md"
+COVER_SQUARE_REF = ROOT / "references" / "visuals" / "styles" / "cover-square.md"
+CUTE_INFOGRAPHIC_REF = ROOT / "references" / "visuals" / "styles" / "cute-infographic.md"
+
+
+# 2026-04-25 修 1:1 thumb 字漏:cover-square 强制走 T2 workflow(raw + overlay)
+# Why:LLM 直接生中文大字不可控 · 实测 mp 列表 80×80 缩略时字漏一半
+# Fix:LLM 只生 raw 背景(零文字)+ overlay.json · Pillow 像素级控字
+_COVER_SQUARE_T2_RULES = (
+    "**🚨 cover-square 强制 T2 workflow**(2026-04-25 修):\n"
+    "  Step A: 生 `cover-square-raw.png` 1:1 1080×1080 · **零文字**(只纯色 / 简单纹理 / 单图标)·\n"
+    "          走 `references/visuals/styles/cover-square.md` 5 套风格选 1 套\n"
+    "  Step B: 写 `cover-square.overlay.json` · Pillow 文字层 spec ·\n"
+    "          主标 8-10 字 · x=540 y=540 anchor=mm size=160 weight=Heavy\n"
+    "          副标「宸的 AI 掘金笔记」· x=540 y=980 anchor=mm size=32 weight=Regular color=#888888\n"
+    "  Step C: 跑 `venv/bin/python3 toolkit/overlay_text.py output/images/cover-square-raw.png "
+    "output/images/cover-square.overlay.json -o output/images/cover-square.png`\n"
+    "  **不允许 LLM 直接写中文字进 cover-square** · 写了字必漏 · 见 cover-square.md「强制 T2 workflow」段。\n"
+)
+
+
+def _build_prompt_default(md_path: Path, topic_title: str) -> str:
+    """通用配图 prompt(hotspot / tutorial 都用这个 · 主推位 · 6 张图含 1:1 thumb)。"""
+    cover_sq_rel = COVER_SQUARE_REF.relative_to(ROOT)
+    return (
+        f"请为 `{md_path.relative_to(ROOT)}` 这篇文章生成配图(Step 6)。\n\n"
+        f"选题:{topic_title}\n\n"
+        "严格要求:\n"
+        "1. 用 toolkit/image_gen.py 经 config.yaml 的 Poe provider 生成,不要用网页手动路径\n"
+        "2. **6 张图**,输出到 `output/images/`:\n"
+        "   - `cover.png`        2.35:1  · 内文首图大封面 · 中文主标题 10-16 字 + 副标「宸的 AI 掘金笔记」\n"
+        "   - `cover-square.png` 1:1 (1080×1080) · **看一看 thumb 缩略位** · **走 T2 workflow**(见下)\n"
+        "   - `chart-1.png` ~ `chart-4.png`  16:9 各一张 · 高密度 infographic-dense\n"
+        + _COVER_SQUARE_T2_RULES +
+        "3. 文章 md 里的 `![](images/xxx.png)` 占位符对应 cover/chart-* 5 个 · cover-square.png **不放 md 里**(只用作 thumb)\n"
+        "4. 每张图生成后**不要**写 prompts 文件或重新改 md\n"
+        "5. 风格:和 chart 深蓝色系协调 · 用 pop-laboratory 风 · 要求 AI 逐字渲染中文数据\n"
+        "6. 完成后返回 'DONE images generated'\n\n"
+        "失败降级:若 Poe 超时,尝试 Gemini(config.yaml 第二个 provider)。"
+    )
+
+
+def _build_prompt_narrative(md_path: Path, topic_title: str) -> str:
+    """漫画 / 萌系信息图 prompt(参考极客杰尼范文 · cute-infographic 套件)。
+
+    适合「Agent 系统讲解」「概念图解」「面向小白的科普」类。
+    比 case-realistic 更易传播 · 转发率更高 · 但牺牲一点严肃可信感。
+    """
+    cute_ref_rel = CUTE_INFOGRAPHIC_REF.relative_to(ROOT)
+    cover_sq_rel = COVER_SQUARE_REF.relative_to(ROOT)
+    return (
+        f"请为 `{md_path.relative_to(ROOT)}` 这篇文章生成配图(Step 6 · 萌系信息图风 · narrative 模式)。\n\n"
+        f"选题:{topic_title}\n\n"
+        f"**强制先读** `{cute_ref_rel}`(完整 prompt 模板 + 5 个 layout 模板 + negative prompt)。\n"
+        f"**额外读** `{cover_sq_rel}`(1:1 thumb 配置)。\n\n"
+        "严格要求:\n"
+        f"1. 严格按 `{cute_ref_rel}` 的 5 个 layout 走(挑最适合本文的)· 6 张图:\n"
+        "   - `cover.png` 2.35:1 · 萌系角色 + 标题(eg「<拟人比喻> 系统」)· 用 layout 1 / 2 / 5\n"
+        "   - `chart-1.png` 16:9 · layout 1 (角色 + 痛点 4 宫格) · 铺开问题\n"
+        "   - `chart-2.png` 16:9 · layout 2 (系统架构拟人图) · 讲清方案\n"
+        "   - `chart-3.png` 16:9 · layout 3 (时间流程横排) · 步骤化\n"
+        "   - `chart-4.png` 16:9 · layout 4 (之前 vs 之后 对比图) · 给变化\n"
+        f"   - `cover-square.png` 1:1 · **不萌系** · 走 T2 workflow(见下)· 数字大字风\n\n"
+        + _COVER_SQUARE_T2_RULES + "\n"
+        "2. **★ 同一角色贯穿全篇**(连续性):cover 用什么角色 · chart-1..4 都用同一角色\n"
+        "   eg 全篇都是龙虾 / 都是机器人 / 都是猫\n\n"
+        "3. **★ 暖色板**:橙 / 黄 / 浅蓝 · 不要冷调蓝紫(不亲切)\n\n"
+        "4. **★ 手绘感**:略歪 · 不要工业 SVG 那种死板 · 不要 photoshop 拟物风\n\n"
+        "5. 用 toolkit/image_gen.py 经 Poe 生成 · 失败 fallback Gemini\n"
+        "6. 完成后返回 'DONE narrative images generated'\n\n"
+        "**自检**:这套图给小白看 · 应该让人一眼笑出来 + 能看懂 · 而不是「这是技术架构图」。"
+    )
+
+
+def _build_prompt_shortform(md_path: Path, topic_title: str) -> str:
+    """短文(副推位)配图 prompt · 只生 1:1 thumb + 0-2 张内文图。"""
+    cover_sq_rel = COVER_SQUARE_REF.relative_to(ROOT)
+    return (
+        f"请为 `{md_path.relative_to(ROOT)}` 这篇 **副推短文** 生成配图(Step 6 · 短文模式)。\n\n"
+        f"选题:{topic_title}\n\n"
+        "**短文模式特殊要求**:\n"
+        "1. **只生 1-3 张图**(不是 6 张):\n"
+        "   - `cover-square.png` 1:1 (1080×1080) · 看一看 thumb · **走 T2 workflow**(见下)\n"
+        "   - 短文 md 里若有 `![](images/chart-1.png)` 占位 · 生 1 张 16:9 chart-1\n"
+        "   - 短文 md 里若有 `![](images/chart-2.png)` 占位 · 再生 1 张 16:9 chart-2\n"
+        "   - **超过 chart-2 的占位忽略**(短文不允许多图)\n"
+        + _COVER_SQUARE_T2_RULES +
+        "2. **不生 cover.png**(短文不显示大封面)\n"
+        "3. 用 toolkit/image_gen.py 经 Poe 生成 · 失败 fallback Gemini\n"
+        "4. 完成后返回 'DONE shortform images generated'\n\n"
+        "**自检**:看一下 md 里有几个 ![](images/...) 占位 · 你只生这么多 + 1 张 cover-square。"
+    )
+
+
+def _build_prompt_case(md_path: Path, topic_title: str) -> str:
+    """案例 · case-realistic 套件 prompt(2026-04-23 加 · 周三轮播)。
+
+    强制读 references/visuals/styles/case-realistic.md · 6 张图(5 case + 1 cover-square)。
+    数字必须从 markdown 抽真实出现的 · 不能让 AI 编。
+    """
+    case_ref_rel = CASE_REALISTIC_REF.relative_to(ROOT)
+    cover_sq_rel = COVER_SQUARE_REF.relative_to(ROOT)
+    return (
+        f"请为 `{md_path.relative_to(ROOT)}` 这篇 **AI 真实成功案例** 文章生成配图(Step 6 · case-realistic 套件)。\n\n"
+        f"选题:{topic_title}\n\n"
+        f"**强制先读** `{case_ref_rel}`(完整 prompt 模板 + negative prompt + 5 张图各自配置)。\n"
+        f"**额外读** `{cover_sq_rel}`(1:1 thumb 配置 · 走「2) 案例 / 复盘类」数字大字风)。\n\n"
+        "严格要求:\n"
+        f"1. 严格按 `{case_ref_rel}` 的 5 张图配置走:\n"
+        "   - `cover.png` · 真实产品 UI 截图(macOS / iOS / 浏览器三选一)· photorealistic\n"
+        "   - `chart-1.png` · 真实 dashboard 数据截图(Stripe / Mixpanel / Vercel 风)\n"
+        "   - `chart-2.png` · 功效对比图(before/after split 或 30 天曲线)\n"
+        "   - `chart-3.png` · 真实操作截图(terminal / VS Code / DevTools)\n"
+        "   - `chart-4.png` · 真实结果证明(Stripe 通知 / GitHub stars / Tweet 截图)\n"
+        f"   - `cover-square.png` · 1:1 (1080×1080) · 走 T2 workflow(见下)· 数字大字风(从案例文章抽 1 个最爆的数字 · 如 $12,847 / Day 30)\n\n"
+        + _COVER_SQUARE_T2_RULES + "\n"
+        "2. **★ 数字必须从 markdown 中真实出现的数字抽** · 不要凭空编:\n"
+        "   - 先读 markdown 找出所有具体数字(如 `$12,847` / `4,891 users` / `Day 30`)\n"
+        "   - 把这些数字放进对应 chart 的 prompt · 让生成的截图包含这些数字\n"
+        "   - 数字要 `not round`(避免 5000 / 10000 / $1000 这种凑数)\n\n"
+        "3. **★ 必带 negative prompt**(case-realistic.md 末尾那段)· 拒绝插画/卡通/水彩/渐变光晕等\n\n"
+        "4. 用 toolkit/image_gen.py 经 config.yaml 的 Poe provider(gpt-image-2)· 失败 fallback Gemini\n"
+        "5. 输出到 `output/images/` · 文件名固定 cover.png / chart-1.png ... chart-4.png · 不要改名\n"
+        "6. 每张图生成后**不要**写 prompts 文件或改 md\n"
+        "7. 完成后返回 'DONE case-realistic images generated'\n\n"
+        "**自检**:5 张图都不应该看起来像「AI 艺术作品」 · 应该看起来像「随手截的真实工作流」。"
+    )
+
+
+def run_claude_images(md_path: Path, topic_title: str, style: str = "default"):
+    """调 claude -p 让 wewrite skill 跑 Step 6 · 产出图片到 output/images/
+
+    style:
+      - "default"   : 主推 6 张图(5 + 1:1 thumb) · 走 _build_prompt_default
+      - "case"      : 案例拟真套件 6 张 · 走 _build_prompt_case + case-realistic.md
+      - "narrative" : 萌系信息图 6 张 · 走 _build_prompt_narrative + cute-infographic.md
+      - "shortform" : 短文 1-3 张(1:1 thumb + 0-2 chart) · 走 _build_prompt_shortform
+      - "tutorial"  : 等价 default(预留 · 后续可单独定制)
+    """
+    if style == "shortform":
+        prompt = _build_prompt_shortform(md_path, topic_title)
+        label = "SHORTFORM (1:1 thumb + 0-2 charts)"
+    elif style == "narrative":
+        if not CUTE_INFOGRAPHIC_REF.exists():
+            print(f"⚠ {CUTE_INFOGRAPHIC_REF} 不存在 · fallback 到 default 配图", file=sys.stderr)
+            prompt = _build_prompt_default(md_path, topic_title)
+            label = "DEFAULT (cute-infographic ref missing)"
+        else:
+            prompt = _build_prompt_narrative(md_path, topic_title)
+            label = "NARRATIVE (萌系信息图)"
+    elif style == "case":
+        if not CASE_REALISTIC_REF.exists():
+            print(f"⚠ {CASE_REALISTIC_REF} 不存在 · fallback 到 default 配图", file=sys.stderr)
+            prompt = _build_prompt_default(md_path, topic_title)
+            label = "DEFAULT (case ref missing)"
+        else:
+            prompt = _build_prompt_case(md_path, topic_title)
+            label = "CASE-REALISTIC ★"
+    else:
+        prompt = _build_prompt_default(md_path, topic_title)
+        label = "DEFAULT" if style == "default" else f"DEFAULT ({style})"
+
+    args = [
+        "claude", "-p", "--output-format", "text",
+        "--permission-mode", "bypassPermissions",
+        prompt,
+    ]
+    print(f"→ claude -p generating 5 images [{label}]... (5-15 分钟)")
+    r = subprocess.run(
+        args, cwd=str(ROOT),
+        capture_output=True, text=True, timeout=1800,
+    )
+    if r.returncode != 0:
+        raise RuntimeError(f"claude: {r.stderr[-500:]}")
+    return r.stdout
+
+
+def push_images(auto: bool = False, style: str = "default"):
+    """Push 图到手机 Discord。
+
+    style 决定 expected 文件清单:
+      - default / case / tutorial:cover + cover-square + chart-1..4(共 6 张)
+      - shortform:cover-square + chart-1..2(最多 3 张 · chart 视 md 占位决定)
+    """
+    imgs_dir = ROOT / "output" / "images"
+    if style == "shortform":
+        expected = ["cover-square.png", "chart-1.png", "chart-2.png"]
+    else:
+        expected = ["cover.png", "cover-square.png",
+                    "chart-1.png", "chart-2.png", "chart-3.png", "chart-4.png"]
+    found = [imgs_dir / name for name in expected if (imgs_dir / name).exists()]
+    missing = [name for name in expected if not (imgs_dir / name).exists()]
+
+    if auto:
+        text = (
+            f"🎨 **5 张图就绪 · auto** · {len(found)}/5\n"
+            + (f"⚠️ 缺:{', '.join(missing)}\n" if missing else "")
+            + "---\n"
+            "auto 模式 · 接下来:11:00 auto_review → 12:00 auto_publish · 无需回复"
+        )
+    else:
+        text = (
+            f"🎨 **5 张图就绪** · {len(found)}/5\n"
+            + (f"⚠️ 缺:{', '.join(missing)}\n" if missing else "")
+            + "---\n"
+            "回复 `ok` / `继续` 进入发布 · `重做 cover` / `重做 chart-3` 重生成具体某张"
+        )
+    args = [str(PY), str(PUSH), "--text", text]
+    for p in found:
+        args += ["--image", str(p)]
+    subprocess.run(args, check=True, timeout=300)
+
+
+def _parse_argv() -> tuple[str, bool]:
+    """返回 (style, auto)。"""
+    p = argparse.ArgumentParser(description="生成配图")
+    p.add_argument("--style", choices=("default", "tutorial", "hotspot", "case", "shortform", "narrative"),
+                   default="default",
+                   help="配图风格 · case=拟真截图 · narrative=萌系信息图 · shortform=短文(1:1+0-2 chart)")
+    p.add_argument("--auto", action="store_true", help="全自动 · 不等用户 ok")
+    args = p.parse_args()
+    return args.style, args.auto
+
+
+def _resolve_style(cli_style: str) -> str:
+    """优先用 cli_style(显式)· 否则用 session.auto_schedule.image_style。"""
+    # cli 显式传 shortform · 优先级最高(短文流程)
+    if cli_style == "shortform":
+        return "shortform"
+    s = _state.load()
+    auto_sched = s.get("auto_schedule") or {}
+    img_style = auto_sched.get("image_style")
+    if img_style == "case-realistic":
+        return "case"
+    if img_style == "cute-infographic":
+        return "narrative"
+    if img_style == "shortform":
+        return "shortform"
+    if img_style in ("mockup", "infographic", "simple"):
+        # 走 default · 这些 style 走通用 prompt(已经在写文阶段引导了 layout)
+        return "default"
+    return cli_style if cli_style != "default" else "default"
+
+
+# =================================================================
+# 2026-04-26 · cover-square.png 强制 Python 后处理(反「LLM 写字漏字」)
+# =================================================================
+_FONT_CANDIDATES = (
+    "/System/Library/Fonts/PingFang.ttc",
+    "/System/Library/Fonts/STHeiti Medium.ttc",
+    "/System/Library/Fonts/Hiragino Sans GB.ttc",
+)
+
+
+def _extract_main_title(full_title: str, *, max_chars_per_line: int = 8) -> list[str]:
+    """从 selected_topic.title 抽 cover-square 主标(2-3 行短词)。
+
+    策略:
+    - 优先按「·」「,」「:」切首段(微信公众号标题常用 · 修饰从)
+    - 然后按视觉断点分行(每行 ≤ 8 字)· 最多 3 行
+    - 太长就截断 · 太短(全标题 < 8 字)1 行就够
+    """
+    import re as _re
+    if not full_title:
+        return ["智辰", "AI 红利"]
+    # 切首段(去掉 · 之后修饰)
+    head = _re.split(r"[·,:、]", full_title)[0].strip()
+    if not head:
+        head = full_title.strip()
+    # 去多余空格
+    head = _re.sub(r"\s+", "", head)[:24]  # 总长上限 24 字 = 3 行 × 8
+
+    # 智能分行:遇到自然断点(动词/数字)处断 · 否则均匀切
+    if len(head) <= max_chars_per_line:
+        return [head]
+    if len(head) <= max_chars_per_line * 2:
+        mid = len(head) // 2
+        # 优先在「跑/做/用/装/搭」这种动词或数字前断
+        for i in range(mid - 2, mid + 3):
+            if 0 < i < len(head) and head[i] in "跑做用装搭快慢提升降低0123456789":
+                return [head[:i], head[i:]]
+        return [head[:mid], head[mid:]]
+    # 3 行
+    n = len(head) // 3
+    return [head[:n], head[n:n*2], head[n*2:]]
+
+
+# 2026-04-26 · 集成 nano-banana-cover(sibling 仓 · Poe nano-banana-2 + OCR)
+NANO_BANANA_ROOT = ROOT.parent / "nano-banana-cover"
+
+
+def _try_nano_banana_cover_square(out_path: Path, full_title: str) -> bool:
+    """调 nano-banana-cover · Poe nano-banana-2 + multi-anchor + OCR 验证 · 出 1:1 cover-square。
+
+    优先级最高 · 质量最好(用户已肉眼审过 banner+square 全 satisfy)。
+    成本 ~$0.04/张 + ~$0.001 OCR · 一天 5 张 ≈ $0.20。
+    失败回 False · caller fallback html-card → PIL。
+    """
+    if not NANO_BANANA_ROOT.exists():
+        return False
+    cli = NANO_BANANA_ROOT / "src" / "generate.py"
+    if not cli.exists():
+        return False
+
+    # 把 full_title 抽成 1-3 行 · | 分隔(nano-banana CLI 硬规则)
+    title_lines = _extract_main_title(full_title)
+    title_arg = "|".join(title_lines)
+
+    py = ROOT / "venv" / "bin" / "python3"
+    if not py.exists():
+        py = "python3"
+
+    try:
+        r = subprocess.run(
+            [str(py), "-m", "src.generate", "single",
+             "--title", title_arg, "--format", "square",
+             "--max-retries", "2"],
+            cwd=str(NANO_BANANA_ROOT),
+            capture_output=True, text=True, timeout=300,
+        )
+    except subprocess.TimeoutExpired:
+        print("  ⚠ nano-banana 超时", file=sys.stderr)
+        return False
+    if r.returncode != 0:
+        print(f"  ⚠ nano-banana exit={r.returncode}: {r.stderr[-300:]}", file=sys.stderr)
+        return False
+
+    # 找最新 output 目录的 square.png · resize 到 1080×1080 兼容旧路径
+    outs = sorted((NANO_BANANA_ROOT / "output").iterdir(), reverse=True)
+    if not outs:
+        return False
+    square_src = outs[0] / "square.png"
+    if not square_src.exists():
+        return False
+    try:
+        from PIL import Image
+        img = Image.open(square_src)
+        if img.size != (1080, 1080):
+            img = img.resize((1080, 1080), Image.LANCZOS)
+        out_path.parent.mkdir(parents=True, exist_ok=True)
+        img.save(out_path, optimize=True)
+        print(f"  ✓ nano-banana cover-square · headline={title_lines} · src={square_src.relative_to(NANO_BANANA_ROOT)}")
+        return True
+    except Exception as e:
+        print(f"  ⚠ nano-banana resize 失败: {e}", file=sys.stderr)
+        return False
+
+
+def _try_html_cover_square(out_path: Path, full_title: str,
+                            *, theme: str = "xhs-insight-news") -> bool:
+    """优先方案:走 xhs-card html 引擎(0 钱 · 漂亮模板)· 失败返回 False。
+
+    使用 wechat-square preset(1080×1080) + cover.html 模板 + theme CSS。
+    可选 theme:xhs-insight-news / xhs-money-card / xhs-news-card / xhs-combat-step ...
+    """
+    try:
+        sys.path.insert(0, str(ROOT))
+        from lib.image_card_client import render_card  # noqa: E402
+    except Exception as e:
+        print(f"  ⚠ image_card_client unavailable: {e}", file=sys.stderr)
+        return False
+
+    title_lines = _extract_main_title(full_title)
+    headline = title_lines[0] if title_lines else "AI 红利"
+    subtitle = "".join(title_lines[1:])[:24] if len(title_lines) > 1 else ""
+
+    spec = {
+        "slug": f"cover-square-auto",
+        "engine": "html",
+        "platform": "gzh",
+        "theme": theme,
+        "size_preset": "wechat-square",  # 1080×1080
+        "author": "@aipickgold",
+        "pages": [
+            {
+                "template": "cover",
+                "fields": {
+                    "tag": "AI 红利信号",
+                    "title_main": headline[:14],
+                    "title_sub": subtitle,
+                    "anchor_glyph": "★",
+                    "kicker": "宸的 AI 掘金笔记",
+                    "hero_stats": [],
+                },
+            },
+        ],
+    }
+    try:
+        tmp_dir = out_path.parent / ".cover-square-tmp"
+        tmp_dir.mkdir(exist_ok=True)
+        outputs = render_card(spec, tmp_dir, timeout=120)
+        if not outputs:
+            return False
+        # 第 1 张就是 cover · copy 覆盖目标
+        import shutil
+        shutil.copy2(outputs[0], out_path)
+        # 清 tmp
+        for f in tmp_dir.glob("*"):
+            try: f.unlink()
+            except OSError: pass
+        try: tmp_dir.rmdir()
+        except OSError: pass
+        print(f"✓ html-card 生 cover-square · theme={theme} · headline={headline}")
+        return True
+    except Exception as e:
+        print(f"  ⚠ html-card 失败: {str(e)[:120]}", file=sys.stderr)
+        return False
+
+
+def _force_safe_cover_square(out_path: Path, full_title: str,
+                              *, size: int = 1080,
+                              bg: str = "#FAF7F0",      # 默认浅米黄(暖底深字 · 比黑底好看)
+                              fg: str = "#1A2332",
+                              brand_color: str = "#666677",
+                              prefer_html: bool = True) -> None:
+    """100% 控字版 cover-square · 字必在中央安全区 · 微信 thumb 不漏字。
+
+    顺序:
+      1. prefer_html=True:先尝试 xhs-card html 模板(漂亮 · 0 钱)
+      2. fallback:PIL 纯背景叠字(浅米黄 · 不再黑底白字)
+    """
+    # 2026-04-26 · 优先级:nano-banana(质量最高 · 用户审过满意)
+    #              → html-card(0 钱 兜底)
+    #              → PIL 暴力(最后兜底 · 浅米黄底深字)
+    if _try_nano_banana_cover_square(out_path, full_title):
+        return
+    if prefer_html and _try_html_cover_square(out_path, full_title):
+        return
+
+    from PIL import Image, ImageDraw, ImageFont
+
+    font_path = next((p for p in _FONT_CANDIDATES if Path(p).exists()), None)
+    if not font_path:
+        print("⚠ 找不到中文字体 · 跳过 cover-square 生成", file=sys.stderr)
+        return
+
+    title_lines = _extract_main_title(full_title)
+    img = Image.new("RGB", (size, size), color=bg)
+    d = ImageDraw.Draw(img)
+
+    # 主标 · 自适应字号
+    main_size = 160 if len(title_lines) == 1 else (145 if len(title_lines) == 2 else 130)
+    line_h = int(main_size * 1.2)
+    title_font = ImageFont.truetype(font_path, main_size, index=0)
+    total_h = line_h * len(title_lines)
+    y_start = (size - total_h) // 2 - 30
+
+    for i, line in enumerate(title_lines):
+        bbox = d.textbbox((0, 0), line, font=title_font)
+        w = bbox[2] - bbox[0]
+        x = (size - w) // 2
+        d.text((x, y_start + i * line_h), line, fill=fg, font=title_font)
+
+    # 顶部锚点装饰条(让暖底不空)
+    d.rectangle([(size // 2 - 60, 80), (size // 2 + 60, 86)], fill=fg)
+
+    # 底部 brand
+    brand = "宸的 AI 掘金笔记"
+    brand_font = ImageFont.truetype(font_path, 36, index=0)
+    bbox = d.textbbox((0, 0), brand, font=brand_font)
+    bw = bbox[2] - bbox[0]
+    d.text(((size - bw) // 2, size - 80), brand, fill=brand_color, font=brand_font)
+
+    out_path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(out_path, optimize=True)
+    print(f"✓ PIL fallback cover-square · 浅米黄底深字 · 主标:{title_lines}")
+
+
+def main():
+    cli_style, auto = _parse_argv()
+
+    s = _state.load()
+    if s["state"] != _state.STATE_WROTE:
+        print(f"❌ state={s['state']} · 要先写完文章", file=sys.stderr); sys.exit(1)
+
+    article_md = s.get("article_md")
+    topic = s.get("selected_topic") or {}
+    if not article_md:
+        print("❌ 无 article_md", file=sys.stderr); sys.exit(1)
+
+    md_path = ROOT / article_md
+    if not md_path.exists():
+        print(f"❌ {md_path} 不存在", file=sys.stderr); sys.exit(1)
+
+    style = _resolve_style(cli_style)
+    print(f"→ image style = {style} (cli={cli_style} · session.image_style={(s.get('auto_schedule') or {}).get('image_style')})")
+
+    try:
+        run_claude_images(md_path, topic.get("title", ""), style=style)
+    except Exception as e:
+        print(f"❌ {e}", file=sys.stderr); sys.exit(2)
+
+    imgs_dir = ROOT / "output" / "images"
+    # 2026-04-26 · 强制 Python 后处理 cover-square.png · 100% 不让 LLM 写中文字
+    # Why: T2 workflow prompt 不可控 · LLM 写字 30-50% 漏字 / 字超中央安全区
+    # 微信列表 thumb crop 中央 · 字必须紧贴中央 60% 区(高 ≤ 600 / 1080)
+    try:
+        _force_safe_cover_square(imgs_dir / "cover-square.png", topic.get("title", ""))
+    except Exception as e:
+        print(f"⚠ cover-square Python 后处理失败: {e}", file=sys.stderr)
+    _state.advance(_state.STATE_IMAGED, images_dir=str(imgs_dir.relative_to(ROOT)))
+    push_images(auto=auto, style=style)
+    print(f"✓ images ready [{style}]{' · auto' if auto else ''}")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

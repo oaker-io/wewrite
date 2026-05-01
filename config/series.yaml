@@ -1,0 +1,112 @@
+# 干货系列(series)配置 · 独立于热点 · 自有节奏
+# 用户决策(2026-04-26):3 个起步系列
+#
+# 字段:
+#   id            唯一标识(slug 用)
+#   name          公众号文末展示名
+#   theme         7 大主题之一(必)
+#   cadence_days  每 N 天发 1 篇
+#   total         系列总篇数
+#   published     已发(每发 1 篇 +1)
+#   next_due      下次到期日(YYYY-MM-DD)· 到期才会被 auto_pick 选中
+#   topic_queue   预设的题目队列(从头取)
+#
+# 流程:
+#   1. auto_pick 跑前调 series_picker.pick_due_today()
+#   2. 有到期 → topic_queue 取首条 · 顶替主推 #1 · series.published+1 / 推 next_due
+#   3. 无到期 → 走原 idea_bank 逻辑
+
+version: 1
+series:
+  - id: claude-30
+    name: Claude 实战 30 讲
+    theme: AI 干货
+    cadence_days: 2
+    total: 30
+    published: 0
+    next_due: 2026-04-28
+    topic_queue:
+      - Claude Code 30 分钟从 0 到 1 · 我的真实流程
+      - Claude Skills 工作流改造 · 我用了 3 个月
+      - Claude 写代码 5 个反直觉的坑 · 踩过才知道
+      - Claude vs Cursor 实测 30 天 · 数据 + 截图
+      - Claude MCP 服务器搭建 · step by step
+      - 用 Claude 写技术文档的 7 个 prompt 模板
+      - Claude Sub-agents 实战:6 个团队配合范式
+      - Claude + Playwright 自动化测试 SOP
+      - Claude 写 SQL 不踩坑的 4 个技巧
+      - Claude Code 接 GitHub Actions · 全流程拆解
+      - Claude 处理大文件:超过 200K tokens 怎么办
+      - Claude 写 React 组件 · 5 个反直觉的最佳实践
+      - 用 Claude 重构 5 万行代码 · 我的 3 步法
+      - Claude Code Hooks 深度:6 个真实生产场景
+      - Claude MCP vs OpenAI Function Calling · 横评
+      - Claude Skills 自定义 · 让 AI 学会你的 SOP
+      - 用 Claude 写微信小程序 · 真实踩坑记
+      - Claude 跟 Cursor 协作 · 我的工作流
+      - Claude API 流式输出 · 性能调优 SOP
+      - Claude 多轮对话状态管理 · 5 个模式
+      - 用 Claude 写技术博客 · 5 个 humanize 技巧
+      - Claude 看图能力实测 · 30 个真实场景
+      - Claude vision API:OCR / 图表识别实战
+      - Claude 跟 Gemini 横评:中文场景 30 测
+      - Claude 翻译质量实测 · 跟 GPT 对比
+      - Claude 写英文邮件 · 5 个常用模板
+      - Claude 处理 Excel 数据 · 不靠 Python 的方法
+      - Claude 做产品文档 · 我的 3 段式模板
+      - Claude 写 PRD · 替代产品经理 30%
+      - Claude 自动化运维 · 5 个真实 use case
+
+  - id: cursor-sop
+    name: Cursor 工作流 SOP
+    theme: AI 教程
+    cadence_days: 3
+    total: 20
+    published: 0
+    next_due: 2026-04-29
+    topic_queue:
+      - Cursor 0 配置 30 分钟上手 · 我的快捷键全集
+      - Cursor + Claude Code 混用 · 3 种最优组合
+      - Cursor 重构大型代码库 · 5 个我用的技巧
+      - Cursor `.cursorrules` 文件深度 · 真实模板
+      - Cursor 跟 GitHub Copilot 横评 · 数据
+      - Cursor Composer 模式 · 5 个真实场景
+      - Cursor MCP 服务器接入 · step by step
+      - Cursor 写 React 组件 · 我的 prompt 模板
+      - Cursor 跟 v0.dev 协作 · 1 + 1 > 2
+      - Cursor 处理 Bug 修复 · 5 步法
+      - Cursor 写测试 · TDD 实战
+      - Cursor 接 Linear / Jira · 项目流自动化
+      - Cursor 跟 Figma 协作 · 设计 → 代码
+      - Cursor 处理依赖升级 · 自动化方案
+      - Cursor 跟 GitLab 集成 · 私有仓适配
+      - Cursor 多 repo 切换 · workspace 配置
+      - Cursor 跟 Claude Skills 联动 · 5 个场景
+      - Cursor Bug 排查 · 我的 prompt 收藏夹
+      - Cursor 跟 PostgreSQL 协作 · SQL 自动化
+      - Cursor 团队协作 · 共享配置最佳实践
+
+  - id: ai-side-100
+    name: AI 副业 100 案例
+    theme: AI 赚钱
+    cadence_days: 5
+    total: 100
+    published: 0
+    next_due: 2026-05-01
+    topic_queue:
+      - 我用 ChatGPT 做小红书运营 · 月入 3w 的真实拆解
+      - AI 自动剪辑短视频 · 副业月入 1.5w 案例
+      - GPT 翻译淘宝外贸文案 · 一位老板的 5w/月
+      - 用 Claude 写公众号 · 0 粉到 1w 粉的 3 步
+      - AI 生成日历贴纸 · 闲鱼月销 50 单 SOP
+      - GPT-Image-2 国潮日历副业 · 复盘
+      - Stable Diffusion 表情包定制 · 闲鱼月入 8k
+      - AI 做 PPT 模板 · 30 元一套月入 5w
+      - 用 ChatGPT 做职场 PPT · 单子 800 起
+      - AI 翻译外贸邮件 · 自动化客服
+      - Midjourney 接单做产品图 · 月入 2w
+      - GPT 写小红书带货文案 · 真实 ROI
+      - AI 做电商主图 · 30 秒一张 · 副业流程
+      - 用 Claude 做 SOP 知识库售卖 · 月入 1w
+      - AI 翻译技术文档 · 接外包单
+      # ... 继续扩到 100(后续陆续填)

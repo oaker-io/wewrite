@@ -16,6 +16,36 @@ class ImagePostResult:
     image_count: int
 
 
+def _build_article_dict(
+    title: str,
+    html: str,
+    digest: str,
+    *,
+    thumb_media_id: Optional[str] = None,
+    author: Optional[str] = None,
+    open_comment: bool = True,
+    fans_only_comment: bool = False,
+    show_cover_pic: int = 0,
+) -> dict:
+    """组装一篇 article 的 API 字典 · 公用 helper。
+
+    评论默认开(open_comment=True · 涨粉漏斗关键)。
+    fans_only_comment 默认 False(允许非粉丝评论 · 增加路过用户互动 → 转化关注)。
+    """
+    article = {
+        "title": title,
+        "author": author or "",
+        "digest": digest,
+        "content": html,
+        "show_cover_pic": show_cover_pic,
+        "need_open_comment": 1 if open_comment else 0,
+        "only_fans_can_comment": 1 if fans_only_comment else 0,
+    }
+    if thumb_media_id:
+        article["thumb_media_id"] = thumb_media_id
+    return article
+
+
 def create_draft(
     access_token: str,
     title: str,
@@ -23,26 +53,25 @@ def create_draft(
     digest: str,
     thumb_media_id: Optional[str] = None,
     author: Optional[str] = None,
+    *,
+    open_comment: bool = True,
+    fans_only_comment: bool = False,
 ) -> DraftResult:
     """
     Create a draft in WeChat.
     API: POST https://api.weixin.qq.com/cgi-bin/draft/add
     Returns DraftResult.
     Raise ValueError on error (errcode present and != 0).
+
+    Args:
+        open_comment: 默认 True · 推草稿时打开评论(涨粉漏斗 + 评论运营基础)
+        fans_only_comment: 默认 False · 允许非粉丝评论(路过用户互动 → 转化关注)
     """
-    article = {
-        "title": title,
-        "author": author or "",
-        "digest": digest,
-        "content": html,
-        "show_cover_pic": 0,
-    }
-
-    # thumb_media_id is required by WeChat API — if not provided,
-    # upload a default 1x1 white pixel, or skip if truly empty
-    if thumb_media_id:
-        article["thumb_media_id"] = thumb_media_id
-
+    article = _build_article_dict(
+        title, html, digest,
+        thumb_media_id=thumb_media_id, author=author,
+        open_comment=open_comment, fans_only_comment=fans_only_comment,
+    )
     body = {"articles": [article]}
 
     # MUST use ensure_ascii=False — otherwise Chinese becomes \uXXXX
@@ -64,6 +93,67 @@ def create_draft(
 
     if "media_id" not in data:
         raise ValueError(f"WeChat create_draft error: missing media_id in response: {data}")
+
+    return DraftResult(media_id=data["media_id"])
+
+
+def create_draft_bundle(
+    access_token: str,
+    articles: list[dict],
+) -> DraftResult:
+    """一次推 1-8 篇文章 (主推 + 副推) · 占同一次群发配额。
+
+    订阅号每日 1 次群发 = 1 主图文 + 0-7 副图文。这是解锁副推位的关键 API。
+
+    Args:
+        articles: list of dicts · 每个 dict 至少含 {title, html, digest},
+                  可选含 thumb_media_id / author / open_comment / fans_only_comment / show_cover_pic
+                  第 1 个 article 是主推 · 其余是副推 (companion).
+
+    Returns DraftResult with the bundle's media_id (一个 media_id 代表整个 bundle).
+
+    Raises:
+        ValueError on API error or 越界(< 1 or > 8 articles)。
+    """
+    if not articles:
+        raise ValueError("create_draft_bundle 需要至少 1 篇 article")
+    if len(articles) > 8:
+        raise ValueError(f"WeChat draft 单次最多 8 篇 · 收到 {len(articles)} 篇")
+
+    api_articles = []
+    for i, a in enumerate(articles):
+        if "title" not in a or "html" not in a or "digest" not in a:
+            raise ValueError(f"article[{i}] 缺 title/html/digest 必填字段")
+        api_articles.append(_build_article_dict(
+            a["title"], a["html"], a["digest"],
+            thumb_media_id=a.get("thumb_media_id"),
+            author=a.get("author"),
+            open_comment=a.get("open_comment", True),
+            fans_only_comment=a.get("fans_only_comment", False),
+            show_cover_pic=a.get("show_cover_pic", 0),
+        ))
+
+    body = {"articles": api_articles}
+
+    resp = requests.post(
+        "https://api.weixin.qq.com/cgi-bin/draft/add",
+        params={"access_token": access_token},
+        data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
+        headers={"Content-Type": "application/json; charset=utf-8"},
+    )
+
+    data = resp.json()
+
+    errcode = data.get("errcode", 0)
+    if errcode != 0:
+        errmsg = data.get("errmsg", "unknown error")
+        raise ValueError(
+            f"WeChat create_draft_bundle error (n_articles={len(api_articles)}): "
+            f"errcode={errcode}, errmsg={errmsg}"
+        )
+
+    if "media_id" not in data:
+        raise ValueError(f"WeChat create_draft_bundle: missing media_id in response: {data}")
 
     return DraftResult(media_id=data["media_id"])
 

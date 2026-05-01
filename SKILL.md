@@ -207,8 +207,14 @@ python3 {skill_dir}/scripts/seo_keywords.py --json {关键词}
 每次搜索 2 轮，从结果中**同时**提取：
 1. **素材**：5-8 条真实素材（具名来源 + 具体数据/引述/案例）。**禁止编造**。
 2. **增强材料**：按 content-enhance.md 对应策略的要求提取（角度/密度要点/细节/用户声音）。
+3. **模块化素材（为 Step 6 高密度信息图预备）**：素材除了写作用，还会直接灌进 `infographic-dense` 配图作为模块内容。搜索时有意识地保留**可成模块**的材料：
+   - 带具体数字的数据点（数字越多越好）
+   - 品牌名/产品名/工具名清单
+   - 时间节点序列（适合 timeline/linear-progression 模块）
+   - 优缺点 / 对比维度 / 踩坑点 / 清单条目（适合 dense-modules、comparison-matrix 模块）
+   - Top N 排名（适合 dashboard、bento-grid）
 
-两者并入框架大纲，一起传入 Step 4 写作。
+两者并入框架大纲，一起传入 Step 4 写作 + Step 6 视觉生成。
 
 **降级**：WebSearch 不可用 → 用 LLM 训练数据中可验证的公开信息。但需告知用户："素材采集未能使用 WebSearch，建议在编辑锚点处多加入你自己的内容。"密度强化不依赖搜索，始终执行。
 
@@ -300,6 +306,11 @@ Category 映射规则：
 - **写作规范**：writing-guide.md 中的基础规则（禁用词、句长方差、词汇混用等）在初稿阶段生效
 - 2-3 个编辑锚点：`<!-- ✏️ 编辑建议：在这里加一句你自己的经历/看法 -->`
 - 可选容器语法：`:::dialogue`、`:::timeline`、`:::callout`、`:::quote`
+- **图片占位符**（必须）：预埋本地图片引用，方便用户用路径 1（ChatGPT 网页）生成图后直接渲染和推送：
+  - H1 标题下一行插入封面占位符：`![封面](images/cover.png)`
+  - 内文配图位置按 Step 6 的规划逐个插入：`![](images/chart-1.png)`、`![](images/chart-2.png)` ...
+  - 命名**必须**与 `{slug}-prompts.md` 里的「存为」字段完全一致
+  - 占位符在 preview 时若文件不存在会显示破图标（提示用户去生成）；在 publish 时 `cli.py` 的 `upload_image` 会自动找到本地文件并上传到微信 CDN
 
 保存到 `{skill_dir}/output/{date}-{slug}.md`
 
@@ -373,15 +384,77 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 ### Step 6: 视觉 AI
 
-**如果 `skip_image_gen = true`** → 只执行 6.1。
-
 ```
 读取: {skill_dir}/references/visual-prompts.md
 ```
 
+**硬规则**：无论 `skip_image_gen` 是否为 true，都必须执行 6.1–6.4 的**提示词生成**并写入 `output/{slug}-prompts.md`。`skip_image_gen=true` 只跳过实际 image_gen.py 调用。数量固定（封面 3 组 + 内文 3-6 张按字数），不随模型变化。
+
+**提示词语言**：**统一用中文**(不论 provider)。理由:
+- 当前主力模型 gpt-image-1.5 / nano-banana-2(Gemini 3 Flash Image)对中文的理解和中文字渲染都足够好
+- 中文提示词表达更精确,画面中要渲染的中文数据点可原样引用
+- 国内模型(doubao/jimeng/dashscope)原本就需要中文
+- 避免中英切换带来的术语翻译损耗
+
+**比例规格**(严格遵守,见 visual-prompts.md 头部的比例规范表):
+- **封面** `cover.png`:**2.35:1**(微信公众号头条主封面规格)
+- **内文配图** `chart-N.png`:**16:9**(正文段落间配图)
+
+**6.0 准备目录**（必须第一步执行）：
+
+```bash
+mkdir -p {skill_dir}/output/images
+```
+
 **6.1 实体提取**：从终稿中提取 3-5 个**具体实体**（人物、产品名、场景、数据点、行业术语）。后续所有提示词必须包含至少 2 个实体。
 
-**6.2 封面生成**：生成封面 3 组创意提示词（按 visual-prompts.md），选最佳 1 组调用 image_gen.py 生成。
+**6.1b 配图模式与档位选择**(两条正交维度):
+
+**维度 1 · 配图模式**:按文章框架决定 `decorative` / `infographic-dense` 组合:
+
+| 框架 | 封面 | 内文配图模式分布 | 备注 |
+|------|------|-----------------|------|
+| 热点解读 / 纯观点 | `decorative` | ≥50% `infographic-dense` | 有数据段/对比段时优先高密度 |
+| 痛点 / 清单 / 对比 / 复盘 | `decorative` | **100% `infographic-dense`** | 干货类文章读者明确期待高密度 |
+| 故事 / 情绪 | `decorative` | `decorative`(多用 scene 类型) | 场景感优先,数据为辅 |
+
+**判定个别配图该用哪个模式的细则**:
+- 段落含具体数据点 ≥3 个 → `infographic-dense`
+- 段落是对比/清单/盘点 → `infographic-dense`
+- 段落是氛围渲染/情感过渡 → `decorative`
+- 段落只有结论/金句 → `decorative`
+
+**维度 2 · T0/T1/T2 档位**(文字渲染策略 · 两条腿走路):
+
+图像模型(gpt-image-1.5 / nano-banana-2)对长中文、小字、中英混排的渲染**错误率高**(实测"放漫/放缓"、"数揭/数据"、"揄末/样本"等)。三档处理:
+
+| 档 | AI 画什么 | Pillow 叠什么 | 用例 |
+|---|---------|-------------|------|
+| **T0** | 无文字(纯视觉) | 无 | 氛围场景、故事型配图、背景插画 |
+| **T1** | ≤16 字大标题(占画面高 ≥20%,独立干净区) | 无(AI 直出,容忍小瑕疵) | 封面主标题 |
+| **T2** | **完全无字底图**(背景/色块/图表形状/icon/模块框) | **所有文字**(标题/数据/小字/来源/坐标) | **`infographic-dense` 默认档** |
+
+**档位与模式的正交组合建议**:
+
+| 模式 × 档位 | 用法 |
+|------------|------|
+| `decorative` × T0 | 氛围场景图 |
+| `decorative` × T1 | 封面主标题(默认) |
+| `decorative` × T2 | 封面 T1 失败的降级 / 需要多个精准文字标签的概念图 |
+| `infographic-dense` × T2 | **默认**,干货数据图都走这里 |
+
+**两条腿走路回退规则**:
+- 先走 T1 出封面,如果用户反馈"错字了"/"标题乱了" → **命令**「封面走 T2 重做」→ agent 重新输出该封面为 T2(无字底图 + overlay.json + 调 toolkit/overlay_text.py)
+- 同理 chart-N 错字太多 → 用户说「chart-N 走 T2 重做」→ agent 重新输出该图为 T2
+- **infographic-dense 默认直接 T2**,跳过 T1 尝试(实测 AI 直出必错)
+
+**6.2 封面生成**:生成封面 3 组创意提示词(按 visual-prompts.md 的 A/B/C 三种策略,均为 `decorative`)写入 `output/{slug}-prompts.md`。**封面硬规则**:
+- **比例** `2.35:1`(微信公众号头条主封面,如 1080×459)
+- **档位默认 T1**:AI 直接渲染 10-16 字中文主标题(从文章 H1 压缩出"钩子版"),字号占画面高 ≥20%,放在画面独立干净区(其他区域禁止出现多余文字/英文标签/小字)
+- **3 组创意的标题可以不同**(A 用疑问句、B 用冲突句、C 用数字句等),以覆盖不同点击诱饵类型
+- **T1 失败降级 T2**:如果 AI 产出主标题有错字,用户说「封面走 T2 重做」→ 重新输出为 T2(无字底图 + overlay.json + Pillow 叠字),100% 汉字精准
+
+如果 `skip_image_gen != true`,选最佳 1 组调用 image_gen.py 生成。
 
 **6.3 封面验证**：
 - **交互模式**：展示封面，问用户"封面效果如何？"。用户 OK → 继续；不满意 → 调整提示词重新生成。
@@ -389,9 +462,66 @@ python3 {skill_dir}/scripts/humanness_score.py {article_path} --json --tier3 {ag
 
 **6.3b 风格锚定**：封面确认后，提取视觉锚点（色板 hex、风格关键词、画面调性），后续所有内文配图的提示词必须引用这组锚点，保证全文视觉一致。
 
-**6.4 内文配图**：分析文章结构，为每个需要配图的段落选择图片类型（infographic/scene/flowchart/comparison/framework/timeline），使用对应的结构化提示词模板生成 3-6 张配图提示词（按 visual-prompts.md）。批量调用 image_gen.py，替换 Markdown 占位符。
+**6.4 内文配图**:分析文章结构,为每个需要配图的段落按 6.1b 选模式 + 档位:
+- **`decorative` 图(T0/T1)**:从 visual-prompts.md 的 6 种旧模板中选(infographic/scene/flowchart/comparison/framework/timeline),1 张图 1 个概念。文字极少时走 T0,有大标题走 T1
+- **`infographic-dense` 图(T2 默认)**:走 visual-prompts.md 第三节的 4 步流程(选 Layout → 选 Style → 结构化内容 → 分别合成「底图 prompts」和「overlay.json」两块输出),1 张图塞 6-7 个模块;先读 `{skill_dir}/references/visuals/README.md` 挑 layout/style 搭配
 
-**降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。
+生成 3-6 张配图提示词写入 `output/{slug}-prompts.md`,每张 infographic-dense 图额外产出 `output/images/chart-N.overlay.json`。如果 `skip_image_gen != true`,批量调用 image_gen.py 出底图,然后自动跑 overlay_text.py 合成终图。
+
+**6.5 T2 叠字自动化**(Pillow 后期排字):
+
+每张 infographic-dense 图的产出链:
+```
+AI 出底图:chart-N-raw.png   ←(无任何文字,仅视觉)
+   ↓
+overlay.json:               ←(agent 按文章内容生成字层清单)
+  { "size": [1280, 720],
+    "layers": [
+      {"text": "付费 AI Coding 工具 Top 4",
+       "x": 640, "y": 100, "anchor": "mm",
+       "weight": "Bold", "size": 56, "color": "#2D2926",
+       "bg": "#DCAC5E"},
+      ... 6-30 层
+    ]
+  }
+   ↓
+python3 {skill_dir}/toolkit/overlay_text.py \
+    output/images/chart-N-raw.png \
+    output/images/chart-N.overlay.json
+   ↓
+chart-N.png  ←(汉字 100% 精准)
+```
+
+**overlay.json schema**:
+- 根级:`size` [w, h] 可选 · `layers` 列表
+- 每个 layer:`text`(必填)· `x`、`y`(必填,像素坐标)· `anchor`(默认 `mm`)· `weight`(Regular/Medium/Semibold/Bold/Heavy)· `size`(px)· `color`(#RRGGBB 或 #RRGGBBAA)· `stroke_color`、`stroke_width` 可选 · `bg`(背景色,画圆角矩形)· `bg_padding` · `line_spacing` · `max_width`(自动换行)· `rotation`(度)· `opacity`
+
+**skip_image_gen 行为**:
+- `skip_image_gen=true` → 不调 image_gen.py、不调 overlay_text.py
+- 但 **overlay.json 必须始终写到 `output/images/chart-N.overlay.json`**,用户拿到底图后可以手动跑 overlay_text.py
+
+**6.6 什么时候调用外部 baoyu-infographic**(判定详见 `{skill_dir}/references/visuals/when-to-use-baoyu.md`):
+
+默认 WeWrite 自己生成的 `infographic-dense` 提示词够用(批产公众号正文配图的场景下)。**仅当以下任一条件满足时建议调用 `/baoyu-infographic`**:
+
+| 触发条件 | 为什么 |
+|---------|--------|
+| 小红书 3:4 独立图文(一篇 = 6-7 张分 P 图) | baoyu 专为此优化,有完整分 P 工作流 |
+| 用户手动说「这张图给我做得更精」「单独打磨这张」 | baoyu 的 analysis-framework 精度更高 |
+| 复杂多维度数据(需要 12+ 元素,超过 WeWrite 推荐的 6-7) | baoyu 能处理周期表/生态图这种大信息量 |
+| 用户关键词:「高密度信息大图」「小红书风格」「单图打磨」 | 关键词匹配 |
+
+**不触发的场景**(WeWrite 自产就够):
+- 公众号文章正文批量配图(一次 4-6 张需要视觉协调)
+- 一周批产多篇文章
+- 时间紧迫
+
+**调用方式**(满足触发条件时):
+1. 把该张图的 Section 结构(6-7 个模块内容)保存到临时 md 文件
+2. `/baoyu-infographic <临时文件> --layout <layout> --style <style> --aspect 16:9 --lang zh`
+3. 用返回的精细化 prompt 替换或补充 WeWrite 原输出的版本
+
+**降级**：image_gen.py 支持多 provider 自动 fallback（按 config.yaml 中 providers 列表顺序尝试）。全部失败 → 输出提示词 + 备选图库关键词，继续。**提示词文件始终保留**，即使图片生成失败或被跳过。
 
 ---
 
@@ -465,6 +595,22 @@ python3 {skill_dir}/toolkit/cli.py preview {markdown} --theme {theme} --no-open 
 
 - 最终标题 + 2 备选 + 摘要 + 5 标签 + media_id
 - 编辑建议："文章有 2-3 个编辑锚点，建议加入你自己的话。你可以在本地 markdown 里改，也可以直接在微信草稿箱改——改完后说**'学习我的修改'**，WeWrite 都能学到你的风格。"
+- **图片下一步**（标准回复模板，按此输出）：
+
+  ```
+  📸 图片生成（路径 1 · ChatGPT 网页，推荐）
+
+  1. 提示词文件：output/{slug}-prompts.md
+  2. 打开 chat.openai.com，把**封面创意 C**的英文提示词粘过去生成，下载后存为
+     output/images/cover.png
+  3. 依次把 N 张内文配图的英文提示词也粘过去生成，按 prompts.md 里标注的
+     `存为` 字段命名（chart-1.png / chart-2.png / ...），放到 output/images/
+  4. 存完立即预览：
+     python3 toolkit/cli.py preview output/{slug}.md --theme {theme}
+  5. 将来推送时 cli.py publish 会自动上传这些本地图到微信 CDN，无需手动处理
+
+  如果想走路径 2（Gemini Advanced），同一份英文提示词直接粘到 gemini.google.com
+  ```
 
 **8.3 后续操作**：
 

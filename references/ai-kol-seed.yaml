@@ -1,0 +1,175 @@
+# AI KOL 种子库 · 待订阅候选 · 持续扩容到 100
+# 用户每天从 daily-report 看 5 个候选 · 觉得对就去 wewe-rss web UI 订阅
+# 订阅成功后跑 scripts/setup_kol_feeds.py 同步入 kol_list.yaml#status=active
+#
+# 字段:
+#   name      公众号名(精确名)
+#   handle    估猜的 handle / 拼音(可选)
+#   theme     7 主题里命中哪一个(主)
+#   why       为啥推荐(2-3 字)
+#   weight    50-90 · 越大越头部
+#   notes     特别说明(可选)
+#
+# 加新候选规则(KOL 准入 5 条标准):见 references/kol-screening-criteria.md
+
+candidates:
+  # ── AI 工具 / Agent / Claude / GPT 实战类(对标本号) ──
+  - name: 宝玉的分享
+    handle: dotey
+    theme: AI 干货
+    weight: 90
+    why: AI 翻译家 · 长期高质量 prompt 心得
+  - name: 数字生命卡兹克
+    handle: shumingpt-life
+    theme: AI 干货
+    weight: 85
+    why: 已 active(留作种子库参考)
+  - name: 量子位
+    handle: QbitAI
+    theme: AI 真实测评
+    weight: 80
+    why: AI 媒体 · 偶有干货深度文(挑选订阅)
+  - name: 机器之心
+    handle: almosthuman2014
+    theme: AI 真实测评
+    weight: 80
+    why: AI 学术媒体 · 偶有产品评测
+  - name: 歸藏的 AI 工具箱
+    handle: guicang_ai
+    theme: AI 干货
+    weight: 80
+    why: AI 工具横评 · 工具箱合集
+  - name: AI 学习圈
+    theme: AI 教程
+    weight: 75
+    why: 教程合集
+  - name: 赛博禅心
+    handle: cybermonk
+    theme: AI 感悟
+    weight: 80
+    why: 工程师视角的 AI 长期观察
+  - name: 衡宇 AI
+    theme: AI 真实测评
+    weight: 70
+    why: 模型测评
+
+  # ── AI 副业 / 创业 / 红利路径 ──
+  - name: 陈财猫
+    handle: chencaimao
+    theme: AI 赚钱
+    weight: 75
+    why: AI 副业搞钱 + 提示工程
+  - name: 林粒粒呀
+    theme: AI 赚钱
+    weight: 75
+    why: AIGC 副业 / 实战变现
+  - name: AGI 课代表
+    theme: AI 赚钱
+    weight: 70
+    why: AI 副业方法论
+  - name: AI 进化论
+    theme: AI 创业
+    weight: 70
+    why: AI 创业拆解
+  - name: 卓克
+    handle: zhuoke
+    theme: AI 感悟
+    weight: 80
+    why: 科技深度 · 偶有 AI 议题
+  - name: 周鸿祎
+    theme: AI 创业
+    weight: 80
+    why: 360 创始人 · AI 创业看法
+  - name: 一泽 Eze
+    theme: AI 创业
+    weight: 70
+    why: AI Indie Hacker 视角
+
+  # ── Claude / 海外大模型 / 工程派 ──
+  - name: 吴恩达
+    handle: deeplearningai
+    theme: AI 教程
+    weight: 90
+    why: 全球 AI 教育 · 中文公众号偶发
+  - name: 黄建同学
+    theme: AI 干货
+    weight: 75
+    why: 大模型工程师视角
+  - name: 阿橘的喵
+    theme: AI 干货
+    weight: 70
+    why: AI 工具实战 / 提示词工程
+  - name: 小互
+    handle: imxiaohu
+    theme: AI 真实测评
+    weight: 75
+    why: AI 工具速测 / 信息汇总
+  - name: 问号 AI
+    theme: AI 真实测评
+    weight: 70
+    why: AI 工具评测
+
+  # ── 教程 / 上手类 ──
+  - name: AI 工程师小贾
+    theme: AI 教程
+    weight: 70
+    why: AI 教程 · step by step
+  - name: 一只 AI 程序员
+    theme: AI 教程
+    weight: 65
+    why: AI 编程教程
+  - name: AI 范儿
+    theme: AI 教程
+    weight: 65
+    why: AI 上手教程
+
+  # ── 踩坑 / 真实测评 ──
+  - name: 量子学派
+    theme: AI 踩坑
+    weight: 70
+    why: AI 翻车案例 · 反共识观察
+  - name: 宝玉团队
+    theme: AI 踩坑
+    weight: 70
+    why: 翻译实战 + 翻车记录
+
+  # ── 感悟 / 长期视角 ──
+  - name: 即刻AI
+    theme: AI 感悟
+    weight: 70
+    why: 即刻 AI 圈优秀讨论搬运
+  - name: 王建硕
+    theme: AI 感悟
+    weight: 70
+    why: 创业老兵 + AI 长期观察
+  - name: 余晟以为
+    theme: AI 感悟
+    weight: 75
+    why: 工程师视角长期观察
+  - name: caoz的梦呓 [archived]
+    theme: AI 感悟
+    weight: 70
+    why: 已 archived · 但偶有 AI 文章可单篇收
+  - name: 王川
+    handle: chuanwang
+    theme: AI 感悟
+    weight: 80
+    why: 投资 + 长期观察 · 注意只收 AI 主题文章
+  - name: 路意
+    theme: AI 创业
+    weight: 70
+    why: AI 创业实战 / Indie
+
+  # ── 海外搬运 / 翻译类(挑选订阅 · 谨慎)──
+  - name: AI 工坊
+    theme: AI 真实测评
+    weight: 65
+    why: 海外工具搬运
+  - name: AI 漫游指南
+    theme: AI 干货
+    weight: 65
+    why: 海外内容搬运 + 编辑
+
+  # ── 待补充(目标 100)──
+  # 用户在 wewe-rss 订阅后 setup_kol_feeds.py 自动同步
+  # 这个种子库每周由 discover_kol.py 自动抓 KOL 文章里的 @mention / 引用补充

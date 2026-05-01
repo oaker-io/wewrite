@@ -47,3 +47,9 @@ cover_style: "简洁科技感，蓝色调，扁平化设计"
 
 # 署名
 author: "Demo编辑部"
+
+# QR 二维码绝对路径(可选)· sanitize 末尾自动注入 author-card 后的 QR 块
+# 不配置 → fallback 相对路径 images/qr-*.png(只在 wewrite 自宅运行 OK)
+# 跨目录运行(markdown 在外部项目目录)必须配置绝对路径
+# qr_zhichen: /absolute/path/to/qr-zhichen.png
+# qr_openclaw: /absolute/path/to/qr-openclaw.png
