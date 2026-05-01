@@ -18,6 +18,7 @@
 from __future__ import annotations
 
 import re
+import yaml
 from datetime import datetime
 from pathlib import Path
 
@@ -155,23 +156,76 @@ def _ensure_cta_block(text: str, cta_md: str = DEFAULT_CTA_BLOCK) -> str:
 
 
 # 文末必须带的 QR 二维码块 · 武汉群是用户私域核心入口(2026-04-25 加)
-DEFAULT_QR_BLOCK = """
-### 👋 加我个人微信
-
-![智辰老师聊 ai](images/qr-zhichen.png)
-
-### 🔥 武汉同城 · OpenClaw 创业群
-
-![openclaw 武汉创业群](images/qr-openclaw.png)
-""".strip()
+# 2026-05-02:QR path 提到 style.yaml(qr_zhichen / qr_openclaw 绝对路径)
+# 修跨目录运行时 sanitize 注入的相对路径 images/qr-*.png 在外部目录找不到的 bug
+_qr_config_cache: "dict | None" = None
 
 
-def _ensure_qr_block(text: str, qr_md: str = DEFAULT_QR_BLOCK) -> str:
+def _load_qr_config() -> dict:
+    """从 wewrite/style.yaml 读 QR 绝对路径 · 缓存 · 失败 fallback 到相对路径。
+
+    style.yaml 中 top-level key:
+      qr_zhichen: /absolute/path/to/qr-zhichen.png
+      qr_openclaw: /absolute/path/to/qr-openclaw.png
+    缺失时 fallback `images/qr-*.png`(只在 wewrite 自宅运行 OK)。
+    """
+    global _qr_config_cache
+    if _qr_config_cache is not None:
+        return _qr_config_cache
+
+    config = {
+        "zhichen": "images/qr-zhichen.png",
+        "openclaw": "images/qr-openclaw.png",
+    }
+
+    # sanitize.py 在 wewrite/toolkit/ 下 · style.yaml 在 wewrite/ 下
+    style_path = Path(__file__).resolve().parent.parent / "style.yaml"
+    if style_path.exists():
+        try:
+            data = yaml.safe_load(style_path.read_text(encoding="utf-8")) or {}
+            if data.get("qr_zhichen"):
+                config["zhichen"] = str(data["qr_zhichen"])
+            if data.get("qr_openclaw"):
+                config["openclaw"] = str(data["qr_openclaw"])
+        except (yaml.YAMLError, OSError):
+            # 配置坏 · 不阻断 sanitize · 用 fallback 相对路径
+            pass
+
+    _qr_config_cache = config
+    return config
+
+
+def _build_qr_block(config: "dict | None" = None) -> str:
+    """构造 QR markdown 块 · 路径来自 _load_qr_config(优先 style.yaml 绝对路径)。"""
+    if config is None:
+        config = _load_qr_config()
+    return (
+        f"### 👋 加我个人微信\n\n"
+        f"![智辰老师聊 ai]({config['zhichen']})\n\n"
+        f"### 🔥 武汉同城 · OpenClaw 创业群\n\n"
+        f"![openclaw 武汉创业群]({config['openclaw']})"
+    )
+
+
+# 保留 DEFAULT_QR_BLOCK 常量(向后兼容 · 测试 / 老代码 import)
+# 实际注入用 _build_qr_block() · 走 style.yaml 配置
+DEFAULT_QR_BLOCK = _build_qr_block({
+    "zhichen": "images/qr-zhichen.png",
+    "openclaw": "images/qr-openclaw.png",
+})
+
+
+def _ensure_qr_block(text: str, qr_md: "str | None" = None) -> str:
     """末尾 author-card 之后插入 QR 二维码块(若尾部还没有)。
 
-    幂等:看尾部 30 行是否已含 `qr-openclaw.png` · 有就跳过。
+    qr_md 默认 None · 自动调 _build_qr_block() 从 style.yaml 读绝对路径(2026-05-02)。
+    显式传 qr_md 字符串仍受支持(向后兼容 / 测试)。
+
+    幂等:看尾部 30 行是否已含 `qr-openclaw` · 有就跳过。
     无 author-card 时也注入(直接 append 到末尾)· 防 shortform 兜底失败也能保 QR。
     """
+    if qr_md is None:
+        qr_md = _build_qr_block()
     tail = "\n".join(text.splitlines()[-_TAIL_LOOKBACK_LINES:])
     if "qr-openclaw" in tail:
         return text

@@ -137,7 +137,13 @@ def cmd_publish(args):
             html = html.replace(img_src, wechat_url)
             print(f"  -> {wechat_url}")
         else:
-            print(f"Warning: image not found: {img_src} (searched {md_dir})")
+            print(
+                f"⚠️  image not found: {img_src}\n"
+                f"   searched: {md_dir}\n"
+                f"   fix: 用绝对路径 · 或确认 markdown 同级有 images/ 子目录"
+                f" · 或在 style.yaml 配 qr_zhichen / qr_openclaw(若是 QR 块)",
+                file=sys.stderr,
+            )
 
     # Upload cover / thumb
     # 优先级:--thumb (1:1 看一看小图) > --cover (2.35:1 大封面)
@@ -223,7 +229,12 @@ def _process_one_article(
             wechat_url = upload_image(token, str(img_path))
             html = html.replace(img_src, wechat_url)
         else:
-            print(f"  Warning: image not found: {img_src}")
+            print(
+                f"  ⚠️  image not found: {img_src}\n"
+                f"     fix: 用绝对路径 · 或确认 markdown 同级有 images/ 子目录"
+                f" · 或在 style.yaml 配 qr_zhichen / qr_openclaw(若是 QR 块)",
+                file=sys.stderr,
+            )
 
     thumb_media_id = None
     if thumb:
