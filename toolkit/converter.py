@@ -409,11 +409,15 @@ class WeChatConverter:
         """Pre-process :::container blocks into styled HTML before Markdown parsing.
 
         Supports:
-          :::dialogue   — chat bubble layout
-          :::timeline   — vertical timeline with dots
-          :::callout    — Obsidian-style callout (tip/warning/info/danger)
-          :::quote      — styled pull quote
+          :::dialogue     — chat bubble layout
+          :::timeline     — vertical timeline with dots
+          :::callout      — Obsidian-style callout (tip/warning/info/danger)
+          :::quote        — styled pull quote
+          :::author-card  — author / brand intro card (8 styles · auto theme-matched)
         """
+        from author_card import preprocess_author_card
+        theme_id = self._theme.name if self._theme else None
+        text = preprocess_author_card(text, theme_id=theme_id)
         text = self._process_dialogue(text)
         text = self._process_timeline(text)
         text = self._process_callout(text)

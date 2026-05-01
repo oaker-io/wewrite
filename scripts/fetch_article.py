@@ -14,6 +14,8 @@ Usage:
     python3 scripts/fetch_article.py <url> --json             # JSON output for agent
 """
 
+from __future__ import annotations  # py3.9 compat for `str | None` type hints
+
 import argparse
 import json
 import re

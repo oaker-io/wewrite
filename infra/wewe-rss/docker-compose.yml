@@ -1,0 +1,28 @@
+# wewe-rss · 把订阅的 WeChat 公众号转 RSS · 本机自建
+#
+# 启动:
+#   cd infra/wewe-rss
+#   docker compose up -d
+#
+# 浏览器开:http://localhost:4000
+# 默认账号:用户名 admin / 密码 admin (见 README.md 修改)
+#
+# 数据持久化:./data/(SQLite + 缓存)
+# cookie 寿命:7-15 天 · 失效后 web UI 重扫码即可
+
+services:
+  wewe-rss:
+    image: cooderl/wewe-rss-sqlite:latest
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      # 默认认证(进 web UI 用) · 生产改强密码
+      - AUTH_CODE=wewrite-zhichen-2026
+      # 数据库:走 sqlite · 数据卷挂在 ./data
+      - DATABASE_TYPE=sqlite
+      - DATABASE_URL=file:/app/data/wewe-rss.db
+      # 服务监听
+      - SERVER_ORIGIN_URL=http://localhost:4000
+    volumes:
+      - ./data:/app/data

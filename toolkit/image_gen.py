@@ -70,25 +70,85 @@ SIZE_PRESETS = {
         "doubao": "2952x1256", "openai": _DEFAULT, "gemini": _DEFAULT,
         "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
         "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "poe": _DEFAULT,
     },
     "article": {
         "doubao": "2560x1440", "openai": _DEFAULT, "gemini": _DEFAULT,
         "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
         "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "poe": _DEFAULT,
     },
     "vertical": {
         "doubao": "1088x2560", "openai": _DEFAULT_V, "gemini": _DEFAULT_V,
         "dashscope": _DEFAULT_V, "minimax": _DEFAULT_V, "replicate": _DEFAULT_V,
         "azure_openai": _DEFAULT_V, "openrouter": _DEFAULT_V, "jimeng": _DEFAULT_V,
+        "poe": _DEFAULT_V,
     },
     "square": {
         "doubao": "2048x2048", "openai": _DEFAULT_SQ, "gemini": _DEFAULT_SQ,
         "dashscope": _DEFAULT_SQ, "minimax": _DEFAULT_SQ, "replicate": _DEFAULT_SQ,
         "azure_openai": _DEFAULT_SQ, "openrouter": _DEFAULT_SQ, "jimeng": _DEFAULT_SQ,
+        "poe": _DEFAULT_SQ,
     },
 }
 
 MAX_FILE_SIZE = 5 * 1024 * 1024  # 5MB
+
+# --- Quota tracking (Gemini free tier = 1500 img-gen/day as of 2026-04) ---
+# We bail out of Gemini at 1400 to leave a 100-call buffer and fall back to Poe.
+
+QUOTA_FILE = Path.home() / ".claude" / "wewrite-quota.json"
+QUOTA_LIMITS = {
+    "gemini": 1400,    # free-tier daily image-gen cap (conservative)
+    # other providers tracked without enforcement, just for visibility
+}
+QUOTA_FAIL_THRESHOLD = 3   # consecutive fails => skip this provider today
+
+
+def _load_quota() -> dict:
+    try:
+        return json.loads(QUOTA_FILE.read_text())
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {}
+
+
+def _save_quota(q: dict) -> None:
+    try:
+        QUOTA_FILE.parent.mkdir(parents=True, exist_ok=True)
+        QUOTA_FILE.write_text(json.dumps(q, indent=2))
+    except OSError:
+        pass  # quota tracking is best-effort
+
+
+def _quota_key(provider: str) -> str:
+    return f"{provider}:{datetime.now(timezone.utc).strftime('%Y-%m-%d')}"
+
+
+def _should_skip_quota(provider_key: str) -> tuple[bool, str]:
+    """Return (skip, reason). Skip if daily cap reached or too many fails today."""
+    q = _load_quota()
+    entry = q.get(_quota_key(provider_key), {})
+    used = entry.get("success", 0) + entry.get("fail", 0)
+    limit = QUOTA_LIMITS.get(provider_key)
+    if limit is not None and used >= limit:
+        return True, f"{provider_key} daily cap reached ({used}/{limit})"
+    fails = entry.get("consecutive_fail", 0)
+    if fails >= QUOTA_FAIL_THRESHOLD:
+        return True, f"{provider_key} skipped today ({fails} consecutive failures)"
+    return False, ""
+
+
+def _record_quota(provider_key: str, success: bool) -> None:
+    q = _load_quota()
+    k = _quota_key(provider_key)
+    entry = q.setdefault(k, {"success": 0, "fail": 0, "consecutive_fail": 0})
+    if success:
+        entry["success"] += 1
+        entry["consecutive_fail"] = 0
+    else:
+        entry["fail"] += 1
+        entry["consecutive_fail"] += 1
+    _save_quota(q)
 
 
 def _compress_image(raw_bytes: bytes, max_size: int) -> bytes:
@@ -189,7 +249,7 @@ class DoubaoProvider(ImageProvider):
 
 
 class OpenAIProvider(ImageProvider):
-    """OpenAI DALL-E 3 provider."""
+    """OpenAI image provider (DALL-E 3 + gpt-image-1)."""
 
     provider_key = "openai"
 
@@ -200,21 +260,29 @@ class OpenAIProvider(ImageProvider):
         self._base_url = base_url
 
     def generate(self, prompt: str, size: str) -> bytes:
+        is_gpt_image = self._model.startswith("gpt-image")
+        payload = {"model": self._model, "prompt": prompt, "n": 1, "size": size}
+        if not is_gpt_image:
+            # dall-e-3 still supports response_format; gpt-image-1 rejects it and always returns b64
+            payload["response_format"] = "url"
         resp = requests.post(
             f"{self._base_url}/images/generations",
             headers={"Content-Type": "application/json",
                      "Authorization": f"Bearer {self._api_key}"},
-            json={"model": self._model, "prompt": prompt,
-                  "n": 1, "size": size, "response_format": "url"},
+            json=payload,
             timeout=120,
         )
         data = resp.json()
         if resp.status_code != 200:
             raise ValueError(f"OpenAI error ({resp.status_code}): "
                              f"{data.get('error', {}).get('message', str(data))}")
-        url = data.get("data", [{}])[0].get("url")
+        first = data.get("data", [{}])[0]
+        if first.get("b64_json"):
+            import base64
+            return base64.b64decode(first["b64_json"])
+        url = first.get("url")
         if not url:
-            raise ValueError(f"No image URL: {data}")
+            raise ValueError(f"No image url or b64_json in response: {data}")
         return _download_image(url)
 
 
@@ -476,6 +544,94 @@ class OpenRouterProvider(ImageProvider):
         raise ValueError(f"No image in OpenRouter response: {data}")
 
 
+class PoeProvider(ImageProvider):
+    """Poe — OpenAI-compatible proxy for image bots (nano-banana-2 etc.).
+
+    Poe's image bots require **stream=True** for image delivery: the image
+    arrives as a markdown `![alt](url)` reference inside a late stream chunk.
+    Non-streaming responses only contain "thinking text" without the image.
+    """
+
+    provider_key = "poe"
+
+    def __init__(self, api_key: str, model: str = "nano-banana-2",
+                 base_url: str = "https://api.poe.com/v1", **_kw):
+        self._api_key = api_key
+        self._model = model
+        self._base_url = base_url
+
+    def generate(self, prompt: str, size: str) -> bytes:
+        import re
+        aspect = _size_to_aspect(size)
+        # Embed aspect hint in the prompt; Poe's image bots follow text instructions
+        if aspect != "1:1":
+            prompt = f"{prompt}\n\n(image aspect ratio: {aspect})"
+
+        resp = requests.post(
+            f"{self._base_url}/chat/completions",
+            headers={
+                "Content-Type": "application/json",
+                "Authorization": f"Bearer {self._api_key}",
+                "Accept": "text/event-stream",
+            },
+            json={
+                "model": self._model,
+                "messages": [{"role": "user", "content": prompt}],
+                "stream": True,
+            },
+            stream=True,
+            timeout=180,
+        )
+        if resp.status_code != 200:
+            raise ValueError(f"Poe error ({resp.status_code}): {resp.text[:300]}")
+
+        # Accumulate streamed content until we find an image reference
+        content = ""
+        md_img = re.compile(r"!\[[^\]]*\]\((https?://[^)\s]+)\)")
+        data_uri = re.compile(r"data:image/[^;]+;base64,([A-Za-z0-9+/=]+)")
+
+        for line in resp.iter_lines(decode_unicode=True):
+            if not line or not line.startswith("data: "):
+                continue
+            payload = line[6:].strip()
+            if payload == "[DONE]":
+                break
+            try:
+                ev = json.loads(payload)
+            except json.JSONDecodeError:
+                continue
+
+            delta = ev.get("choices", [{}])[0].get("delta", {})
+
+            # Structured image delivery (tool-call style, uncommon on Poe)
+            for key in ("images", "attachments"):
+                items = delta.get(key) or []
+                for item in items:
+                    url = item if isinstance(item, str) else (
+                        item.get("url") or (item.get("image_url") or {}).get("url"))
+                    if url:
+                        if url.startswith("data:"):
+                            _, b64 = url.split(",", 1)
+                            return base64.b64decode(b64)
+                        return _download_image(url)
+
+            # Accumulate text deltas and scan for markdown/data-URI images
+            text = delta.get("content", "")
+            if isinstance(text, str):
+                content += text
+                m = md_img.search(content)
+                if m:
+                    return _download_image(m.group(1))
+                m = data_uri.search(content)
+                if m:
+                    return base64.b64decode(m.group(1))
+
+        # Stream ended without image
+        raise ValueError(
+            f"Poe stream finished without image. Content preview: {content[:400]!r}"
+        )
+
+
 class JimengProvider(ImageProvider):
     """ByteDance Jimeng (即梦) — async submit + poll with HMAC-SHA256 auth."""
 
@@ -603,6 +759,7 @@ PROVIDERS = {
     "azure_openai": AzureOpenAIProvider,
     "openrouter": OpenRouterProvider,
     "jimeng": JimengProvider,
+    "poe": PoeProvider,
 }
 
 
@@ -703,10 +860,16 @@ def generate_image(
     last_error = None
 
     for provider in chain:
+        skip, reason = _should_skip_quota(provider.provider_key)
+        if skip:
+            print(f"  · skip {provider.provider_key}: {reason}", file=sys.stderr)
+            continue
+
         resolved_size = provider.resolve_size(size)
         try:
             raw_bytes = provider.generate(prompt, resolved_size)
         except Exception as e:
+            _record_quota(provider.provider_key, success=False)
             last_error = e
             print(
                 f"Provider '{provider.provider_key}' failed: {e}. "
@@ -714,6 +877,8 @@ def generate_image(
                 file=sys.stderr,
             )
             continue
+
+        _record_quota(provider.provider_key, success=True)
 
         # Compress if over 5MB (WeChat upload limit)
         if len(raw_bytes) > MAX_FILE_SIZE:
