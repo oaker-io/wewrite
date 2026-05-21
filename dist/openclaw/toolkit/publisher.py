@@ -1,8 +1,17 @@
 import json
+import os
 
 import requests
 from dataclasses import dataclass
 from typing import Optional
+
+
+# Force WeChat API calls through a dedicated proxy (e.g. fixed-IP ECS) so
+# they bypass shell-level https_proxy (Clash) — see WECHAT_HTTPS_PROXY.
+_WECHAT_PROXY = os.environ.get("WECHAT_HTTPS_PROXY")
+_WECHAT_PROXIES = (
+    {"https": _WECHAT_PROXY, "http": _WECHAT_PROXY} if _WECHAT_PROXY else None
+)
 
 
 @dataclass
@@ -53,6 +62,7 @@ def create_draft(
         params={"access_token": access_token},
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
         headers={"Content-Type": "application/json; charset=utf-8"},
+        proxies=_WECHAT_PROXIES,
     )
 
     data = resp.json()
@@ -78,6 +88,7 @@ def get_draft(access_token: str, media_id: str) -> str:
         "https://api.weixin.qq.com/cgi-bin/draft/get",
         params={"access_token": access_token},
         json={"media_id": media_id},
+        proxies=_WECHAT_PROXIES,
     )
     resp.encoding = "utf-8"
     data = resp.json()
@@ -164,6 +175,7 @@ def create_image_post(
         params={"access_token": access_token},
         data=json.dumps(body, ensure_ascii=False).encode("utf-8"),
         headers={"Content-Type": "application/json; charset=utf-8"},
+        proxies=_WECHAT_PROXIES,
     )
 
     data = resp.json()

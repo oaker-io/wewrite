@@ -1,8 +1,16 @@
+import os
 import time
 import mimetypes
 import requests
 from pathlib import Path
 from dataclasses import dataclass
+
+# Force WeChat API calls through a dedicated proxy (e.g. fixed-IP ECS) so
+# they bypass shell-level https_proxy (Clash) — see WECHAT_HTTPS_PROXY.
+_WECHAT_PROXY = os.environ.get("WECHAT_HTTPS_PROXY")
+_WECHAT_PROXIES = (
+    {"https": _WECHAT_PROXY, "http": _WECHAT_PROXY} if _WECHAT_PROXY else None
+)
 
 # Token cache
 _token_cache: dict = {}
@@ -36,6 +44,7 @@ def get_access_token(appid: str, secret: str, force_refresh: bool = False) -> st
             "appid": appid,
             "secret": secret,
         },
+        proxies=_WECHAT_PROXIES,
     )
     data = resp.json()
 
@@ -76,6 +85,7 @@ def upload_image(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/media/uploadimg",
             params={"access_token": access_token},
             files={"media": (path.name, f, content_type)},
+            proxies=_WECHAT_PROXIES,
         )
 
     data = resp.json()
@@ -103,6 +113,7 @@ def upload_thumb(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/material/add_material",
             params={"access_token": access_token, "type": "image"},
             files={"media": (path.name, f, content_type)},
+            proxies=_WECHAT_PROXIES,
         )
 
     data = resp.json()

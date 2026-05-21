@@ -1,8 +1,36 @@
+import os
 import time
 import mimetypes
 import requests
 from pathlib import Path
 from dataclasses import dataclass
+
+
+def _autoload_wechat_proxy_env():
+    """Auto-load WECHAT_HTTPS_PROXY from ~/.wechat-proxy.env when shell rc
+    is bypassed (e.g. Claude Code's non-interactive bash, cron, launchd).
+    No-op if env already set or file missing."""
+    if os.environ.get("WECHAT_HTTPS_PROXY"):
+        return
+    env_file = Path.home() / ".wechat-proxy.env"
+    if not env_file.exists():
+        return
+    for line in env_file.read_text().splitlines():
+        line = line.strip()
+        if line.startswith("export WECHAT_HTTPS_PROXY="):
+            val = line.split("=", 1)[1].strip().strip('"').strip("'")
+            os.environ["WECHAT_HTTPS_PROXY"] = val
+            return
+
+
+_autoload_wechat_proxy_env()
+
+# Force WeChat API calls through a dedicated proxy (e.g. fixed-IP ECS) so
+# they bypass shell-level https_proxy (Clash) — see WECHAT_HTTPS_PROXY.
+_WECHAT_PROXY = os.environ.get("WECHAT_HTTPS_PROXY")
+_WECHAT_PROXIES = (
+    {"https": _WECHAT_PROXY, "http": _WECHAT_PROXY} if _WECHAT_PROXY else None
+)
 
 # Token cache
 _token_cache: dict = {}
@@ -36,6 +64,7 @@ def get_access_token(appid: str, secret: str, force_refresh: bool = False) -> st
             "appid": appid,
             "secret": secret,
         },
+        proxies=_WECHAT_PROXIES,
     )
     data = resp.json()
 
@@ -76,6 +105,7 @@ def upload_image(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/media/uploadimg",
             params={"access_token": access_token},
             files={"media": (path.name, f, content_type)},
+            proxies=_WECHAT_PROXIES,
         )
 
     data = resp.json()
@@ -103,6 +133,7 @@ def upload_thumb(access_token: str, image_path: str) -> str:
             "https://api.weixin.qq.com/cgi-bin/material/add_material",
             params={"access_token": access_token, "type": "image"},
             files={"media": (path.name, f, content_type)},
+            proxies=_WECHAT_PROXIES,
         )
 
     data = resp.json()
