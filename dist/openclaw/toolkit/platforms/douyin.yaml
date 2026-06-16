@@ -1,0 +1,17 @@
+id: douyin
+label: 抖音
+output_kind: oral_script
+output_filename: douyin.md
+min_chars: 0
+max_chars: 0
+needs_images: false
+tag_count: [0, 0]
+rewrite_brief: |
+  抖音口播脚本/分镜，目标是「可直接念出来、3 秒留住人」。
+  结构：
+  1. 钩子（0-3秒）：一句话制造冲突/好奇，给出最反直觉的结论。
+  2. 正文口播：口语短句，每句一个信息点，可念；配「【画面/分镜提示】」。
+  3. 节奏：每 5-10 秒一个小转折或数据点。
+  4. 结尾 CTA：引导互动（评论/关注/收藏）。
+  输出格式：用「口播：…」与「【画面：…】」交替排版，便于直接拍摄。
+  严禁照搬公众号书面表达；必须改写成可口播的短句。

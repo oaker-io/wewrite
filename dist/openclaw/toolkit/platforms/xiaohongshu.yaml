@@ -1,0 +1,16 @@
+id: xiaohongshu
+label: 小红书
+output_kind: graphic_text
+output_filename: xiaohongshu.md
+min_chars: 600
+max_chars: 1000
+needs_images: true
+tag_count: [3, 6]
+rewrite_brief: |
+  小红书种草/分享体，目标是「真人感强、像一篇用心的笔记」。
+  - 第一人称、口语化、真实细节；短句多分段，一段 1-3 句。
+  - 开头 3 行必须抓人（抛痛点/反差/结论前置），不铺垫。
+  - 正文用小标题或 emoji 分点，节奏轻快；适度 emoji（不堆砌）。
+  - 结尾给 3-6 个话题标签，形如 `#关键词`，贴合内容与搜索。
+  - 正文 600-1000 字（含标点）；标题口语化、带钩子。
+  - 严禁照搬公众号长句和书面腔；必须按本调性重写结构与表达。

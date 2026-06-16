@@ -54,6 +54,7 @@ export type JobSummary = {
   prompt: string;
   created_at: number;
   completion?: string | null;
+  kind?: "generate" | "distribute";
 };
 export type PlatformVersion = {
   platform: string;
