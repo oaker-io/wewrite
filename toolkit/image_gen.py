@@ -12,6 +12,7 @@ Supports multiple providers via a simple abstraction:
   - azure_openai — Azure-hosted DALL-E
   - openrouter — multi-model proxy
   - jimeng (ByteDance) — good for Chinese prompts
+  - agnes (Sapiens AI) — agnes-image-2.1-flash, free credits available
   - Custom providers via ImageProvider base class
 
 Usage as CLI:
@@ -74,21 +75,25 @@ SIZE_PRESETS = {
         "doubao": "2952x1256", "openai": _DEFAULT, "gemini": _DEFAULT,
         "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
         "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "agnes": _DEFAULT,
     },
     "article": {
         "doubao": "2560x1440", "openai": _DEFAULT, "gemini": _DEFAULT,
         "dashscope": _DEFAULT, "minimax": _DEFAULT, "replicate": _DEFAULT,
         "azure_openai": _DEFAULT, "openrouter": _DEFAULT, "jimeng": _DEFAULT,
+        "agnes": _DEFAULT,
     },
     "vertical": {
         "doubao": "1088x2560", "openai": _DEFAULT_V, "gemini": _DEFAULT_V,
         "dashscope": _DEFAULT_V, "minimax": _DEFAULT_V, "replicate": _DEFAULT_V,
         "azure_openai": _DEFAULT_V, "openrouter": _DEFAULT_V, "jimeng": _DEFAULT_V,
+        "agnes": _DEFAULT_V,
     },
     "square": {
         "doubao": "2048x2048", "openai": _DEFAULT_SQ, "gemini": _DEFAULT_SQ,
         "dashscope": _DEFAULT_SQ, "minimax": _DEFAULT_SQ, "replicate": _DEFAULT_SQ,
         "azure_openai": _DEFAULT_SQ, "openrouter": _DEFAULT_SQ, "jimeng": _DEFAULT_SQ,
+        "agnes": _DEFAULT_SQ,
     },
 }
 
@@ -612,6 +617,42 @@ class JimengProvider(ImageProvider):
         raise ValueError("Jimeng polling timeout")
 
 
+class AgnesProvider(ImageProvider):
+    """Agnes Image 2.1 Flash via Sapiens AI APIhub.
+
+    NOTE: Agnes requires `response_format` to be placed inside `extra_body`,
+    not at the top level of the request body.
+    """
+
+    provider_key = "agnes"
+
+    def __init__(self, api_key: str, model: str = "agnes-image-2.1-flash",
+                 base_url: str = "https://apihub.agnes-ai.com", **_kw):
+        self._api_key = api_key
+        self._model = model
+        self._base_url = base_url.rstrip("/")
+
+    def generate(self, prompt: str, size: str) -> bytes:
+        resp = requests.post(
+            f"{self._base_url}/v1/images/generations",
+            headers={"Content-Type": "application/json",
+                     "Authorization": f"Bearer {self._api_key}"},
+            json={"model": self._model, "prompt": prompt, "size": size,
+                  "extra_body": {"response_format": "url"}},
+            timeout=120,
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            err = data.get("error", {})
+            msg = err.get("message") if isinstance(err, dict) else str(err)
+            raise ValueError(f"Agnes error ({resp.status_code}): "
+                             f"{msg or str(data)}")
+        url = data.get("data", [{}])[0].get("url")
+        if not url:
+            raise ValueError(f"No image URL: {data}")
+        return _download_image(url)
+
+
 # --- Provider registry ---
 
 PROVIDERS = {
@@ -624,6 +665,7 @@ PROVIDERS = {
     "azure_openai": AzureOpenAIProvider,
     "openrouter": OpenRouterProvider,
     "jimeng": JimengProvider,
+    "agnes": AgnesProvider,
 }
 
 
