@@ -124,28 +124,47 @@ python3 toolkit/cli.py themes
 **Claude Code**：
 
 ```bash
+# macOS/Linux
 git clone --depth 1 https://github.com/oaker-io/wewrite.git ~/.claude/skills/wewrite
 cd ~/.claude/skills/wewrite && bash install.sh
+
+# Windows (PowerShell)
+git clone --depth 1 https://github.com/oaker-io/wewrite.git "$env:USERPROFILE\.claude\skills\wewrite"
+cd "$env:USERPROFILE\.claude\skills\wewrite"
+powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
 **OpenClaw**：
 
 ```bash
+# macOS/Linux
 git clone --depth 1 https://github.com/oaker-io/wewrite.git ~/.openclaw/skills/wewrite
 cd ~/.openclaw/skills/wewrite && bash install.sh
+
+# Windows (PowerShell)
+git clone --depth 1 https://github.com/oaker-io/wewrite.git "$env:USERPROFILE\.openclaw\skills\wewrite"
+cd "$env:USERPROFILE\.openclaw\skills\wewrite"
+powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
 **Codex**（OpenAI Codex CLI）：
 
 ```bash
+# macOS/Linux
 git clone --depth 1 https://github.com/oaker-io/wewrite.git ~/.codex/skills/wewrite
 cd ~/.codex/skills/wewrite && bash install.sh
 python3 scripts/build_codex.py --install   # 装自定义 prompt 到 ~/.codex/prompts/
+
+# Windows (PowerShell)
+git clone --depth 1 https://github.com/oaker-io/wewrite.git "$env:USERPROFILE\.codex\skills\wewrite"
+cd "$env:USERPROFILE\.codex\skills\wewrite"
+powershell -ExecutionPolicy Bypass -File install.ps1
+python scripts/build_codex.py --install   # 装自定义 prompt 到 ~/.codex/prompts/
 ```
 
 之后在 Codex 里用 `/wewrite 写一篇关于 X 的文章` 触发完整流程。Codex 没有 SKILL.md 自动触发机制，所以通过自定义 prompt 承载；源 `SKILL.md` 更新后重跑 `build_codex.py --install` 同步。详见 [`dist/codex/README.md`](dist/codex/README.md)。
 
-`install.sh` 会在 `.venv` 里创建隔离环境并安装依赖，自动绕过 macOS Homebrew Python 的 PEP 668 限制。skill 运行时会自动使用该 venv，无需手动 `activate`。
+`install.sh`（macOS/Linux）或 `install.ps1`（Windows）会在 `.venv` 里创建隔离环境并安装依赖，自动绕过 macOS Homebrew Python 的 PEP 668 限制。skill 运行时会自动使用该 venv，无需手动 `activate`。
 
 > 若你的环境没有 PEP 668 限制，也可以照旧直接 `pip install -r requirements.txt`。
 

@@ -43,7 +43,11 @@ allowed-tools:
 
 **读取/检查约定**：本文档中 `读取: <路径>` / `检查: <路径>` = **用你环境的文件读取工具真实打开该文件、读完其全部内容，然后再继续本步**。这不是描述性注释——未读取前不得执行依赖该文件的步骤；不同 harness 的文件读取工具名不同，按你环境的对应工具执行。
 
-**Python 解释器约定**：本文档所有 `python3` 命令优先解析为 `{skill_dir}/.venv/bin/python3`（若该文件存在），否则回退系统 `python3`。venv 由 `install.sh` 创建，用于隔离依赖并绕过 macOS Homebrew Python 的 PEP 668 限制。
+**Python 解释器约定**：本文档所有 `python3` 命令优先解析为：
+- **macOS/Linux**：`{skill_dir}/.venv/bin/python3`（若该文件存在）
+- **Windows**：`{skill_dir}\.venv\Scripts\python.exe`（若该文件存在）
+
+否则回退系统 `python3`（或 Windows 上的 `python`）。venv 由 `install.sh`（macOS/Linux）或 `install.ps1`（Windows）创建，用于隔离依赖并绕过 macOS Homebrew Python 的 PEP 668 限制。
 
 **Onboard 例外**：Onboard 是交互式的（需要问用户问题），不受"全自动"约束。Onboard 完成后回到全自动管道。
 
@@ -70,14 +74,19 @@ allowed-tools:
 
 ```bash
 # 优先用 venv 解释器（PEP 668 环境下依赖装在 .venv 里）；后续所有 python3 调用同此规则
+# macOS/Linux:
 PY="{skill_dir}/.venv/bin/python3"; [ -x "$PY" ] || PY="python3"
 "$PY" -c "import markdown, bs4, cssutils, requests, yaml, pygments, PIL" 2>&1
+
+# Windows (PowerShell):
+# $venvPython = "{skill_dir}\.venv\Scripts\python.exe"
+# if (Test-Path $venvPython) { & $venvPython -c "import markdown, bs4, cssutils, requests, yaml, pygments, PIL" } else { python -c "import markdown, bs4, cssutils, requests, yaml, pygments, PIL" }
 ```
 
 | 检查项 | 通过 | 不通过 |
 |--------|------|--------|
 | `config.yaml` 存在 | 静默 | 引导创建，或设 `skip_publish = true` |
-| Python 依赖 | 静默 | 引导执行 `bash {skill_dir}/install.sh`（自动建 .venv 装依赖，解决 macOS PEP 668 报错）；若环境无此限制也可 `pip install -r requirements.txt` |
+| Python 依赖 | 静默 | 引导执行 `bash {skill_dir}/install.sh`（macOS/Linux）或 `powershell -ExecutionPolicy Bypass -File {skill_dir}\install.ps1`（Windows）（自动建 .venv 装依赖，解决 macOS PEP 668 报错）；若环境无此限制也可 `pip install -r requirements.txt` |
 | `wechat.appid` + `secret` | 静默 | 设 `skip_publish = true` |
 | `image.api_key` 或 `image.providers` 至少一项有效 | 静默 | 设 `skip_image_gen = true` |
 | `references/exemplars/index.yaml` | 静默 | 提示："范文库为空。如果你有已发布的文章（markdown），可以说**'导入范文'**建立风格库，写出来的文章会更像你。没有也不影响使用。" |
